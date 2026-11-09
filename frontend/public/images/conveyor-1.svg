@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 600" width="960" height="600">
+<title>煤矸石输送带示意样本</title>
+<defs>
+  <linearGradient id="floor" x2="0" y2="1"><stop stop-color="#778992"/><stop offset="1" stop-color="#3c525d"/></linearGradient>
+  <linearGradient id="belt" x2=".3" y2="1"><stop stop-color="#64747a"/><stop offset="1" stop-color="#263439"/></linearGradient>
+  <pattern id="grain" width="16" height="15" patternUnits="userSpaceOnUse"><path d="M0 2h6m3 5h7M2 12h9" stroke="#e0e7e7" opacity=".15"/></pattern>
+  <path id="rock" d="M-46-10l16-15 42-5 30 13 4 27-17 18-36 2-35-13z" stroke="#273134" stroke-width="2"/>
+</defs>
+<rect width="960" height="600" fill="url(#floor)"/>
+<path d="M0 140H960M0 340H960M0 480H960M170 0 80 600M770 0l100 600" stroke="#bac6c9" opacity=".26" stroke-width="3"/>
+<path d="M337 51h263l217 549H116z" fill="#16262d" stroke="#273b43" stroke-width="15"/>
+<path d="M356 67h226l191 533H164z" fill="url(#belt)"/>
+<path d="M356 67h226l191 533H164z" fill="url(#grain)"/>
+<path d="M337 61 130 600m473-539 201 539" stroke="#a8b5b8" stroke-width="10"/>
+<path d="M317 75 102 600m517-525 222 525" stroke="#4c636d" stroke-width="14"/>
+<path d="M329 54h282l16 25H313z" fill="#a8b5b8" stroke="#657981" stroke-width="4"/>
+<use href="#rock" transform="translate(413 162) rotate(-59) scale(0.38)" fill="#354044"/>
+<use href="#rock" transform="translate(626 517) rotate(72) scale(0.45)" fill="#3e4a4c"/>
+<use href="#rock" transform="translate(504 287) rotate(65) scale(0.62)" fill="#354044"/>
+<use href="#rock" transform="translate(471 478) rotate(33) scale(0.51)" fill="#667174"/>
+<use href="#rock" transform="translate(520 245) rotate(89) scale(0.38)" fill="#3e4a4c"/>
+<use href="#rock" transform="translate(515 199) rotate(20) scale(0.25)" fill="#3e4a4c"/>
+<use href="#rock" transform="translate(392 176) rotate(45) scale(0.31)" fill="#3e4a4c"/>
+<use href="#rock" transform="translate(512 180) rotate(-90) scale(0.44)" fill="#354044"/>
+<use href="#rock" transform="translate(422 414) rotate(82) scale(0.56)" fill="#81817c"/>
+<use href="#rock" transform="translate(410 192) rotate(-28) scale(0.41)" fill="#354044"/>
+<use href="#rock" transform="translate(560 526) rotate(48) scale(0.29)" fill="#354044"/>
+<use href="#rock" transform="translate(563 389) rotate(-54) scale(0.63)" fill="#3e4a4c"/>
+<use href="#rock" transform="translate(335 337) rotate(-71) scale(0.32)" fill="#354044"/>
+<use href="#rock" transform="translate(559 182) rotate(-26) scale(0.39)" fill="#354044"/>
+<use href="#rock" transform="translate(319 515) rotate(0) scale(0.65)" fill="#354044"/>
+<use href="#rock" transform="translate(587 482) rotate(88) scale(0.39)" fill="#354044"/>
+<use href="#rock" transform="translate(466 383) rotate(-61) scale(0.28)" fill="#667174"/>
+<use href="#rock" transform="translate(393 452) rotate(-50) scale(0.30)" fill="#81817c"/>
+<use href="#rock" transform="translate(527 362) rotate(-48) scale(0.48)" fill="#667174"/>
+<use href="#rock" transform="translate(349 333) rotate(74) scale(0.38)" fill="#667174"/>
+<use href="#rock" transform="translate(538 239) rotate(53) scale(0.32)" fill="#354044"/>
+<use href="#rock" transform="translate(376 509) rotate(-81) scale(0.41)" fill="#81817c"/>
+<use href="#rock" transform="translate(514 186) rotate(-51) scale(0.62)" fill="#81817c"/>
+<use href="#rock" transform="translate(384 174) rotate(-31) scale(0.44)" fill="#354044"/>
+<use href="#rock" transform="translate(348 316) rotate(34) scale(0.64)" fill="#354044"/>
+<use href="#rock" transform="translate(344 472) rotate(-33) scale(0.65)" fill="#81817c"/>
+<use href="#rock" transform="translate(485 253) rotate(-32) scale(0.33)" fill="#3e4a4c"/>
+<use href="#rock" transform="translate(376 275) rotate(-20) scale(1)" fill="#273135"/><use href="#rock" transform="translate(552 342) rotate(29) scale(1.34)" fill="#969b96"/><use href="#rock" transform="translate(533 186) rotate(-22) scale(0.65)" fill="#c7a16a"/>
+<rect x="25" y="22" width="194" height="31" rx="3" fill="#26363e"/><text x="37" y="43" font-family="monospace" font-size="14" fill="#e5edef">CAM-01 / SAMPLE 1</text>
+</svg>

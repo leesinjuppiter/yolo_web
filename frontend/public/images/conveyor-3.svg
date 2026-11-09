@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 600" width="960" height="600">
+<title>煤矸石输送带示意样本</title>
+<defs>
+  <linearGradient id="floor" x2="0" y2="1"><stop stop-color="#778992"/><stop offset="1" stop-color="#3c525d"/></linearGradient>
+  <linearGradient id="belt" x2=".3" y2="1"><stop stop-color="#64747a"/><stop offset="1" stop-color="#263439"/></linearGradient>
+  <pattern id="grain" width="16" height="15" patternUnits="userSpaceOnUse"><path d="M0 2h6m3 5h7M2 12h9" stroke="#e0e7e7" opacity=".15"/></pattern>
+  <path id="rock" d="M-46-10l16-15 42-5 30 13 4 27-17 18-36 2-35-13z" stroke="#273134" stroke-width="2"/>
+</defs>
+<rect width="960" height="600" fill="url(#floor)"/>
+<path d="M0 140H960M0 340H960M0 480H960M170 0 80 600M770 0l100 600" stroke="#bac6c9" opacity=".26" stroke-width="3"/>
+<path d="M337 51h263l217 549H116z" fill="#16262d" stroke="#273b43" stroke-width="15"/>
+<path d="M356 67h226l191 533H164z" fill="url(#belt)"/>
+<path d="M356 67h226l191 533H164z" fill="url(#grain)"/>
+<path d="M337 61 130 600m473-539 201 539" stroke="#a8b5b8" stroke-width="10"/>
+<path d="M317 75 102 600m517-525 222 525" stroke="#4c636d" stroke-width="14"/>
+<path d="M329 54h282l16 25H313z" fill="#a8b5b8" stroke="#657981" stroke-width="4"/>
+<use href="#rock" transform="translate(579 381) rotate(68) scale(0.57)" fill="#3e4a4c"/>
+<use href="#rock" transform="translate(384 140) rotate(82) scale(0.26)" fill="#81817c"/>
+<use href="#rock" transform="translate(373 205) rotate(-39) scale(0.38)" fill="#3e4a4c"/>
+<use href="#rock" transform="translate(448 355) rotate(67) scale(0.57)" fill="#354044"/>
+<use href="#rock" transform="translate(395 370) rotate(24) scale(0.44)" fill="#3e4a4c"/>
+<use href="#rock" transform="translate(478 529) rotate(-62) scale(0.62)" fill="#81817c"/>
+<use href="#rock" transform="translate(392 500) rotate(28) scale(0.40)" fill="#667174"/>
+<use href="#rock" transform="translate(497 509) rotate(50) scale(0.42)" fill="#3e4a4c"/>
+<use href="#rock" transform="translate(315 403) rotate(-84) scale(0.58)" fill="#667174"/>
+<use href="#rock" transform="translate(483 430) rotate(-50) scale(0.68)" fill="#667174"/>
+<use href="#rock" transform="translate(462 166) rotate(-60) scale(0.63)" fill="#3e4a4c"/>
+<use href="#rock" transform="translate(420 243) rotate(38) scale(0.55)" fill="#354044"/>
+<use href="#rock" transform="translate(589 279) rotate(49) scale(0.61)" fill="#354044"/>
+<use href="#rock" transform="translate(539 129) rotate(-42) scale(0.27)" fill="#667174"/>
+<use href="#rock" transform="translate(430 300) rotate(9) scale(0.65)" fill="#3e4a4c"/>
+<use href="#rock" transform="translate(458 341) rotate(-84) scale(0.49)" fill="#3e4a4c"/>
+<use href="#rock" transform="translate(635 486) rotate(-64) scale(0.32)" fill="#667174"/>
+<use href="#rock" transform="translate(457 402) rotate(-56) scale(0.35)" fill="#667174"/>
+<use href="#rock" transform="translate(569 282) rotate(43) scale(0.57)" fill="#354044"/>
+<use href="#rock" transform="translate(418 224) rotate(-36) scale(0.48)" fill="#81817c"/>
+<use href="#rock" transform="translate(438 455) rotate(-82) scale(0.68)" fill="#667174"/>
+<use href="#rock" transform="translate(541 384) rotate(73) scale(0.35)" fill="#354044"/>
+<use href="#rock" transform="translate(465 521) rotate(-35) scale(0.68)" fill="#667174"/>
+<use href="#rock" transform="translate(565 300) rotate(-71) scale(0.40)" fill="#3e4a4c"/>
+<use href="#rock" transform="translate(350 522) rotate(-64) scale(0.29)" fill="#354044"/>
+<use href="#rock" transform="translate(489 153) rotate(-71) scale(0.42)" fill="#354044"/>
+<use href="#rock" transform="translate(402 362) rotate(20) scale(0.63)" fill="#81817c"/>
+<use href="#rock" transform="translate(485 379) rotate(-16) scale(1.22)" fill="#939a93"/><use href="#rock" transform="translate(625 325) rotate(24) scale(0.78)" fill="#2d3537"/>
+<rect x="25" y="22" width="194" height="31" rx="3" fill="#26363e"/><text x="37" y="43" font-family="monospace" font-size="14" fill="#e5edef">CAM-01 / SAMPLE 3</text>
+</svg>
