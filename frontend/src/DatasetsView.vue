@@ -2,6 +2,7 @@
 import { computed, ref, watch } from 'vue'
 import type { Dataset, DatasetAction, DatasetReport } from './domain'
 import { datasetCounts, taskLabels } from './domain'
+import DatasetQualityReport from './components/DatasetQualityReport.vue'
 
 type Task = Dataset['task']
 const props = defineProps<{ datasets: Dataset[]; report?: DatasetReport }>()
@@ -249,13 +250,18 @@ function closeMenuOutside(event: FocusEvent) {
         </div>
 
         <div v-if="report?.datasetId === row.dataset.id" class="report-row" :role="view === 'list' ? 'row' : undefined">
-          <div class="report" :role="view === 'list' ? 'cell' : undefined" :aria-colspan="view === 'list' ? 6 : undefined">
+          <DatasetQualityReport v-if="report.kind === 'quality'" :dataset="row.dataset" :report="report"
+            :role="view === 'list' ? 'cell' : undefined" :aria-colspan="view === 'list' ? 6 : undefined" @close="emit('close-report')" />
+          <div v-else class="report" :role="view === 'list' ? 'cell' : undefined" :aria-colspan="view === 'list' ? 6 : undefined">
             <div class="report-heading">
               <strong role="status">{{ report.pending ? '正在分析…' : report.title || '分析结果' }}</strong>
               <button class="text-button" type="button" @click="emit('close-report')">收起结果</button>
             </div>
             <dl v-if="report.items?.length" class="report-metrics">
-              <div v-for="item in report.items" :key="item.label">
+              <div v-for="item in report.items" :key="item.label" :class="{
+                'metric-error': report.kind === 'validate' && item.label === '错误',
+                'metric-warning': report.kind === 'validate' && item.label === '警告',
+              }">
                 <dt>{{ item.label }}</dt><dd>{{ item.value }}</dd>
               </div>
             </dl>
@@ -465,6 +471,9 @@ progress.complete { color: #368150; }
 .report-metrics div { min-width: 56px; flex: 1; padding: 5px; background: var(--surface, #fff); }
 .report-metrics dt { color: var(--muted, #5c6775); }
 .report-metrics dd { margin: 1px 0 0; font-family: var(--numeric); font-weight: 600; }
+.report-metrics .metric-error { color: var(--danger, #a9292f); background: #fff2f2; }
+.report-metrics .metric-warning { color: #805500; background: #fff6d8; }
+.report-metrics :is(.metric-error, .metric-warning) dt { color: inherit; }
 .report ul { padding-left: 16px; margin: 7px 0 0; }
 .empty-state { text-align: center; padding: 42px 16px; border: 1px solid var(--line, #e6e9ed); }
 .empty-state p { font-size: 13px; color: var(--muted, #5c6775); }

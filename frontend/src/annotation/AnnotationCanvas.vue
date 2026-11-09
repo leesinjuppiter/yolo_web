@@ -10,6 +10,7 @@ export type AnnotationTool = 'select' | 'draw' | 'pan' | 'keypoint'
 const props = defineProps<{
   image?: DatasetImage
   annotations: Annotation[]
+  hiddenAnnotationIds: ReadonlySet<string>
   classes: DatasetClass[]
   task: TaskType
   tool: AnnotationTool
@@ -135,7 +136,7 @@ defineExpose({ fit, zoomBy, finishPolygon, cancelDraft, nudgeAngle })
 
 function placeKeypoint(point: Point) {
   const current = props.annotations.find(item => item.id === props.selectedId)
-  if (current?.type !== 'pose' || !props.activeKeypoint || !inImage(point)) return
+  if (current?.type !== 'pose' || props.hiddenAnnotationIds.has(current.id) || !props.activeKeypoint || !inImage(point)) return
   emit('update', {
     ...current,
     keypoints: current.keypoints.map(keypoint => keypoint.name === props.activeKeypoint
@@ -281,7 +282,7 @@ const nodes = computed<ShapeNode[]>(() => {
     shapes.push({ key, component, config })
   }
   for (const [index, annotation] of props.annotations.entries()) {
-    if (annotation.type === 'classify') continue
+    if (annotation.type === 'classify' || props.hiddenAnnotationIds.has(annotation.id)) continue
     const { id } = annotation
     const selected = id === props.selectedId
     const color = byClass.value.get(annotation.class_id)?.color ?? '#748396'

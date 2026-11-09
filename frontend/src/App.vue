@@ -192,13 +192,15 @@ function deleteCurrent() {
 async function saveAnnotations(imageId: string, annotations: Annotation[], classes: DatasetClass[], status: AnnotationStatus) {
   const dataset = activeDataset.value
   const image = dataset?.images.find(item => item.id === imageId)
-  if (busy.value || !dataset || !image) return
+  if (busy.value || !dataset || !image) return false
   busy.value = true
   annotationError.value = ''
   try {
     replaceDataset(await updateAnnotations(dataset.id, image, annotations, classes, status))
+    return true
   } catch (error) {
     annotationError.value = message(error)
+    return false
   } finally {
     busy.value = false
   }
@@ -293,10 +295,10 @@ async function deleteImage(imageId: string) {
       :initial-image-id="initialImageId"
       :busy="busy"
       :error="annotationError"
+      :save-annotations="saveAnnotations"
       :edit-class="editClass"
       :delete-image="deleteImage"
       @back="router.push({ name: 'datasets' })"
-      @save="saveAnnotations"
     />
     <div v-else class="page-state">
       <p>{{ loaded ? (loadingError || '未找到可编辑的数据集') : '正在读取数据集…' }}</p>

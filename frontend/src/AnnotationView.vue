@@ -8,13 +8,11 @@ const props = defineProps<{
   initialImageId?: string
   busy?: boolean
   error?: string
+  saveAnnotations: (imageId: string, annotations: Annotation[], classes: DatasetClass[], status: AnnotationStatus) => Promise<boolean>
   editClass: (entry: DatasetClass, name: string, color: string) => Promise<DatasetClass>
   deleteImage: (imageId: string) => Promise<boolean>
 }>()
-const emit = defineEmits<{
-  back: []
-  save: [imageId: string, annotations: Annotation[], classes: DatasetClass[], status: AnnotationStatus]
-}>()
+const emit = defineEmits<{ back: [] }>()
 
 type Filter = 'all' | 'train' | 'val' | 'test' | 'unassigned'
 const filters: { value: Filter; label: string }[] = [
@@ -39,6 +37,7 @@ const activeVisibility = ref<1 | 2>(2)
 const tool = ref<AnnotationTool>('select')
 const zoom = ref(1)
 const grid = ref(true)
+const hiddenAnnotationIds = ref(new Set<string>())
 const draftPoints = ref(0)
 const classForm = ref<{ entry?: DatasetClass; name: string; color: string }>()
 const classError = ref('')
@@ -48,13 +47,15 @@ const dialog = ref<HTMLDialogElement>()
 const dialogMode = ref<'discard' | 'negative' | 'delete-image'>('discard')
 const deleteTarget = ref<DatasetImage>()
 const baseline = ref('')
-const pendingSignature = ref('')
+const switchingView = ref(false)
+const unfinishedNotice = ref(false)
 let confirmResult: ((confirmed: boolean) => void) | undefined
 
 const images = computed(() => props.dataset.images.filter(image => split.value === 'all' || (image.split ?? 'unassigned') === split.value))
 const image = computed(() => props.dataset.images.find(item => item.id === imageId.value))
 const imageIndex = computed(() => images.value.findIndex(item => item.id === imageId.value))
 const selected = computed(() => annotations.value.find(item => item.id === selectedId.value))
+const selectedHidden = computed(() => hiddenAnnotationIds.value.has(selectedId.value))
 const pose = computed(() => selected.value?.type === 'pose' ? selected.value : undefined)
 const byClass = computed(() => new Map(classes.value.map(item => [item.id, item])))
 const status = computed<AnnotationStatus>(() => annotations.value.length ? 'annotated' : negative.value ? 'negative' : 'unlabeled')
@@ -86,13 +87,14 @@ function firstImage() {
 
 function openImage(item?: DatasetImage) {
   imageId.value = item?.id ?? ''
+  hiddenAnnotationIds.value.clear()
   annotations.value = item ? JSON.parse(JSON.stringify(item.annotations)) as Annotation[] : []
   classes.value = props.dataset.classes.map(label => ({ ...label }))
   negative.value = item?.status === 'negative'
   activeClassId.value = annotations.value[0]?.class_id
     ?? (byClass.value.has(activeClassId.value) ? activeClassId.value : classes.value[0]?.id ?? '')
   baseline.value = snapshot(annotations.value, classes.value, status.value)
-  pendingSignature.value = ''
+  unfinishedNotice.value = false
   selectedId.value = ''
   activeKeypoint.value = ''
   activeVisibility.value = 2
@@ -107,18 +109,11 @@ watch([() => props.dataset.id, () => props.initialImageId], () => {
   openImage(firstImage())
 }, { immediate: true })
 
-watch([image, () => props.dataset.classes, () => props.busy, () => props.error], ([current, savedClasses, busy, error]) => {
-  if (pendingSignature.value && current) {
-    const signature = snapshot(current.annotations, savedClasses, current.status)
-    if (signature === pendingSignature.value) {
-      baseline.value = signature
-      pendingSignature.value = ''
-    } else if (!busy && error) {
-      pendingSignature.value = ''
-    }
-  }
+watch(image, current => {
   if (!current && images.value.length && !dirty.value && !deleteTarget.value) openImage(images.value[0])
 })
+
+watch(draftPoints, count => { if (!count) unfinishedNotice.value = false })
 
 function ask(mode: typeof dialogMode.value) {
   if (!dialog.value || confirmResult) return false
@@ -128,7 +123,7 @@ function ask(mode: typeof dialogMode.value) {
 }
 
 function confirmLeave(): boolean | Promise<boolean> {
-  if (props.busy || confirmResult) return false
+  if (props.busy || switchingView.value || confirmResult) return false
   return !dirty.value || ask('discard')
 }
 defineExpose({ confirmLeave })
@@ -139,8 +134,26 @@ function closeDialog(confirmed: boolean) {
   confirmResult = undefined
 }
 
-async function selectImage(item: DatasetImage) {
-  if (item.id !== imageId.value && await confirmLeave()) openImage(item)
+async function switchAfterSave(apply: () => void) {
+  if (props.busy || switchingView.value || confirmResult) return
+  if (draftPoints.value) {
+    unfinishedNotice.value = true
+    return
+  }
+  switchingView.value = true
+  try {
+    if (!dirty.value || await save()) {
+      await nextTick()
+      apply()
+    }
+  } finally {
+    switchingView.value = false
+  }
+}
+
+function selectImage(item: DatasetImage) {
+  if (item.id === imageId.value) return
+  void switchAfterSave(() => openImage(images.value.find(candidate => candidate.id === item.id)))
 }
 
 async function removeImage(item: DatasetImage) {
@@ -159,27 +172,28 @@ async function removeImage(item: DatasetImage) {
   }
 }
 
-async function setSplit(value: Filter) {
-  if (split.value === value || props.busy) return
-  if (value === 'all' || (image.value?.split ?? 'unassigned') === value && image.value) {
+function setSplit(value: Filter) {
+  if (split.value === value) return
+  void switchAfterSave(() => {
     split.value = value
-    if (!image.value) openImage(images.value[0])
-  } else if (await confirmLeave()) {
-    split.value = value
-    openImage(images.value[0])
-  }
+    if (imageIndex.value < 0) openImage(images.value[0])
+  })
 }
 
-function step(offset: number) {
+function step(offset: -1 | 1) {
+  if (imageIndex.value < 0) return
   const next = images.value[imageIndex.value + offset]
   if (next) void selectImage(next)
 }
 
-function save() {
-  if (!image.value || !dirty.value || props.busy || draftPoints.value) return
-  pendingSignature.value = snapshot(annotations.value, classes.value, status.value)
-  emit('save', imageId.value, JSON.parse(JSON.stringify(annotations.value)) as Annotation[],
+async function save() {
+  if (!image.value || props.busy || draftPoints.value) return false
+  if (!dirty.value) return true
+  const submitted = snapshot(annotations.value, classes.value, status.value)
+  const saved = await props.saveAnnotations(imageId.value, JSON.parse(JSON.stringify(annotations.value)) as Annotation[],
     classes.value.map(label => ({ ...label })), status.value)
+  if (saved) baseline.value = submitted
+  return saved
 }
 
 function selectObject(id: string) {
@@ -192,6 +206,10 @@ function selectObject(id: string) {
   if (selected.value.type === 'pose' && !selected.value.keypoints.some(point => point.name === activeKeypoint.value)) {
     activeKeypoint.value = selected.value.keypoints[0]?.name ?? ''
   }
+}
+
+function toggleAnnotationVisibility(id: string) {
+  if (!hiddenAnnotationIds.value.delete(id)) hiddenAnnotationIds.value.add(id)
 }
 
 function update(item: Annotation) {
@@ -327,17 +345,19 @@ function shapeInfo(item: Annotation) {
 }
 
 function onKey(event: KeyboardEvent) {
-  if (dialog.value?.open || event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement
+  if (event.isComposing || dialog.value?.open || event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement
     || event.target instanceof HTMLSelectElement || (event.target instanceof HTMLElement && event.target.isContentEditable)) return
   if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') {
     event.preventDefault()
-    save()
+    void save()
     return
   }
   if (event.ctrlKey || event.metaKey || event.altKey || props.busy) return
   switch (event.key.toLowerCase()) {
-    case 'arrowleft': event.preventDefault(); step(-1); break
-    case 'arrowright': event.preventDefault(); step(1); break
+    case 'd':
+    case 'arrowleft': event.preventDefault(); if (!event.repeat) void step(-1); break
+    case 'f':
+    case 'arrowright': event.preventDefault(); if (!event.repeat) void step(1); break
     case 'delete': remove(); break
     case 'escape': canvas.value?.cancelDraft(); selectObject(''); tool.value = 'select'; break
     case 'enter': if (draftPoints.value) { event.preventDefault(); canvas.value?.finishPolygon() }; break
@@ -376,11 +396,7 @@ onUnmounted(() => {
         <span v-if="image" class="file-tag" :title="image.name">{{ image.name }}</span>
         <span v-if="image" class="technical">{{ image.width }} × {{ image.height }} px</span>
       </div>
-      <div class="image-navigation">
-        <button class="button arrow" aria-label="上一张" title="上一张（←）" :disabled="busy || imageIndex <= 0" @click="step(-1)">‹</button>
-        <span class="technical">{{ imageIndex + 1 }} / {{ images.length }} 张</span>
-        <button class="button arrow" aria-label="下一张" title="下一张（→）" :disabled="busy || imageIndex >= images.length - 1" @click="step(1)">›</button>
-      </div>
+      <span class="technical image-navigation">{{ imageIndex + 1 }} / {{ images.length }} 张</span>
       <span v-if="image" class="save-status" :class="[status, { dirty }]" role="status">
         {{ busy ? (deleteTarget ? '删除中…' : '保存中…') : dirty ? '有未保存修改' : (image.version ? '已保存 · ' : '') + statusText[status] }}
       </span>
@@ -391,14 +407,14 @@ onUnmounted(() => {
     <div class="annotation-body">
       <aside class="image-rail" aria-label="数据集图片">
         <div class="image-filters">
-          <button v-for="filter in filters" :key="filter.value" type="button" :aria-pressed="split === filter.value" :disabled="busy"
+          <button v-for="filter in filters" :key="filter.value" type="button" :aria-pressed="split === filter.value" :disabled="busy || switchingView"
             :class="{ active: split === filter.value }" @click="setSplit(filter.value)">{{ filter.label }}</button>
         </div>
         <div class="rail-summary"><span>当前子集</span><strong class="technical">共 {{ images.length }} 张</strong></div>
         <div class="image-list">
           <div v-for="item in images" :key="item.id" class="image-entry" :class="{ active: item.id === imageId }">
             <button type="button" class="image-item" :aria-current="item.id === imageId ? 'true' : undefined"
-              :disabled="busy" @click="selectImage(item)">
+              :disabled="busy || switchingView" @click="selectImage(item)">
               <img v-if="item.src" :src="item.src" alt="" loading="lazy">
               <span v-else class="image-placeholder" aria-hidden="true">▧</span>
               <span class="image-meta">
@@ -422,11 +438,16 @@ onUnmounted(() => {
 
       <section class="workspace" :class="{ gridded: grid }" :aria-label="taskLabels[dataset.task] + '画布'">
         <div class="canvas-tools" role="toolbar" aria-label="标注工具">
+          <button class="button" type="button" aria-label="上一张" aria-keyshortcuts="D" title="上一张（D）"
+            :disabled="busy || switchingView || imageIndex <= 0" @click="step(-1)">上一张 <kbd>D</kbd></button>
+          <button class="button" type="button" aria-label="下一张" aria-keyshortcuts="F" title="下一张（F）"
+            :disabled="busy || switchingView || imageIndex < 0 || imageIndex >= images.length - 1" @click="step(1)">下一张 <kbd>F</kbd></button>
+          <span class="tool-divider"></span>
           <template v-if="dataset.task !== 'classify'">
             <button class="button" :class="{ chosen: tool === 'select' }" :aria-pressed="tool === 'select'" @click="tool = 'select'">选择 <kbd>V</kbd></button>
             <button class="button" :class="{ chosen: tool === 'draw' }" :aria-pressed="tool === 'draw'" :disabled="!canDraw" @click="tool = 'draw'">{{ drawLabel }} <kbd>O</kbd></button>
             <button v-if="dataset.task === 'pose'" class="button" :class="{ chosen: tool === 'keypoint' }" :aria-pressed="tool === 'keypoint'"
-              :disabled="!pose || !activeKeypoint || busy" @click="chooseKeypoint(activeKeypoint)">放置关键点</button>
+              :disabled="selectedHidden || !pose || !activeKeypoint || busy" @click="chooseKeypoint(activeKeypoint)">放置关键点</button>
           </template>
           <button class="button" :class="{ chosen: tool === 'pan' }" :aria-pressed="tool === 'pan'" @click="tool = 'pan'">抓手 <kbd>H</kbd></button>
           <span class="tool-divider"></span>
@@ -437,18 +458,19 @@ onUnmounted(() => {
           <button class="button" :class="{ chosen: grid }" :aria-pressed="grid" @click="grid = !grid">网格</button>
           <template v-if="dataset.task === 'obb'">
             <span class="tool-divider"></span>
-            <button class="button technical" :disabled="selected?.type !== 'obb' || busy" title="逆时针微调" @click="canvas?.nudgeAngle(-0.5)">−0.5°</button>
-            <button class="button technical" :disabled="selected?.type !== 'obb' || busy" title="顺时针微调" @click="canvas?.nudgeAngle(0.5)">+0.5°</button>
+            <button class="button technical" :disabled="selectedHidden || selected?.type !== 'obb' || busy" title="逆时针微调" @click="canvas?.nudgeAngle(-0.5)">−0.5°</button>
+            <button class="button technical" :disabled="selectedHidden || selected?.type !== 'obb' || busy" title="顺时针微调" @click="canvas?.nudgeAngle(0.5)">+0.5°</button>
           </template>
         </div>
         <div v-if="tool === 'draw' && dataset.task === 'segment'" class="canvas-hint" aria-live="polite">
+          <span v-if="unfinishedNotice" class="class-error">请完成或取消当前多边形后再切换图片。</span>
           <span>依次点击顶点 · 已放置 {{ draftPoints }} 点</span>
           <button class="button primary" :disabled="draftPoints < 3 || busy" @click="canvas?.finishPolygon()">完成多边形</button>
           <button class="button" :disabled="!draftPoints" @click="canvas?.cancelDraft()">取消绘制</button>
         </div>
         <div v-else-if="tool === 'keypoint' && activeKeypoint" class="canvas-hint">在图片上点击放置「{{ activeKeypoint }}」</div>
         <div class="canvas-area">
-          <AnnotationCanvas ref="canvas" :image="image" :annotations="annotations" :classes="classes"
+          <AnnotationCanvas ref="canvas" :image="image" :annotations="annotations" :hidden-annotation-ids="hiddenAnnotationIds" :classes="classes"
             :task="dataset.task" :tool="tool" :selected-id="selectedId" :active-class-id="activeClassId"
             :active-keypoint="activeKeypoint" :active-visibility="activeVisibility" :keypoint-names="dataset.keypointNames" :busy="busy"
             @select="selectObject" @create="add" @update="update" @keypoint="focusKeypoint"
@@ -503,13 +525,26 @@ onUnmounted(() => {
               :disabled="busy || !image" @click="markNegative">{{ negative ? '取消负样本' : '标为负样本' }}</button>
           </div>
           <div class="object-list">
-            <button v-for="(item, index) in annotations" :key="item.id" class="object-row" :class="{ active: item.id === selectedId }"
-              :aria-pressed="item.id === selectedId" @click="selectObject(item.id)">
-              <i :style="{ backgroundColor: byClass.get(item.class_id)?.color }"></i>
-              <span class="technical">#{{ String(index + 1).padStart(2, '0') }}</span>
-              <span class="object-name">{{ byClass.get(item.class_id)?.name ?? '未知类别' }}</span>
-              <small class="technical">{{ shapeInfo(item) }}</small>
-            </button>
+            <div v-for="(item, index) in annotations" :key="item.id" class="object-entry" :class="{ active: item.id === selectedId }">
+              <button type="button" class="object-row" :aria-pressed="item.id === selectedId" @click="selectObject(item.id)">
+                <i :style="{ backgroundColor: byClass.get(item.class_id)?.color }"></i>
+                <span class="technical">#{{ String(index + 1).padStart(2, '0') }}</span>
+                <span class="object-name">{{ byClass.get(item.class_id)?.name ?? '未知类别' }}</span>
+                <small class="technical">{{ shapeInfo(item) }}</small>
+              </button>
+              <button v-if="item.type !== 'classify'" type="button" class="button object-visibility"
+                :class="{ hidden: hiddenAnnotationIds.has(item.id) }"
+                :title="hiddenAnnotationIds.has(item.id) ? '显示标注' : '隐藏标注'"
+                :aria-label="`${hiddenAnnotationIds.has(item.id) ? '显示标注' : '隐藏标注'} #${index + 1}`"
+                @click="toggleAnnotationVisibility(item.id)">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.7"
+                  stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M2 12s3.6-6 10-6 10 6 10 6-3.6 6-10 6-10-6-10-6Z"/>
+                  <circle cx="12" cy="12" r="2.5"/>
+                  <path v-if="hiddenAnnotationIds.has(item.id)" d="m3 3 18 18"/>
+                </svg>
+              </button>
+            </div>
             <p v-if="!annotations.length" class="empty">{{ negative ? '此图已标为负样本。' : '当前图片暂无标注。' }}</p>
           </div>
           <div v-if="pose" class="keypoints" aria-label="姿态关键点">
@@ -580,7 +615,7 @@ onUnmounted(() => {
 .image-list, .object-list, .class-list { min-height:0; overflow:auto; }
 .image-entry { display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:center; padding-right:6px; border-bottom:1px solid var(--line,#c3c6ce); }
 .image-item { display:flex; min-width:0; align-items:center; gap:8px; padding:8px 4px 8px 8px; border:0; background:transparent; color:inherit; text-align:left; }
-.image-entry:hover, .image-entry.active, .class-row.active, .object-row.active { background:var(--selected,#e6eeff); }
+.image-entry:hover, .image-entry.active, .class-row.active, .object-entry.active { background:var(--selected,#e6eeff); }
 .image-entry.active { box-shadow:inset 3px 0 var(--primary,#4f6885); }
 .image-delete { display:grid; place-items:center; width:26px; min-height:26px; padding:3px; color:var(--muted,#5c6775); background:transparent; border-color:transparent; }
 .image-delete:hover:not(:disabled) { color:#a32a22; border-color:#efccc8; background:#fff0ef; }
@@ -625,7 +660,10 @@ onUnmounted(() => {
 .annotation input, .annotation select { border:1px solid var(--line,#c3c6ce); padding:4px 5px; background:var(--surface,#fff); color:inherit; font:inherit; }
 .class-error { color:#a32a22; }
 .object-list { flex:1; }
-.object-row { width:100%; border:0; border-bottom:1px solid var(--line,#c3c6ce); background:transparent; color:inherit; display:flex; gap:5px; align-items:center; text-align:left; padding:8px; }
+.object-entry { display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:center; border-bottom:1px solid var(--line,#c3c6ce); }
+.object-row { min-width:0; width:100%; border:0; background:transparent; color:inherit; display:flex; gap:5px; align-items:center; text-align:left; padding:8px; }
+.object-visibility { display:grid; place-items:center; width:26px; min-height:26px; padding:3px; margin-right:6px; color:var(--primary,#4f6885); background:transparent; border-color:transparent; }
+.object-visibility.hidden { color:var(--muted,#5c6775); }
 .object-row i { flex-basis:7px; width:7px; height:7px; border-radius:50%; }
 .object-name { min-width:0; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
 .object-row small { flex:none; color:var(--muted,#5c6775); font-size:10px; }
