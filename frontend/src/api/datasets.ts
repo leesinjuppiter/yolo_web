@@ -128,10 +128,11 @@ async function importDataset(url: string, init: RequestInit) {
   return { dataset: adapt(record), skippedSamples: record.skipped_samples ?? [] }
 }
 
-export function importDatasetArchive(file: File, task: TaskType, format: ImportFormat, skipInvalid = false) {
+export function importDatasetArchive(file: File, task: TaskType, format: ImportFormat, skipInvalid = false, name?: string) {
   const form = new FormData()
   form.append('file', file)
   form.append('task_type', task)
+  if (name) form.append('name', name)
   if (format === 'coco' && skipInvalid) form.append('skip_invalid', 'true')
   return importDataset(`${root}/import/${format}`, { method: 'POST', body: form })
 }
@@ -147,8 +148,8 @@ export async function listLocalDirectories(path?: string): Promise<LocalDirector
   return (await request(`${root}/import/directories${query}`)).json()
 }
 
-export function importDatasetDirectory(path: string, task: TaskType, format: ImportFormat, skipInvalid = false) {
-  const payload = { path, task_type: task, ...(format === 'coco' && skipInvalid ? { skip_invalid: true } : {}) }
+export function importDatasetDirectory(path: string, task: TaskType, format: ImportFormat, skipInvalid = false, name?: string) {
+  const payload = { path, task_type: task, name, ...(format === 'coco' && skipInvalid ? { skip_invalid: true } : {}) }
   return importDataset(`${root}/import/${format}-directory`, json('POST', payload))
 }
 

@@ -1,5 +1,5 @@
 param(
-    [ValidateSet('api', 'migrate', 'stop-db')]
+    [ValidateSet('api', 'worker', 'migrate', 'stop-db')]
     [string]$Mode = 'api',
     [string]$PostgresBin = 'D:\Program Files\PostgreSQL\17\bin'
 )
@@ -70,5 +70,8 @@ try {
     if ($Mode -eq 'api') {
         Invoke-Checked 'conda' @('run', '--no-capture-output', '-n', 'YoloWebAgentStarter', 'python', '-m', 'uvicorn',
             'app.main:app', '--host', '127.0.0.1', '--port', '8000')
+    }
+    if ($Mode -eq 'worker') {
+        Invoke-Checked 'conda' @('run', '--no-capture-output', '-n', 'YoloWebAgentStarter', 'python', '-B', '-m', 'app.training.worker')
     }
 } finally { Pop-Location }

@@ -10,7 +10,6 @@ type Task = Dataset['task']
 const props = defineProps<{ datasets: Dataset[]; report?: DatasetReport }>()
 const emit = defineEmits<{
   create: []
-  import: []
   action: [action: DatasetAction, dataset: Dataset]
   'close-report': []
   'refresh-report': []
@@ -163,17 +162,7 @@ function closeMenuOutside(event: FocusEvent) {
           <h1>数据集</h1>
           <span class="index-label">VISION-INDEX-01</span>
         </div>
-        <p>导入图片或已有 YOLO 数据集，管理训练所需的视觉数据</p>
-      </div>
-      <div class="heading-actions">
-        <button class="button" type="button" @click="emit('import')">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 3h9l5 5v13H5z M14 3v6h5 M12 17v-5m-3 3 3-3 3 3"/></svg>
-          导入数据集
-        </button>
-        <button class="button primary" type="button" @click="emit('create')">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
-          新建数据集
-        </button>
+        <p>导入图片或已有 YOLO、COCO 数据集，管理训练与校验所需的视觉数据。</p>
       </div>
     </header>
 
@@ -218,7 +207,7 @@ function closeMenuOutside(event: FocusEvent) {
       <div v-for="row in visibleRows" :key="row.dataset.id" class="dataset-entry" :role="view === 'list' ? 'rowgroup' : undefined">
         <div class="dataset-row" :role="view === 'list' ? 'row' : undefined">
           <div class="identity" :role="view === 'list' ? 'cell' : undefined">
-            <span class="task-icon">
+            <span class="task-icon" :data-task="row.dataset.task">
               <svg viewBox="0 0 24 24" aria-hidden="true"><path :d="taskIcon[row.dataset.task]"/></svg>
             </span>
             <div class="identity-text">
@@ -232,18 +221,18 @@ function closeMenuOutside(event: FocusEvent) {
           </div>
           <span v-if="view === 'list'" class="task-cell" role="cell">{{ taskLabels[row.dataset.task] }}</span>
 
-          <div class="numeric" :role="view === 'list' ? 'cell' : undefined">
+          <div class="numeric images-metric" :role="view === 'list' ? 'cell' : undefined">
             <span v-if="view === 'cards'" class="metric-label">图片</span>
             <div><strong>{{ formatNumber(row.images) }}</strong> <small>张</small></div>
           </div>
-          <div class="numeric" :role="view === 'list' ? 'cell' : undefined">
+          <div class="numeric classes-metric" :role="view === 'list' ? 'cell' : undefined">
             <span v-if="view === 'cards'" class="metric-label">类别</span>
             <div><strong>{{ formatNumber(row.classes) }}</strong> <small>类</small></div>
           </div>
           <div class="progress-cell" :role="view === 'list' ? 'cell' : undefined">
             <div class="progress-caption">
               <span v-if="view === 'cards'" class="metric-label">标注进度</span>
-              <span v-if="!row.images" class="muted">等待导入</span>
+              <span v-if="!row.images" class="waiting">等待导入</span>
               <span v-else-if="row.progress >= 100" class="completed">✓ 已完成 100%</span>
               <span v-else class="progress-numbers">{{ formatNumber(row.annotated) }} / {{ formatNumber(row.images) }}（{{ row.progress.toFixed(1) }}%）</span>
             </div>
@@ -251,7 +240,8 @@ function closeMenuOutside(event: FocusEvent) {
           </div>
 
           <div class="row-actions" :role="view === 'list' ? 'cell' : undefined">
-            <button class="button primary main-action" type="button" @click="runAction(row.images ? 'annotate' : 'add', row.dataset)">
+            <button class="button main-action" :class="{ primary: view === 'list' }" type="button"
+              @click="runAction(row.images ? 'annotate' : 'add', row.dataset)">
               <svg viewBox="0 0 24 24" aria-hidden="true"><path :d="row.images ? 'M4 5h16M4 10h11M4 15h6m2 5 1-4 6-6 3 3-6 6z' : 'M4 6h9m-9 0v13h16v-7M18 3v8m-4-4h8M5 16l4-4 3 3 2-2 5 5'"/></svg>
               {{ mainLabel(row.images, row.annotated) }}
             </button>
@@ -272,7 +262,7 @@ function closeMenuOutside(event: FocusEvent) {
             <button v-for="item in operations" :key="item.action" class="button" :class="{ danger: item.action === 'delete' }" type="button"
               :aria-expanded="actionExpanded(item.action, row.dataset)"
               :disabled="!row.images && requiresImages.has(item.action)" @click="runAction(item.action, row.dataset)">
-              {{ actionLabel(item.action, item.label, row.dataset) }}
+              {{ item.action === 'delete' ? '删除数据集' : actionLabel(item.action, item.label, row.dataset) }}
             </button>
           </div>
         </div>
@@ -328,7 +318,7 @@ function closeMenuOutside(event: FocusEvent) {
       </div>
     </div>
 
-    <div class="pagination-bar">
+    <div class="pagination-bar dataset-pagination">
       <span v-if="filtered.length">显示 {{ offset + 1 }}–{{ offset + visibleRows.length }} / 共 {{ filtered.length }} 个数据集</span>
       <span v-else>共 0 个数据集</span>
       <div class="page-controls" aria-label="数据集分页">
@@ -338,72 +328,73 @@ function closeMenuOutside(event: FocusEvent) {
       </div>
     </div>
 
-    <dl class="overview" aria-label="所有数据集统计">
-      <div class="overview-cell">
-        <dt>图片总数</dt>
-        <dd>{{ formatNumber(totals.images) }} <small>张</small></dd>
-      </div>
-      <div class="overview-cell">
-        <dt>总体标注完成率</dt>
-        <dd>{{ totals.progress.toFixed(1) }}% <small>{{ formatNumber(totals.annotated) }} / {{ formatNumber(totals.images) }}</small></dd>
-      </div>
-      <div class="overview-cell type-overview">
-        <dt>任务类型分布</dt>
-        <dd class="overview-types">
-          <span v-for="task in selectableDatasetTasks" :key="task">{{ taskShort[task] }} {{ totals.taskCounts[task] }}</span>
-        </dd>
-      </div>
-      <div class="overview-cell">
-        <dt>数据集总数</dt>
-        <dd>{{ datasets.length }} <small>个</small></dd>
-      </div>
-    </dl>
+    <section class="overview-panel" aria-labelledby="overview-title">
+      <h2 id="overview-title">全局指标概览 <span lang="en">· GLOBAL STATS</span></h2>
+      <dl class="overview">
+        <div class="overview-cell">
+          <dt>图片总数</dt>
+          <dd>{{ formatNumber(totals.images) }} <small>张</small></dd>
+        </div>
+        <div class="overview-cell">
+          <dt>总体标注完成率</dt>
+          <dd><strong class="overview-progress">{{ totals.progress.toFixed(1) }}%</strong> <small>{{ formatNumber(totals.annotated) }} / {{ formatNumber(totals.images) }}</small></dd>
+        </div>
+        <div class="overview-cell">
+          <dt>任务类型分布</dt>
+          <dd class="overview-types">
+            <span v-for="task in selectableDatasetTasks" :key="task">{{ taskShort[task] }} {{ totals.taskCounts[task] }}</span>
+          </dd>
+        </div>
+        <div class="overview-cell">
+          <dt>数据集总数</dt>
+          <dd>{{ formatNumber(datasets.length) }} <small>组</small></dd>
+        </div>
+      </dl>
+    </section>
   </section>
 </template>
 
 <style scoped>
 .datasets-view {
-  padding: 24px;
   min-width: 0;
+  container-type: inline-size;
   color: var(--text, #364152);
   --numeric: "JetBrains Mono", Consolas, monospace;
 }
-.datasets-heading, .heading-line, .heading-actions, .datasets-toolbar, .toolbar-right, .segmented,
+.heading-line, .datasets-toolbar, .toolbar-right, .segmented,
 .pagination-bar, .page-controls, .identity, .row-actions, .report-heading, .progress-caption, .name-line {
   display: flex;
   align-items: center;
 }
 .datasets-heading {
-  justify-content: space-between;
-  gap: 16px;
-  padding-bottom: 16px;
+  padding-bottom: 14px;
   border-bottom: 1px solid var(--line, #e6e9ed);
 }
 .heading-line { gap: 10px; }
-.heading-line h1 { margin: 0; font-size: 26px; line-height: 1.2; }
+.heading-line h1 { margin: 0; color: #152035; font-size: 26px; line-height: 1.2; }
 .index-label {
   padding: 2px 5px;
   border: 1px solid var(--line, #e6e9ed);
-  border-radius: 2px;
-  background: var(--soft, #f8f9fb);
+  border-radius: 4px;
+  background: #eef1f5;
   color: var(--muted, #5c6775);
   font: 10px/1.25 var(--numeric);
   white-space: nowrap;
 }
 .datasets-heading p { margin: 7px 0 0; color: var(--muted, #5c6775); font-size: 13px; }
-.heading-actions, .toolbar-right { gap: 8px; }
+.toolbar-right { gap: 12px; }
 .button svg, .view-toggle svg, .search-box svg, .task-icon svg {
   width: 16px; height: 16px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.7;
   stroke-linecap: round; stroke-linejoin: round;
 }
 .button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; white-space: nowrap; }
-.datasets-toolbar { gap: 12px; flex-wrap: wrap; padding: 16px 0; }
+.datasets-toolbar { gap: 12px; flex-wrap: wrap; padding: 26px 0 24px; }
 .search-box {
-  display: flex; align-items: center; gap: 8px; width: min(236px, 100%); min-height: 34px;
-  border: 1px solid var(--line, #e6e9ed); padding: 0 9px; border-radius: 3px;
+  display: flex; align-items: center; gap: 8px; flex: 1 1 220px; max-width: 288px; min-height: 34px;
+  border: 1px solid var(--line, #e6e9ed); padding: 0 11px; border-radius: 8px;
   background: var(--surface, #fff); color: var(--muted, #5c6775);
 }
-.search-box:focus-within { border-color: var(--primary, #4f6885); }
+.search-box:focus-within { border-color: var(--home-accent); }
 .search-box input {
   padding: 6px 0; min-width: 0; width: 100%; border: 0; outline: none; color: var(--text, #364152);
   font: inherit; font-size: 13px; background: transparent;
@@ -422,36 +413,41 @@ function closeMenuOutside(event: FocusEvent) {
   background: var(--selected, #edf2f7); color: var(--primary, #4f6885); border-color: var(--line, #e6e9ed);
   font-weight: 600;
 }
+.task-filter, .view-toggle { border-radius: 8px; }
+.task-filter { background: #eef1f5; }
+.task-filter button, .view-toggle button { padding: 5px 7px; border-radius: 5px; }
+.task-filter button[aria-pressed="true"], .view-toggle button[aria-pressed="true"] {
+  background: var(--surface); color: #214eaa;
+}
 .view-toggle svg { width: 14px; height: 14px; }
 .match-count {
   margin-left: 4px; color: var(--muted, #5c6775); font-size: 12px; white-space: nowrap;
 }
-.match-count::before {
-  content: ""; display: inline-block; width: 6px; height: 6px; margin-right: 6px;
-  border-radius: 50%; background: var(--primary, #4f6885); vertical-align: 2px;
-}
 .dataset-results { font-size: 13px; }
 .list-view {
   --columns: minmax(166px, 1.55fr) minmax(86px, .8fr) minmax(60px, .42fr) minmax(54px, .39fr) minmax(120px, 1.05fr) 140px;
-  border: 1px solid var(--line, #e6e9ed); border-radius: 7px; background: var(--surface, #fff);
+  border: 1px solid var(--line, #e6e9ed); border-radius: 12px; background: var(--surface, #fff);
 }
 .list-view .table-header, .list-view .dataset-row {
   display: grid; grid-template-columns: var(--columns); align-items: center;
   column-gap: 13px; padding: 10px 14px;
 }
 .table-header {
-  border-radius: 6px 6px 0 0; background: var(--soft, #f8f9fb); color: var(--muted, #5c6775);
+  border-radius: 11px 11px 0 0; background: var(--soft, #f8f9fb); color: var(--muted, #5c6775);
   font-size: 12px; min-height: 38px;
 }
 .num-heading, .list-view .numeric, .actions-heading { text-align: right; }
 .list-view .dataset-entry { border-top: 1px solid var(--line, #e6e9ed); }
-.list-view .dataset-row { min-height: 52px; }
+.list-view .dataset-row { min-height: 60px; }
 .list-view .dataset-row:hover { background: var(--soft, #f8f9fb); }
 .identity { min-width: 0; gap: 9px; }
 .task-icon {
-  width: 34px; height: 34px; flex: none; display: grid; place-items: center; border-radius: 4px;
-  background: var(--selected, #edf2f7); color: var(--primary, #4f6885);
+  width: 36px; height: 36px; flex: none; display: grid; place-items: center; border-radius: 8px;
+  background: #eef4ff; color: #2859b7;
 }
+.task-icon[data-task="detect"] { background: #fff7e3; color: #9a5b05; }
+.task-icon[data-task="classify"] { background: #eaf8f2; color: #157254; }
+.task-icon[data-task="obb"] { background: #f2ecfd; color: #6b41aa; }
 .task-icon svg { width: 19px; height: 19px; }
 .identity-text { min-width: 0; }
 .name-line { gap: 6px; }
@@ -460,11 +456,12 @@ function closeMenuOutside(event: FocusEvent) {
 .identity-text small { display: block; color: var(--muted, #5c6775); font-size: 11px; margin-top: 2px; }
 .task-cell { font-size: 12px; color: var(--muted, #5c6775); }
 .numeric strong, .progress-numbers { font-family: var(--numeric); font-variant-numeric: tabular-nums; }
-.numeric small, .muted, .metric-label { color: var(--muted, #5c6775); }
+.numeric small, .metric-label { color: var(--muted, #5c6775); }
 .numeric small, .metric-label, .progress-caption { font-size: 11px; }
 .progress-cell { min-width: 0; }
 .progress-caption { gap: 4px; justify-content: space-between; margin-bottom: 5px; }
-.completed { color: #276340; }
+.completed { color: #087652; font-weight: 600; }
+.waiting { color: #8f5c10; }
 progress {
   display: block; width: 100%; height: 5px; appearance: none; border: 0; border-radius: 4px;
   color: var(--primary, #4f6885); background: var(--selected, #edf2f7); overflow: hidden;
@@ -472,7 +469,7 @@ progress {
 progress::-webkit-progress-bar { background: var(--selected, #edf2f7); }
 progress::-webkit-progress-value { background: currentColor; }
 progress::-moz-progress-bar { background: currentColor; }
-progress.complete { color: #368150; }
+progress.complete { color: #14966c; }
 .row-actions { gap: 6px; justify-content: flex-end; }
 .main-action { font-size: 12px; min-height: 30px; }
 .main-action svg { width: 14px; height: 14px; }
@@ -490,30 +487,47 @@ progress.complete { color: #368150; }
 .action-menu button:hover:not(:disabled) { background: var(--soft, #f8f9fb); }
 .action-menu button:disabled { opacity: .5; cursor: default; }
 .action-menu .destructive { color: #a52727; }
-.card-view { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: start; gap: 12px; }
+.card-view { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: start; gap: 24px; }
 .card-view .dataset-entry {
-  min-width: 0; border: 1px solid var(--line, #e6e9ed); border-radius: 6px; background: var(--surface, #fff);
+  min-width: 0; border: 1px solid var(--line, #e6e9ed); border-radius: 12px; background: var(--surface, #fff);
+  box-shadow: 0 1px 2px #15203508;
 }
-.card-view .dataset-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); padding: 13px; }
+.card-view .dataset-row {
+  --card-padding: 20px;
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); padding: var(--card-padding) var(--card-padding) 0;
+}
 .card-view .identity, .card-view .progress-cell, .card-view .row-actions, .card-actions { grid-column: 1 / -1; }
-.card-view .identity, .card-view .progress-cell {
-  border-bottom: 1px solid var(--line, #e6e9ed); padding-bottom: 10px;
-}
-.card-view .identity { min-height: 42px; }
+.card-view .identity { min-height: 42px; margin-bottom: 18px; }
+.card-view .identity-text strong { color: #152035; font-size: 14px; }
 .add-shortcut { margin-left: auto; white-space: nowrap; padding: 4px 0 4px 3px; color: var(--primary, #4f6885); }
-.card-view .numeric { padding: 10px 0; }
-.card-view .numeric strong { font-size: 20px; }
-.card-view .metric-label { display: block; margin-bottom: 2px; }
-.card-view .progress-cell { border-top: 1px solid var(--line, #e6e9ed); padding-top: 9px; }
-.card-view .row-actions { margin-top: 10px; }
-.card-view .main-action { width: 100%; }
-.card-actions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 5px; margin-top: 8px; }
-.card-actions .button { min-width: 0; min-height: 25px; padding: 3px 4px; font-size: 11px; }
+.add-shortcut:hover { color: var(--home-accent); text-decoration: underline; }
+.card-view .numeric { min-width: 0; padding: 13px 12px; background: #f5f7fa; }
+.card-view .images-metric { border-radius: 8px 0 0 8px; }
+.card-view .classes-metric { border-radius: 0 8px 8px 0; }
+.card-view .numeric strong { color: #152035; font-size: 17px; }
+.card-view .numeric .metric-label { display: block; margin-bottom: 3px; }
+.card-view .progress-cell { padding: 15px 0 20px; }
+.card-view progress { height: 6px; }
+.card-view .row-actions, .card-actions {
+  margin-inline: calc(-1 * var(--card-padding));
+  padding-inline: calc(var(--card-padding) - 4px);
+  background: #f8f9fb;
+}
+.card-view .row-actions { padding-top: 15px; border-top: 1px solid #eef1f5; }
+.card-view .main-action { width: 100%; min-height: 34px; border-color: var(--line); border-radius: 7px; }
+.card-actions {
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px;
+  padding-block: 10px 13px; border-radius: 0 0 11px 11px;
+}
+.card-actions .button { min-width: 0; min-height: 30px; padding: 4px 3px; border-color: var(--line); font-size: 11px; }
+.card-actions .button.danger { grid-column: 1 / -1; border-color: transparent; background: transparent; }
+.card-actions .button.danger:hover { background: #fff0f1; }
 .card-actions .button[aria-expanded="true"] { color: #fff; background: var(--primary, #4f6885); border-color: var(--primary, #4f6885); }
 .card-actions .button[aria-expanded="true"]::before {
   content: ''; width: 5px; height: 5px; border-top: 1px solid; border-left: 1px solid; transform: translateY(1px) rotate(45deg);
 }
 .report-row { padding: 0 13px 13px; }
+.card-view .report-row { padding-top: 12px; }
 .report {
   padding: 9px 10px; border: 1px solid var(--line, #e6e9ed); border-radius: 5px;
   background: var(--soft, #f8f9fb); overflow-wrap: anywhere; font-size: 12px;
@@ -527,7 +541,10 @@ progress.complete { color: #368150; }
 .report-hint { margin: 7px 0 0; color: var(--muted, #5c6775); }
 .review-filter { margin-top: 7px; width: fit-content; }
 .report ul { padding-left: 16px; margin: 7px 0 0; }
-.empty-state { text-align: center; padding: 42px 16px; border: 1px solid var(--line, #e6e9ed); }
+.empty-state {
+  text-align: center; padding: 42px 16px; border: 1px solid var(--line, #e6e9ed);
+  border-radius: 12px; background: var(--surface);
+}
 .empty-state p { font-size: 13px; color: var(--muted, #5c6775); }
 .pagination-bar {
   margin-top: 12px; padding: 6px 10px; justify-content: space-between;
@@ -535,37 +552,50 @@ progress.complete { color: #368150; }
   color: var(--muted, #5c6775); font-size: 12px;
 }
 .report-pagination { margin-top: 8px; padding: 5px 0 0; border-width: 1px 0 0; }
+.dataset-pagination { margin-top: 24px; padding: 0; border: 0; background: transparent; }
 .page-controls { gap: 4px; font-family: var(--numeric); }
 .page-controls button, .page-controls span {
   min-height: 25px; min-width: 25px; display: grid; place-items: center;
 }
 .page-controls span { border-radius: 2px; background: var(--selected, #edf2f7); color: var(--primary, #4f6885); }
-.overview { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin: 18px 0 0; }
-.overview-cell {
-  min-width: 0; min-height: 72px; border: 1px solid var(--line, #e6e9ed); padding: 10px 12px;
-  background: var(--soft, #f8f9fb); border-radius: 3px;
+.dataset-pagination .page-controls span { border: 1px solid #a9c0ef; border-radius: 5px; color: #214eaa; }
+.overview-panel {
+  margin-top: 24px; padding: 22px 24px; border: 1px solid var(--line); border-radius: 12px;
+  background: var(--surface); box-shadow: 0 1px 2px #15203508;
 }
+.overview-panel h2 { margin: 0 0 16px; color: var(--muted); font-size: 12px; }
+.overview-panel h2 span { font-family: var(--numeric); }
+.overview { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); margin: 0; }
+.overview-cell {
+  min-width: 0; min-height: 66px; padding-inline: 18px; border-left: 1px solid var(--line);
+}
+.overview-cell:first-child { padding-left: 0; border-left: 0; }
+.overview-cell:last-child { padding-right: 0; }
 .overview-cell dt { color: var(--muted, #5c6775); font-size: 12px; }
-.overview-cell dd { margin: 5px 0 0; font: 600 19px/1.3 var(--numeric); }
+.overview-cell dd { margin: 7px 0 0; color: #152035; font: 600 20px/1.35 var(--numeric); overflow-wrap: anywhere; }
+.overview-progress { color: #087652; }
 .overview-cell dd small { color: var(--muted, #5c6775); font-size: 10px; white-space: nowrap; }
 .overview-cell .overview-types { display: flex; flex-wrap: wrap; gap: 4px; font-size: 11px; }
-.overview-types span { background: var(--selected, #edf2f7); padding: 2px 4px; white-space: nowrap; }
-@media (max-width: 1240px) {
+.overview-types span { background: #eef1f5; padding: 3px 5px; border-radius: 4px; white-space: nowrap; }
+@container (max-width: 860px) {
   .card-view { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .list-view { --columns: minmax(125px, 1.35fr) minmax(60px, .55fr) 52px 46px minmax(92px, .9fr) 140px; }
   .list-view .table-header, .list-view .dataset-row { column-gap: 8px; padding-inline: 8px; }
 }
-@media (max-width: 880px) {
-  .datasets-view { padding: 14px; }
+@container (max-width: 640px) {
+  .card-view { gap: 16px; }
   .list-view { overflow-x: auto; }
   .list-view .table-header, .list-view .dataset-entry { min-width: 620px; }
   .list-view:has(.action-menu) { padding-bottom: 250px; }
-  .overview { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .overview { grid-template-columns: repeat(2, minmax(0, 1fr)); row-gap: 14px; }
+  .overview-cell:nth-child(odd) { padding-left: 0; border-left: 0; }
 }
-@media (max-width: 640px) {
+@container (max-width: 560px) {
   .card-view { grid-template-columns: 1fr; }
-  .datasets-heading { align-items: flex-start; flex-direction: column; }
-  .segmented.task-filter { flex-wrap: wrap; }
+  .search-box { flex-basis: 100%; max-width: 100%; }
+  .task-filter { flex-wrap: wrap; }
+  .datasets-toolbar { padding-block: 17px; }
   .toolbar-right { margin-left: 0; }
+  .overview-panel { padding: 16px; }
 }
 </style>

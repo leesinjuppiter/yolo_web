@@ -1,17 +1,25 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import AnnotationView from './AnnotationView.vue'
 import DatasetDialogs from './DatasetDialogs.vue'
 import DatasetExchangeDialog from './components/DatasetExchangeDialog.vue'
 import DatasetExcludedImagesDialog from './components/DatasetExcludedImagesDialog.vue'
 import SimilarityReviewDialog from './components/SimilarityReviewDialog.vue'
+import CreateTrainingDialog from './components/training/CreateTrainingDialog.vue'
 import DatasetsView from './DatasetsView.vue'
+import TrainingView from './pages/TrainingView.vue'
+import TrainingDetailView from './pages/TrainingDetailView.vue'
 import { createDataset, deleteDataset, deleteDatasetImage, listDatasets, readReportSnapshot, refreshReportSnapshot, saveSimilarityReview, saveSplits, updateAnnotations, updateDatasetClass, uploadImages } from './api/datasets'
 import type { Annotation, AnnotationStatus, Dataset, DatasetAction, DatasetClass, DatasetImage, DatasetReport, DialogKind, ReportIssue, ReportKind, ReportSnapshot, SelectableDatasetTask, SimilarityDecision, Split } from './domain'
+import type { TrainingConfig } from './types/training'
 
 const route = useRoute()
 const router = useRouter()
+const inTraining = computed(() => route.name === 'training' || route.name === 'training-detail')
+const activeSection = computed(() => inTraining.value ? 'training' : 'datasets')
+const trainingDraft = ref<{ datasetId?: string; config?: TrainingConfig }>()
+watch(inTraining, visible => { if (!visible) trainingDraft.value = undefined })
 const datasets = ref<Dataset[]>([])
 const loaded = ref(false)
 const loadingError = ref('')
@@ -57,12 +65,16 @@ let reportPoll: ReturnType<typeof setTimeout> | undefined
 let reportController: AbortController | undefined
 
 const sections = [
-  { label: '数据集', icon: 'M3 5h18v14H3z M3 15l5-5 4 4 3-3 6 5' },
-  { label: '模型训练', icon: 'M4 20V9m5 11V4m6 16v-7m5 7V7' },
+  { label: '数据集', route: 'datasets', icon: 'M4 10h16v10H4z M4 10l2-4h12l2 4M8 14h8' },
+  { label: '模型训练', route: 'training', icon: 'M4 20V9m5 11V4m6 16v-7m5 7V7' },
   { label: '模型仓库', icon: 'M12 2l9 5v10l-9 5-9-5V7z M3 7l9 5 9-5 M12 12v10' },
   { label: '智能体', icon: 'M5 8h14v11H5z M12 8V4 M8 13h2m4 0h2' },
   { label: '审计日志', icon: 'M5 3h14v18H5z M8 8h8m-8 4h8m-8 4h5' },
   { label: '系统设置', icon: 'M4 6h16m-16 6h16m-16 6h16 M8 4v4m8 2v4m-6 2v4' },
+]
+const navigation = [
+  { label: '工作空间', sections: sections.slice(0, 4) },
+  { label: '治理与运维', sections: sections.slice(4) },
 ]
 
 function message(error: unknown) {
@@ -104,6 +116,20 @@ function openDialog(kind: DialogKind, dataset?: Dataset) {
   dialogError.value = ''
   dialogTarget.value = dataset?.id ?? ''
   dialog.value = kind
+}
+
+async function openTrainingDraft(datasetId?: string) {
+  if (!inTraining.value) await router.push({ name: 'training' })
+  if (inTraining.value) trainingDraft.value = { datasetId }
+}
+
+function retrain(config: TrainingConfig) {
+  trainingDraft.value = { datasetId: config.datasetId, config }
+}
+
+function openTrainingTask(id: string, tab?: 'logs') {
+  trainingDraft.value = undefined
+  void router.push({ name: 'training-detail', params: { taskId: id }, query: tab ? { tab } : {} })
 }
 
 function closeDialog() {
@@ -294,7 +320,7 @@ function datasetAction(action: DatasetAction, dataset: Dataset) {
       showReport(action, dataset)
       break
     case 'train':
-      showNotice('当前版本开放数据集与标注功能')
+      void openTrainingDraft(dataset.id)
       break
     case 'assistant':
       showNotice('当前版本开放数据集与标注功能')
@@ -428,47 +454,93 @@ async function deleteImage(imageId: string) {
       <div class="brand">
         <span class="brand-mark" aria-hidden="true">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-            <path d="M4 9V4h5m6 0h5v5m0 6v5h-5m-6 0H4v-5m4-3h8m-4-4v8"/>
+            <rect x="4" y="4" width="6" height="6" rx="1.5"/>
+            <rect x="14" y="4" width="6" height="6" rx="1.5"/>
+            <rect x="4" y="14" width="6" height="6" rx="1.5"/>
+            <rect x="14" y="14" width="6" height="6" rx="1.5"/>
           </svg>
         </span>
-        <strong>检测系统工作台</strong>
+        <div>
+          <strong>检测系统工作台</strong>
+          <small>OPTI-METRIX</small>
+        </div>
       </div>
-      <div class="workspace-caption">工作区</div>
       <nav aria-label="工作台导航">
-        <button
-          v-for="(section, index) in sections"
-          :key="section.label"
-          type="button"
-          :class="{ active: index === 0 }"
-          :aria-current="index === 0 ? 'page' : undefined"
-          :disabled="index !== 0"
-          :title="index === 0 ? '' : '此版本开放数据集模块'"
-        >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path :d="section.icon"/></svg>
-          {{ section.label }}
-        </button>
+        <div v-for="group in navigation" :key="group.label" class="workbench-nav-group">
+          <div class="workspace-caption">{{ group.label }}</div>
+          <button
+            v-for="section in group.sections"
+            :key="section.label"
+            type="button"
+            :class="{ active: section.route === activeSection }"
+            :aria-current="section.route === activeSection ? 'page' : undefined"
+            :disabled="!section.route"
+            :title="section.route ? '' : '该模块尚未开放'"
+            @click="section.route && router.push({ name: section.route })"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path :d="section.icon"/></svg>
+            {{ section.label }}
+            <span v-if="section.route === 'datasets' && loaded && !loadingError" class="workspace-count">{{ datasets.length }}</span>
+          </button>
+        </div>
       </nav>
-      <div class="workbench-status"><span aria-hidden="true"></span>本地工作台</div>
+      <div class="workbench-status">
+        <strong><span :class="{ ready: loaded && !loadingError }" aria-hidden="true"></span>本地工作台</strong>
+        <small>{{ !loaded ? '正在连接本地标注服务' : loadingError ? '本地标注服务连接异常' : '数据与标注保存在本地设备' }}</small>
+      </div>
     </aside>
     <div class="workbench-body">
-      <header class="workbench-top"><strong>数据集管理</strong><span>本地标注服务</span></header>
-      <main class="workbench-main">
-        <div v-if="!loaded" class="page-state" role="status">正在读取数据集…</div>
-        <div v-else-if="loadingError" class="page-state" role="alert">
-          <p>{{ loadingError }}</p><button class="button" @click="initialize">重试</button>
+      <header class="workbench-top">
+        <div class="workbench-location">
+          <span class="workbench-parent">检测工作台</span><span class="workbench-parent" aria-hidden="true">/</span>
+          <strong>{{ inTraining ? '模型训练' : '数据集管理' }}</strong>
+          <span class="workbench-local" :class="{ 'workbench-training-mode': inTraining }">
+            {{ inTraining ? '本机 CPU 训练' : '本地标注服务' }}
+          </span>
         </div>
-        <DatasetsView
-          v-else
-          :datasets="datasets"
-          :report="report"
-          @create="openDialog('create')"
-          @import="openDialog('import')"
-          @action="datasetAction"
-          @close-report="closeReport"
-          @refresh-report="syncReport(true)"
-          @open-image="openAnnotation"
-          @review-pair="openSimilarityReview"
+        <div v-if="inTraining" class="workbench-actions">
+          <button class="button primary" type="button" @click="openTrainingDraft()">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+            新建训练任务
+          </button>
+        </div>
+        <div v-else-if="loaded && !loadingError" class="workbench-actions">
+          <button class="button" type="button" @click="openDialog('import')">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V4m-4 4 4-4 4 4M4 15v5h16v-5"/></svg>
+            导入数据集
+          </button>
+          <button class="button primary" type="button" @click="openDialog('create')">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+            新建数据集
+          </button>
+        </div>
+      </header>
+      <main class="workbench-main">
+        <TrainingView v-if="route.name === 'training'" @open="openTrainingTask" @retrain="retrain" @create="openTrainingDraft()" />
+        <TrainingDetailView
+          v-else-if="route.name === 'training-detail'"
+          :task-id="String(route.params.taskId)"
+          :initial-tab="route.query.tab === 'logs' ? 'logs' : undefined"
+          @back="router.push({ name: 'training' })"
+          @retrain="retrain"
         />
+        <div v-show="!inTraining">
+          <div v-if="!loaded" class="page-state" role="status">正在读取数据集…</div>
+          <div v-else-if="loadingError" class="page-state" role="alert">
+            <p>{{ loadingError }}</p><button class="button" @click="initialize">重试</button>
+          </div>
+          <DatasetsView
+            v-else
+            :datasets="datasets"
+            :report="report"
+            @create="openDialog('create')"
+            @action="datasetAction"
+            @close-report="closeReport"
+            @refresh-report="syncReport(true)"
+            @open-image="openAnnotation"
+            @review-pair="openSimilarityReview"
+          />
+        </div>
       </main>
     </div>
   </div>
@@ -491,6 +563,18 @@ async function deleteImage(imageId: string) {
       <button v-if="loaded" class="button" @click="router.push({ name: 'datasets' })">返回数据集</button>
     </div>
   </template>
+  <CreateTrainingDialog
+    v-if="inTraining && trainingDraft"
+    :datasets="datasets"
+    :datasets-loading="!loaded"
+    :datasets-error="loadingError"
+    :dataset-id="trainingDraft.datasetId"
+    :initial-config="trainingDraft.config"
+    @close="trainingDraft = undefined"
+    @created="openTrainingTask"
+    @adjust-splits="openDialog('splits', $event)"
+    @retry-datasets="initialize"
+  />
   <DatasetExchangeDialog
     v-if="dialog === 'import' || dialog === 'export'"
     :initial-mode="dialog"

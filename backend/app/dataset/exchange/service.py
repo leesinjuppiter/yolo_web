@@ -95,11 +95,12 @@ def _import_samples(
         raise
 
 
-def import_yolo(db: Session, source: BinaryIO, filename: str, task_type: str) -> schemas.DatasetResponse:
+def import_yolo(db: Session, source: BinaryIO, filename: str, task_type: str, *,
+                name: str | None = None) -> schemas.DatasetResponse:
     if source.seek(0, 2) > MAX_ARCHIVE_BYTES:
         raise ValueError("ZIP 文件不能超过 256 MiB")
     source.seek(0)
-    name = Path(filename.replace("\\", "/")).stem[:120] or "YOLO 数据集"
+    name = name or Path(filename.replace("\\", "/")).stem[:120] or "YOLO 数据集"
     try:
         with ZipFile(source) as archive:
             files = inspect_members(archive)
@@ -112,9 +113,9 @@ def import_yolo(db: Session, source: BinaryIO, filename: str, task_type: str) ->
         raise ValueError("无法读取 ZIP 或不支持此压缩方式") from exc
 
 
-def import_yolo_directory(db: Session, folder: str, task_type: str) -> schemas.DatasetResponse:
+def import_yolo_directory(db: Session, folder: str, task_type: str, *, name: str | None = None) -> schemas.DatasetResponse:
     root = directory_root(folder)
-    return _import_samples(db, root.name[:120], task_type, directory_members(root),
+    return _import_samples(db, name or root.name[:120], task_type, directory_members(root),
                            partial(read_directory_file, root), partial(directory_reference, root))
 
 

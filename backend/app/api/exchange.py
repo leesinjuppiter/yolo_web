@@ -23,6 +23,7 @@ Database = Annotated[Session, Depends(get_db)]
 class DirectoryImport(BaseModel):
     path: str = Field(min_length=1, max_length=2048)
     task_type: schemas.TaskType
+    name: schemas.Name | None = None
 
 
 class CocoDirectoryImport(DirectoryImport):
@@ -42,9 +43,9 @@ def _local_workbench(request: Request) -> None:
 
 @router.post("/import/yolo", response_model=schemas.DatasetResponse, status_code=201)
 def import_archive(file: Annotated[UploadFile, File()], task_type: Annotated[schemas.TaskType, Form()],
-                   db: Database):
+                   db: Database, name: Annotated[schemas.Name | None, Form()] = None):
     return EXCHANGE_TOOLS["dataset.exchange.import_yolo"](
-        db, file.file, file.filename or "YOLO 数据集.zip", task_type,
+        db, file.file, file.filename or "YOLO 数据集.zip", task_type, name=name,
     )
 
 
@@ -55,9 +56,9 @@ def browse_directories(path: str | None = None):
 
 @router.post("/import/coco", response_model=CocoImportResponse, status_code=201)
 def import_coco_archive(file: Annotated[UploadFile, File()], task_type: Annotated[CocoTask, Form()], db: Database,
-                        skip_invalid: Annotated[bool, Form()] = False):
+                        skip_invalid: Annotated[bool, Form()] = False, name: Annotated[schemas.Name | None, Form()] = None):
     return EXCHANGE_TOOLS["dataset.exchange.import_coco"](
-        db, file.file, file.filename or "COCO 数据集.zip", task_type, skip_invalid=skip_invalid,
+        db, file.file, file.filename or "COCO 数据集.zip", task_type, skip_invalid=skip_invalid, name=name,
     )
 
 
@@ -65,14 +66,14 @@ def import_coco_archive(file: Annotated[UploadFile, File()], task_type: Annotate
              dependencies=[Depends(_local_workbench)])
 def import_coco_directory(payload: CocoDirectoryImport, db: Database):
     return EXCHANGE_TOOLS["dataset.exchange.import_coco_directory"](
-        db, payload.path, payload.task_type, skip_invalid=payload.skip_invalid,
+        db, payload.path, payload.task_type, skip_invalid=payload.skip_invalid, name=payload.name,
     )
 
 
 @router.post("/import/yolo-directory", response_model=schemas.DatasetResponse, status_code=201,
              dependencies=[Depends(_local_workbench)])
 def import_directory(payload: DirectoryImport, db: Database):
-    return EXCHANGE_TOOLS["dataset.exchange.import_yolo_directory"](db, payload.path, payload.task_type)
+    return EXCHANGE_TOOLS["dataset.exchange.import_yolo_directory"](db, payload.path, payload.task_type, name=payload.name)
 
 
 @router.get("/{dataset_id}/export/yolo", response_class=StreamingResponse)

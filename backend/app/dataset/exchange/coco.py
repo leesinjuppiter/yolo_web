@@ -296,11 +296,11 @@ def _import_coco(db: Session, name: str, task: CocoTask, files: Collection[PureP
 
 
 def import_coco_archive(db: Session, source: BinaryIO, filename: str, task: CocoTask, *,
-                        skip_invalid: bool = False) -> CocoImportResponse:
+                        skip_invalid: bool = False, name: str | None = None) -> CocoImportResponse:
     if source.seek(0, 2) > MAX_ARCHIVE_BYTES:
         raise ValueError("ZIP 文件不能超过 256 MiB")
     source.seek(0)
-    name = Path(filename.replace("\\", "/")).stem[:120] or "COCO 数据集"
+    name = name or Path(filename.replace("\\", "/")).stem[:120] or "COCO 数据集"
     try:
         with ZipFile(source) as archive:
             files = inspect_members(archive)
@@ -314,7 +314,7 @@ def import_coco_archive(db: Session, source: BinaryIO, filename: str, task: Coco
 
 
 def import_coco_directory(db: Session, folder: str, task: CocoTask, *,
-                          skip_invalid: bool = False) -> CocoImportResponse:
+                          skip_invalid: bool = False, name: str | None = None) -> CocoImportResponse:
     root = directory_root(folder)
     files = directory_members(root, extra_suffixes=frozenset({".json"}))
-    return _import_coco(db, root.name[:120], task, files, partial(read_directory_file, root), skip_invalid=skip_invalid)
+    return _import_coco(db, name or root.name[:120], task, files, partial(read_directory_file, root), skip_invalid=skip_invalid)
