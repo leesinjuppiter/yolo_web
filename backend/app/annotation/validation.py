@@ -59,6 +59,7 @@ def validate_annotations(
     class_ids: set[str],
     status: str,
     annotations: list[Annotation | dict],
+    serialize: bool = True,
 ) -> list[dict]:
     if status not in {"unlabeled", "negative", "annotated"}:
         raise ValueError("图片标注状态无效")
@@ -82,5 +83,6 @@ def validate_annotations(
             raise ValueError("同一图片中的标注 ID 必须唯一")
         _check_geometry(annotation, width, height, keypoint_names)
         seen_ids.add(annotation.id)
-        clean.append(annotation.model_dump(mode="json", exclude={"class_index"}))
+        if serialize:
+            clean.append(annotation.model_dump(mode="json", exclude={"class_index"}))
     return clean

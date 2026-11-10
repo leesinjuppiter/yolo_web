@@ -1,7 +1,7 @@
 from datetime import datetime
 from uuid import uuid4
 
-from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Integer, String, UniqueConstraint, func
+from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Integer, String, UniqueConstraint, and_, func
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -28,6 +28,7 @@ class Dataset(Base):
         cascade="all, delete-orphan", passive_deletes=True, order_by="DatasetClass.index",
     )
     images: Mapped[list["DatasetImage"]] = relationship(
+        primaryjoin=lambda: and_(Dataset.id == DatasetImage.dataset_id, DatasetImage.excluded_at.is_(None)),
         cascade="all, delete-orphan", passive_deletes=True, order_by="(DatasetImage.created_at, DatasetImage.id)",
     )
 
@@ -66,6 +67,7 @@ class DatasetImage(Base):
     split: Mapped[str | None] = mapped_column(String(5))
     status: Mapped[str] = mapped_column(String(10))
     version: Mapped[int] = mapped_column(Integer, default=0)
+    excluded_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     storage_path: Mapped[str] = mapped_column(String(160), unique=True)
     annotations: Mapped[list[dict]] = mapped_column(JSONB, default=list)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

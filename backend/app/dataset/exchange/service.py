@@ -15,6 +15,7 @@ from app.annotation.validation import validate_annotations
 from app.core.config import data_dir
 from app.core.storage import remove_images, resolve_image, save_image
 from app.dataset import repository, schemas
+from app.dataset.analysis.queue import REPORT_KINDS, invalidate_reports
 from app.yolo import from_yolo, to_yolo
 
 from .archive import (
@@ -85,6 +86,7 @@ def _import_samples(
             if count % 500 == 0:
                 db.flush()
         response = repository.serialize(dataset)
+        invalidate_reports(db, dataset.id, REPORT_KINDS)
         db.commit()
         return response
     except Exception:

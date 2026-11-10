@@ -1,6 +1,9 @@
+from collections import Counter
 from collections.abc import Sequence
+from typing import NamedTuple
 
-from sqlalchemy import select
+from sqlalchemy import column, func, select, true
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Session, selectinload
 
 from app.dataset import schemas
@@ -13,6 +16,12 @@ class NotFound(LookupError):
 
 class Conflict(ValueError):
     pass
+
+
+class ImageSource(NamedTuple):
+    id: str
+    name: str
+    storage_path: str
 
 
 def _start_read_snapshot(db: Session) -> None:
@@ -31,12 +40,12 @@ def list_datasets(db: Session) -> Sequence[Dataset]:
     return db.scalars(query).all()
 
 
-def get_dataset(db: Session, dataset_id: str, *, lock: bool = False) -> Dataset:
+def get_dataset(db: Session, dataset_id: str, *, lock: bool = False, include_images: bool = True) -> Dataset:
     if not lock:
         _start_read_snapshot(db)
-    query = select(Dataset).where(Dataset.id == str(dataset_id)).options(
-        selectinload(Dataset.classes), selectinload(Dataset.images),
-    )
+    query = select(Dataset).where(Dataset.id == str(dataset_id)).options(selectinload(Dataset.classes))
+    if include_images:
+        query = query.options(selectinload(Dataset.images))
     if lock:
         query = query.with_for_update()
     dataset = db.scalar(query)
@@ -45,14 +54,54 @@ def get_dataset(db: Session, dataset_id: str, *, lock: bool = False) -> Dataset:
     return dataset
 
 
-def get_image(db: Session, dataset_id: str, image_id: str) -> DatasetImage:
-    image = db.scalar(select(DatasetImage).where(
+def get_image(db: Session, dataset_id: str, image_id: str, *, include_excluded: bool = False) -> DatasetImage:
+    query = select(DatasetImage).where(
         DatasetImage.id == str(image_id),
         DatasetImage.dataset_id == str(dataset_id),
-    ))
+    )
+    if not include_excluded:
+        query = query.where(DatasetImage.excluded_at.is_(None))
+    image = db.scalar(query)
     if image is None:
         raise NotFound("未找到图片")
     return image
+
+
+def list_excluded_images(db: Session, dataset_id: str) -> Sequence[DatasetImage]:
+    query = select(DatasetImage).where(
+        DatasetImage.dataset_id == dataset_id, DatasetImage.excluded_at.is_not(None),
+    ).order_by(DatasetImage.excluded_at.desc(), DatasetImage.id)
+    return db.scalars(query).all()
+
+
+def list_image_files(db: Session, dataset_id: str, *, include_excluded: bool = False) -> Sequence[tuple[str, str]]:
+    query = select(DatasetImage.name, DatasetImage.storage_path).where(DatasetImage.dataset_id == dataset_id)
+    if not include_excluded:
+        query = query.where(DatasetImage.excluded_at.is_(None))
+    return db.execute(query.order_by(DatasetImage.created_at, DatasetImage.id)).tuples().all()
+
+
+def list_image_sources(db: Session, dataset_id: str) -> list[ImageSource]:
+    sources = db.execute(
+        select(DatasetImage.id, DatasetImage.name, DatasetImage.storage_path)
+        .where(DatasetImage.dataset_id == dataset_id, DatasetImage.excluded_at.is_(None))
+        .order_by(DatasetImage.created_at, DatasetImage.id)
+    )
+    return [ImageSource(*source) for source in sources]
+
+
+def quality_counts(db: Session, dataset_id: str) -> tuple[Counter[str], Counter[str]]:
+    dataset_filter = (DatasetImage.dataset_id == dataset_id, DatasetImage.excluded_at.is_(None))
+    statuses = db.execute(
+        select(DatasetImage.status, func.count()).where(*dataset_filter).group_by(DatasetImage.status)
+    ).all()
+    annotations = func.jsonb_array_elements(DatasetImage.annotations).table_valued(column("value", JSONB))
+    class_id = annotations.c.value["class_id"].astext
+    classes = db.execute(
+        select(class_id, func.count()).select_from(DatasetImage).join(annotations, true())
+        .where(*dataset_filter).group_by(class_id)
+    ).all()
+    return Counter(dict(statuses)), Counter(dict(classes))
 
 
 def create_dataset(
@@ -96,25 +145,30 @@ def add_image(
     return image
 
 
-def serialize(dataset: Dataset) -> schemas.DatasetResponse:
-    classes = [
+def serialize_classes(dataset: Dataset) -> list[schemas.ClassResponse]:
+    return [
         schemas.ClassResponse(id=entry.id, name=entry.name, color=entry.color, index=entry.index)
         for entry in dataset.classes
     ]
+
+
+def serialize_image(image: DatasetImage, class_indices: dict[str, int]) -> schemas.ImageResponse:
+    return schemas.ImageResponse(
+        id=image.id, name=image.name, width=image.width, height=image.height, split=image.split,
+        status=image.status, version=image.version, excluded_at=image.excluded_at,
+        url=f"/api/datasets/{image.dataset_id}/images/{image.id}/content",
+        annotations=[
+            {**annotation, "class_index": class_indices[annotation["class_id"]]}
+            for annotation in image.annotations
+        ],
+    )
+
+
+def serialize(dataset: Dataset) -> schemas.DatasetResponse:
+    classes = serialize_classes(dataset)
     class_indices = {str(entry.id): entry.index for entry in classes}
-    images = [
-        schemas.ImageResponse(
-            id=image.id, name=image.name, width=image.width, height=image.height, split=image.split,
-            status=image.status, version=image.version,
-            url=f"/api/datasets/{dataset.id}/images/{image.id}/content",
-            annotations=[
-                {**annotation, "class_index": class_indices[annotation["class_id"]]}
-                for annotation in image.annotations
-            ],
-        )
-        for image in dataset.images
-    ]
     return schemas.DatasetResponse(
         id=dataset.id, name=dataset.name, task_type=dataset.task_type, created_at=dataset.created_at,
-        keypoint_names=dataset.keypoint_names, classes=classes, images=images,
+        keypoint_names=dataset.keypoint_names, classes=classes,
+        images=[serialize_image(image, class_indices) for image in dataset.images],
     )

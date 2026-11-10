@@ -1,4 +1,5 @@
 from collections.abc import Iterable
+from datetime import datetime, timezone
 from pathlib import Path
 from uuid import UUID
 
@@ -7,6 +8,7 @@ from sqlalchemy.orm import Session
 from app.annotation.validation import validate_annotations
 from app.core import storage
 from app.dataset import repository, schemas
+from app.dataset.analysis.queue import REPORT_KINDS, invalidate_reports
 from app.dataset.models import Dataset
 
 
@@ -26,8 +28,8 @@ def create_dataset(db: Session, request: schemas.DatasetCreate) -> schemas.Datas
 
 
 def delete_dataset(db: Session, dataset_id: str) -> None:
-    dataset = repository.get_dataset(db, dataset_id, lock=True)
-    paths = [image.storage_path for image in dataset.images]
+    dataset = repository.get_dataset(db, dataset_id, lock=True, include_images=False)
+    paths = [path for _, path in repository.list_image_files(db, dataset_id, include_excluded=True)]
     db.delete(dataset)
     db.commit()
     storage.remove_images(paths)
@@ -51,6 +53,7 @@ def upload_images(
             raise ValueError("请选择至少一张图片")
         db.flush()
         response = repository.serialize(dataset)
+        invalidate_reports(db, dataset.id, REPORT_KINDS)
         db.commit()
     except Exception:
         db.rollback()
@@ -66,9 +69,12 @@ def update_splits(
     images = {image.id: image for image in dataset.images}
     if any(str(image_id) not in images for image_id in request.splits):
         raise repository.NotFound("选中的图片不属于当前数据集")
+    changed = any(images[str(image_id)].split != split for image_id, split in request.splits.items())
     for image_id, split in request.splits.items():
         images[str(image_id)].split = split
     response = repository.serialize(dataset)
+    if changed:
+        invalidate_reports(db, dataset.id, ("validate",))
     db.commit()
     return response
 
@@ -78,14 +84,42 @@ def delete_image(db: Session, dataset_id: str, image_id: str) -> None:
     image = repository.get_image(db, dataset_id, image_id)
     path = image.storage_path
     db.delete(image)
+    invalidate_reports(db, dataset_id, REPORT_KINDS)
     db.commit()
     storage.remove_images([path])
+
+
+def exclude_image(db: Session, dataset_id: str, image_id: str) -> None:
+    dataset = repository.get_dataset(db, dataset_id, lock=True, include_images=False)
+    image = repository.get_image(db, dataset_id, image_id)
+    image.excluded_at = datetime.now(timezone.utc)
+    image.version += 1
+    invalidate_reports(db, dataset_id, REPORT_KINDS)
+    db.expire(dataset, ["images"])
+
+
+def list_excluded_images(db: Session, dataset_id: str) -> list[schemas.ImageResponse]:
+    dataset = repository.get_dataset(db, dataset_id, include_images=False)
+    class_indices = {entry.id: entry.index for entry in dataset.classes}
+    return [repository.serialize_image(image, class_indices) for image in repository.list_excluded_images(db, dataset_id)]
+
+
+def restore_excluded_image(db: Session, dataset_id: str, image_id: str) -> schemas.ImageResponse:
+    dataset = repository.get_dataset(db, dataset_id, lock=True, include_images=False)
+    image = repository.get_image(db, dataset_id, image_id, include_excluded=True)
+    if image.excluded_at is not None:
+        image.excluded_at = None
+        image.version += 1
+        invalidate_reports(db, dataset_id, REPORT_KINDS)
+    response = repository.serialize_image(image, {entry.id: entry.index for entry in dataset.classes})
+    db.commit()
+    return response
 
 
 def update_class(
     db: Session, dataset_id: str, class_id: str, request: schemas.ClassUpdate,
 ) -> schemas.ClassResponse:
-    dataset = repository.get_dataset(db, dataset_id, lock=True)
+    dataset = repository.get_dataset(db, dataset_id, lock=True, include_images=False)
     entry = next((item for item in dataset.classes if item.id == class_id), None)
     if entry is None:
         raise repository.NotFound("该类别不属于当前数据集")
@@ -93,8 +127,11 @@ def update_class(
         raise repository.Conflict("该类别已被其他操作更新，请重新载入数据集")
     if any(item.id != class_id and item.name.casefold() == request.name.casefold() for item in dataset.classes):
         raise repository.Conflict(f"类别「{request.name}」已存在")
+    renamed = entry.name != request.name
     entry.name, entry.color = request.name, request.color.lower()
     response = schemas.ClassResponse(id=entry.id, name=entry.name, color=entry.color, index=entry.index)
+    if renamed:
+        invalidate_reports(db, dataset_id, ("quality",))
     db.commit()
     return response
 
@@ -126,12 +163,10 @@ def _add_classes(
 
 
 def save_annotations(
-    db: Session, dataset_id: str, image_id: str, request: schemas.AnnotationSave,
-) -> schemas.DatasetResponse:
-    dataset = repository.get_dataset(db, dataset_id, lock=True)
-    image = next((item for item in dataset.images if item.id == image_id), None)
-    if image is None:
-        raise repository.NotFound("未找到图片")
+    db: Session, dataset_id: str, image_id: str, request: schemas.AnnotationSave, *, compact: bool = False,
+) -> schemas.DatasetResponse | schemas.AnnotationSaveResponse:
+    dataset = repository.get_dataset(db, dataset_id, lock=True, include_images=False)
+    image = repository.get_image(db, dataset_id, image_id)
     if image.version != request.version:
         raise repository.Conflict("图片标注已被其他操作更新，请重新载入")
     class_ids = _add_classes(db, dataset, request.classes)
@@ -142,13 +177,19 @@ def save_annotations(
     )
     image.status = request.status
     image.version += 1
-    response = repository.serialize(dataset)
+    if compact:
+        classes = repository.serialize_classes(dataset)
+        class_indices = {str(entry.id): entry.index for entry in classes}
+        response = schemas.AnnotationSaveResponse(image=repository.serialize_image(image, class_indices), classes=classes)
+    else:
+        response = repository.serialize(dataset)
+    invalidate_reports(db, dataset_id, ("validate", "quality"))
     db.commit()
     return response
 
 
 def image_path(db: Session, dataset_id: str, image_id: str) -> Path:
-    image = repository.get_image(db, dataset_id, image_id)
+    image = repository.get_image(db, dataset_id, image_id, include_excluded=True)
     path = storage.resolve_image(image.storage_path)
     if not path.is_file():
         raise repository.NotFound("图片文件不存在")

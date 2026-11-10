@@ -1,6 +1,8 @@
 export type TaskType = 'detect' | 'segment' | 'obb' | 'classify' | 'pose'
+export const selectableDatasetTasks = ['detect', 'segment', 'obb', 'classify'] as const satisfies readonly TaskType[]
+export type SelectableDatasetTask = (typeof selectableDatasetTasks)[number]
 export type Split = 'train' | 'val' | 'test'
-export type DatasetAction = 'add' | 'annotate' | 'export' | 'validate' | 'duplicates' | 'quality' | 'delete' | 'auto' | 'train' | 'assistant' | 'splits'
+export type DatasetAction = 'add' | 'annotate' | 'export' | 'validate' | 'duplicates' | 'quality' | 'delete' | 'auto' | 'train' | 'assistant' | 'splits' | 'excluded'
 export type DialogKind = 'create' | 'add' | 'import' | 'export' | 'delete' | 'auto' | 'splits'
 export type ReportKind = 'validate' | 'duplicates' | 'quality'
 
@@ -12,6 +14,7 @@ export interface DatasetClass {
 }
 
 export type AnnotationStatus = 'unlabeled' | 'negative' | 'annotated'
+export const annotationStatusLabels: Record<AnnotationStatus, string> = { unlabeled: '未标注', negative: '负样本', annotated: '已标注' }
 export interface BoundingBox { x: number; y: number; width: number; height: number }
 export interface Keypoint { name: string; x: number; y: number; visible: 0 | 1 | 2 }
 export type Annotation = {
@@ -38,6 +41,19 @@ export interface DatasetImage {
   annotations: Annotation[]
 }
 
+export type SimilarityDecision = 'keep_both' | 'discard_image' | 'discard_related'
+
+export interface ReportIssue {
+  image_id?: string | null
+  related_image_id?: string | null
+  image_sha256?: string | null
+  related_image_sha256?: string | null
+  review_status?: 'pending' | 'confirmed' | null
+  message: string
+  code: string
+  severity: 'error' | 'warning'
+}
+
 interface Counts {
   images: number
   annotated: number
@@ -54,14 +70,32 @@ export interface Dataset {
   classes: DatasetClass[]
 }
 
-export interface DatasetReport {
-  datasetId: string
-  kind: ReportKind
-  pending: boolean
+export interface ReportResult {
   title?: string
   items?: { label: string; value: string | number }[]
   messages?: string[]
-  issues?: { image_id?: string | null; message: string; code: string; severity: 'error' | 'warning' }[]
+  issues?: ReportIssue[]
+  class_counts?: Record<string, number>
+}
+
+export interface ReportSnapshot {
+  status: 'idle' | 'queued' | 'running' | 'ready' | 'failed'
+  stale: boolean
+  generated_at: string | null
+  progress: { completed: number; total: number } | null
+  error: string | null
+  report: ReportResult | null
+}
+
+export interface DatasetReport extends ReportResult {
+  datasetId: string
+  kind: ReportKind
+  pending: boolean
+  status: ReportSnapshot['status'] | 'loading'
+  stale: boolean
+  generatedAt: string | null
+  progress: ReportSnapshot['progress']
+  error: string | null
 }
 
 export const taskLabels: Record<TaskType, string> = {

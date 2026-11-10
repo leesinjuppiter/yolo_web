@@ -21,6 +21,7 @@ def client(monkeypatch, tmp_path):
         pytest.skip("需要一个已迁移的独立 PostgreSQL 测试库")
     monkeypatch.setenv("WORKBENCH_DATABASE_URL", url)
     monkeypatch.setenv("WORKBENCH_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("WORKBENCH_ANALYSIS_WORKER", "0")
     from app.core.config import data_dir
     for cached in (database_url, data_dir, engine):
         cached.cache_clear()
@@ -101,9 +102,43 @@ def test_delete_image_removes_its_annotations_and_file_only(client, dataset_url,
     assert latest["classes"] == [{**category, "index": 0}]
 
 
-def test_concurrent_save_with_same_version_only_accepts_one(client, dataset_url):
+def test_compact_annotation_save_reads_and_returns_only_target_image(client, dataset_url):
+    target = _upload(client, dataset_url)
+    other = next(image for image in client.post(dataset_url + "/images", files={
+        "files": ("other.png", _png(), "image/png"),
+    }).json()["images"] if image["name"] == "other.png")
+    category = {"id": str(uuid4()), "name": "coal", "color": "#135791"}
+    annotation = {
+        "id": str(uuid4()), "type": "obb", "class_id": category["id"], "source": "manual",
+        "obb": {"cx": 50, "cy": 40, "width": 20, "height": 10, "angle": 20},
+    }
+    reads = []
+
+    def record_image_read(_connection, _cursor, statement, *_):
+        if "FROM dataset_images" in statement:
+            reads.append(statement)
+
+    test_engine = engine()
+    event.listen(test_engine, "after_cursor_execute", record_image_read)
+    try:
+        response = client.put(f"{dataset_url}/images/{target['id']}/annotations?compact=true", json={
+            "version": 0, "status": "annotated", "classes": [category], "annotations": [annotation],
+        })
+    finally:
+        event.remove(test_engine, "after_cursor_execute", record_image_read)
+
+    assert response.status_code == 200, response.text
+    assert len(reads) == 1 and "WHERE dataset_images.id =" in reads[0]
+    saved = {**target, "version": 1, "status": "annotated", "annotations": [{**annotation, "class_index": 0}]}
+    assert response.json() == {"image": saved, "classes": [{**category, "index": 0}]}
+    latest = client.get(dataset_url).json()
+    assert {item["id"]: item for item in latest["images"]} == {saved["id"]: saved, other["id"]: other}
+
+
+@pytest.mark.parametrize("suffix", ["", "?compact=true"])
+def test_concurrent_save_with_same_version_only_accepts_one(client, dataset_url, suffix):
     image = _upload(client, dataset_url)
-    url = f"{dataset_url}/images/{image['id']}/annotations"
+    url = f"{dataset_url}/images/{image['id']}/annotations{suffix}"
 
     def submit(label_name):
         class_id = str(uuid4())

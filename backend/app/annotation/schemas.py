@@ -5,6 +5,7 @@ from pydantic import BaseModel, ConfigDict, Field, FiniteFloat
 
 AnnotationSource = Literal["manual", "sam", "imported"]
 ImageStatus = Literal["unlabeled", "negative", "annotated"]
+MAX_POLYGON_VERTICES = 4000
 
 
 class ShapeModel(BaseModel):
@@ -47,7 +48,7 @@ class BoundingBox(AnnotationBase):
 
 class Polygon(AnnotationBase):
     type: Literal["polygon"]
-    polygon: Annotated[list[tuple[FiniteFloat, FiniteFloat]], Field(min_length=3, max_length=4000)]
+    polygon: Annotated[list[tuple[FiniteFloat, FiniteFloat]], Field(min_length=3, max_length=MAX_POLYGON_VERTICES)]
 
 
 class OrientedBox(AnnotationBase):

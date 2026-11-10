@@ -4,9 +4,11 @@ import { useRoute, useRouter } from 'vue-router'
 import AnnotationView from './AnnotationView.vue'
 import DatasetDialogs from './DatasetDialogs.vue'
 import DatasetExchangeDialog from './components/DatasetExchangeDialog.vue'
+import DatasetExcludedImagesDialog from './components/DatasetExcludedImagesDialog.vue'
+import SimilarityReviewDialog from './components/SimilarityReviewDialog.vue'
 import DatasetsView from './DatasetsView.vue'
-import { createDataset, deleteDataset, deleteDatasetImage, listDatasets, readReport, saveSplits, updateAnnotations, updateDatasetClass, uploadImages } from './api/datasets'
-import type { Annotation, AnnotationStatus, Dataset, DatasetAction, DatasetClass, DatasetReport, DialogKind, ReportKind, Split, TaskType } from './domain'
+import { createDataset, deleteDataset, deleteDatasetImage, listDatasets, readReportSnapshot, refreshReportSnapshot, saveSimilarityReview, saveSplits, updateAnnotations, updateDatasetClass, uploadImages } from './api/datasets'
+import type { Annotation, AnnotationStatus, Dataset, DatasetAction, DatasetClass, DatasetImage, DatasetReport, DialogKind, ReportIssue, ReportKind, ReportSnapshot, SelectableDatasetTask, SimilarityDecision, Split } from './domain'
 
 const route = useRoute()
 const router = useRouter()
@@ -20,12 +22,39 @@ const activeDataset = computed(() => datasets.value.find(item => item.id === rou
 const initialImageId = computed(() => typeof route.query.image === 'string' ? route.query.image : undefined)
 const annotation = ref<{ confirmLeave: () => boolean | Promise<boolean> }>()
 const report = ref<DatasetReport>()
+type ReviewGroup = { images: [DatasetImage, DatasetImage]; issue: ReportIssue; decision?: SimilarityDecision }
+const review = ref<{ datasetId: string; datasetName: string; groups: ReviewGroup[]; index: number; generatedAt: string | null; confirmed: boolean; continuing: boolean }>()
+const reviewGroup = computed(() => review.value?.groups[review.value.index])
+const reviewResult = computed(() => {
+  const group = reviewGroup.value
+  switch (group?.decision) {
+    case 'keep_both': return '已确认重复，两张图均已保留'
+    case 'discard_image': return `已排除「${group.images[0].name}」`
+    case 'discard_related': return `已排除「${group.images[1].name}」`
+    default: return ''
+  }
+})
+const reviewBusy = ref(false)
+const reviewError = ref('')
+const reviewFeedback = ref('')
+const excludedDatasetId = ref('')
+const excludedDataset = computed(() => datasets.value.find(item => item.id === excludedDatasetId.value))
+const reviewable = computed(() => {
+  const current = review.value
+  const snapshot = report.value
+  const issue = reviewGroup.value?.issue
+  return Boolean(current && !reviewGroup.value?.decision && issue?.code === 'duplicate_exact' && issue.review_status === 'pending'
+    && issue.image_sha256 && issue.related_image_sha256
+    && snapshot?.kind === 'duplicates' && snapshot.datasetId === current.datasetId
+    && (current.continuing || (snapshot.status === 'ready' && !snapshot.stale)))
+})
 const busy = ref(false)
 const dialogError = ref('')
 const annotationError = ref('')
 const notice = ref('')
 let noticeTimer: ReturnType<typeof setTimeout> | undefined
-let reportRequest = 0
+let reportPoll: ReturnType<typeof setTimeout> | undefined
+let reportController: AbortController | undefined
 
 const sections = [
   { label: '数据集', icon: 'M3 5h18v14H3z M3 15l5-5 4 4 3-3 6 5' },
@@ -60,6 +89,7 @@ async function initialize() {
 
 onMounted(initialize)
 onUnmounted(() => clearTimeout(noticeTimer))
+onUnmounted(stopReportSync)
 
 const stopGuard = router.beforeEach((to, from) => {
   if (from.name === 'annotation' && to.fullPath !== from.fullPath) {
@@ -80,31 +110,176 @@ function closeDialog() {
   if (!busy.value) dialog.value = null
 }
 
+function stopReportSync() {
+  clearTimeout(reportPoll)
+  reportController?.abort()
+  reportController = undefined
+}
+
 function closeReport() {
-  reportRequest += 1
+  stopReportSync()
   report.value = undefined
 }
 
-async function showReport(kind: ReportKind, dataset: Dataset) {
+function showReport(kind: ReportKind, dataset: Dataset) {
   if (report.value?.datasetId === dataset.id && report.value.kind === kind) {
     closeReport()
     return
   }
-  const request = ++reportRequest
-  report.value = { kind, datasetId: dataset.id, pending: true }
+  report.value = { kind, datasetId: dataset.id, pending: true, status: 'loading', stale: false,
+    generatedAt: null, progress: null, error: null }
+  syncReport()
+}
+
+function applyReportSnapshot(datasetId: string, kind: ReportKind, snapshot: ReportSnapshot) {
+  report.value = { ...snapshot.report, kind, datasetId, status: snapshot.status,
+    pending: snapshot.status === 'queued' || snapshot.status === 'running',
+    stale: snapshot.stale, generatedAt: snapshot.generated_at, progress: snapshot.progress, error: snapshot.error }
+  if (kind === 'duplicates' && snapshot.status === 'ready' && !snapshot.stale) {
+    refreshReviewGroups(datasetId, snapshot)
+  }
+}
+
+async function updateReport(datasetId: string, kind: ReportKind, signal: AbortSignal, action: 'open' | 'poll' | 'refresh') {
   try {
-    const result = await readReport(dataset.id, kind)
-    if (request === reportRequest) report.value = { ...result, kind, datasetId: dataset.id, pending: false }
+    let snapshot = action === 'refresh'
+      ? await refreshReportSnapshot(datasetId, kind, true, signal)
+      : await readReportSnapshot(datasetId, kind, signal)
+    if (signal.aborted) return
+    applyReportSnapshot(datasetId, kind, snapshot)
+    if (action === 'open' && (snapshot.status === 'idle' || snapshot.status === 'queued'
+        || (snapshot.status === 'ready' && snapshot.stale))) {
+      snapshot = await refreshReportSnapshot(datasetId, kind, false, signal)
+      if (signal.aborted) return
+      applyReportSnapshot(datasetId, kind, snapshot)
+    }
+    if (snapshot.status === 'queued' || snapshot.status === 'running') {
+      reportPoll = setTimeout(() => { void updateReport(datasetId, kind, signal, 'poll') }, 1000)
+    }
   } catch (error) {
-    if (request === reportRequest) {
-      report.value = { kind, datasetId: dataset.id, pending: false, title: '检查未完成', messages: [message(error)] }
+    if (!signal.aborted && report.value) {
+      report.value = { ...report.value, pending: false, status: 'failed', error: message(error) }
     }
   }
 }
 
+function syncReport(force = false, action: 'open' | 'poll' = 'open') {
+  const current = report.value
+  if (!current) return
+  stopReportSync()
+  reportController = new AbortController()
+  report.value = { ...current, pending: true, status: 'loading', error: null }
+  void updateReport(current.datasetId, current.kind, reportController.signal, force ? 'refresh' : action)
+}
+
 function openAnnotation(dataset: Dataset, imageId?: string) {
+  if (imageId && !dataset.images.some(item => item.id === imageId)) {
+    showNotice('当前数据集中已找不到报告中的图片，请刷新报告。')
+    return
+  }
   annotationError.value = ''
   void router.push({ name: 'annotation', params: { id: dataset.id }, query: imageId ? { image: imageId } : {} })
+}
+
+function buildReviewGroups(dataset: Dataset, issues: ReportIssue[]): ReviewGroup[] {
+  const images = new Map(dataset.images.map(image => [image.id, image]))
+  return issues.flatMap<ReviewGroup>(item => {
+    const first = images.get(item.image_id ?? '')
+    const second = images.get(item.related_image_id ?? '')
+    return first && second ? [{ images: [first, second], issue: item }] : []
+  })
+}
+
+function refreshReviewGroups(datasetId: string, snapshot: ReportSnapshot) {
+  const current = review.value
+  const group = reviewGroup.value
+  if (current?.datasetId !== datasetId || !group || reviewBusy.value || current.generatedAt === snapshot.generated_at) return
+  const dataset = datasets.value.find(item => item.id === datasetId)
+  if (!dataset) return
+  const issues = (snapshot.report?.issues ?? []).filter(item => (item.review_status === 'confirmed') === current.confirmed)
+  const groups = buildReviewGroups(dataset, issues)
+  const same = groups.findIndex(({ issue }) => issue.image_id === group.issue.image_id
+    && issue.related_image_id === group.issue.related_image_id)
+  const next = same >= 0 ? same : group.decision ? nextPendingGroup(groups, current.index) : -1
+  if (next >= 0) {
+    if (same < 0) reviewFeedback.value = '审核已保存，已进入下一组。'
+    review.value = { ...current, groups, index: next, generatedAt: snapshot.generated_at }
+  } else if (!group.decision) {
+    const index = Math.min(current.index, groups.length)
+    groups.splice(index, 0, { ...group, issue: { ...group.issue, review_status: null } })
+    review.value = { ...current, groups, index, generatedAt: snapshot.generated_at }
+  } else {
+    review.value = { ...current, groups: [group], index: 0, generatedAt: snapshot.generated_at }
+  }
+}
+
+function openSimilarityReview(dataset: Dataset, issue: ReportIssue, issues: ReportIssue[]) {
+  const groups = buildReviewGroups(dataset, issues)
+  const index = groups.findIndex(group => group.issue === issue)
+  if (index < 0) {
+    showNotice('当前数据集中已找不到完整的图片对，请刷新报告。')
+    return
+  }
+  reviewError.value = ''
+  reviewFeedback.value = ''
+  review.value = { datasetId: dataset.id, datasetName: dataset.name, groups, index,
+    generatedAt: report.value?.generatedAt ?? null, confirmed: issue.review_status === 'confirmed', continuing: false }
+}
+
+function nextPendingGroup(groups: ReviewGroup[], start: number) {
+  const next = groups.findIndex((group, index) => index >= start && group.issue.review_status === 'pending')
+  return next >= 0 ? next : groups.findIndex(group => group.issue.review_status === 'pending')
+}
+
+function stepReview(offset: -1 | 1) {
+  const current = review.value
+  if (!current || reviewBusy.value || !current.groups[current.index + offset]) return
+  reviewError.value = ''
+  reviewFeedback.value = ''
+  current.index += offset
+}
+
+async function submitReview(decision: SimilarityDecision) {
+  const current = review.value
+  const group = reviewGroup.value
+  const firstSha = group?.issue.image_sha256
+  const secondSha = group?.issue.related_image_sha256
+  if (!current || !group || !reviewable.value || reviewBusy.value || !firstSha || !secondSha) return
+  const [first, second] = group.images
+  reviewBusy.value = true
+  reviewError.value = ''
+  reviewFeedback.value = ''
+  try {
+    await saveSimilarityReview(current.datasetId, { image_id: first.id, related_image_id: second.id,
+      image_sha256: firstSha, related_image_sha256: secondSha, decision })
+    group.decision = decision
+    const discarded = decision === 'discard_image' ? first : decision === 'discard_related' ? second : undefined
+    const available = (item: ReviewGroup) => !item.decision && (!discarded || !item.images.some(image => image.id === discarded.id))
+    const groups = current.groups.filter(available)
+    const next = nextPendingGroup(groups, current.groups.slice(0, current.index).filter(available).length)
+    review.value = { ...current, groups: next >= 0 ? groups : [group], index: Math.max(0, next), continuing: true }
+    if (next >= 0) reviewFeedback.value = '审核已保存，已进入下一组。'
+    const dataset = datasets.value.find(item => item.id === current.datasetId)
+    if (discarded && dataset) {
+      replaceDataset({ ...dataset, images: dataset.images.filter(item => item.id !== discarded.id) }, 'poll')
+      showNotice(`已排除「${discarded.name}」，可在「已排除样本」中恢复。`)
+    } else {
+      if (report.value?.datasetId === current.datasetId) syncReport(false, 'poll')
+      showNotice('审核结果已保存。')
+    }
+  } catch (error) {
+    reviewError.value = message(error)
+    if (report.value?.datasetId === current.datasetId) syncReport(false, 'poll')
+  } finally {
+    reviewBusy.value = false
+  }
+}
+
+function restoreIntoDataset(image: DatasetImage) {
+  const dataset = excludedDataset.value
+  if (!dataset) return
+  replaceDataset({ ...dataset, images: [...dataset.images.filter(item => item.id !== image.id), image] })
+  showNotice(`已恢复「${image.name}」。`)
 }
 
 function datasetAction(action: DatasetAction, dataset: Dataset) {
@@ -116,7 +291,7 @@ function datasetAction(action: DatasetAction, dataset: Dataset) {
     case 'validate':
     case 'duplicates':
     case 'quality':
-      void showReport(action, dataset)
+      showReport(action, dataset)
       break
     case 'train':
       showNotice('当前版本开放数据集与标注功能')
@@ -124,14 +299,19 @@ function datasetAction(action: DatasetAction, dataset: Dataset) {
     case 'assistant':
       showNotice('当前版本开放数据集与标注功能')
       break
+    case 'excluded':
+      excludedDatasetId.value = dataset.id
+      break
     default:
       openDialog(action, dataset)
   }
 }
 
-function replaceDataset(record: Dataset) {
+function replaceDataset(record: Dataset, reportAction: 'open' | 'poll' = 'open') {
   datasets.value = datasets.value.map(item => item.id === record.id ? record : item)
-  if (report.value?.datasetId === record.id) closeReport()
+  if (report.value?.datasetId !== record.id) return
+  if (route.name === 'datasets') syncReport(false, reportAction)
+  else closeReport()
 }
 
 async function dialogMutation(operation: () => Promise<string>) {
@@ -153,9 +333,9 @@ function addDataset(dataset: Dataset) {
   datasets.value = [dataset, ...datasets.value]
 }
 
-function create(name: string, task: TaskType, keypointNames: string[]) {
+function create(name: string, task: SelectableDatasetTask) {
   void dialogMutation(async () => {
-    addDataset(await createDataset(name, task, keypointNames))
+    addDataset(await createDataset(name, task))
     return '数据集已创建，可以添加图片'
   })
 }
@@ -191,12 +371,16 @@ function deleteCurrent() {
 
 async function saveAnnotations(imageId: string, annotations: Annotation[], classes: DatasetClass[], status: AnnotationStatus) {
   const dataset = activeDataset.value
-  const image = dataset?.images.find(item => item.id === imageId)
-  if (busy.value || !dataset || !image) return false
+  if (busy.value || !dataset) return false
+  const index = dataset.images.findIndex(item => item.id === imageId)
+  if (index < 0) return false
   busy.value = true
   annotationError.value = ''
   try {
-    replaceDataset(await updateAnnotations(dataset.id, image, annotations, classes, status))
+    const saved = await updateAnnotations(dataset.id, dataset.images[index], annotations, classes, status)
+    const images = dataset.images.slice()
+    images[index] = saved.image
+    replaceDataset({ ...dataset, images, classes: saved.classes })
     return true
   } catch (error) {
     annotationError.value = message(error)
@@ -281,7 +465,9 @@ async function deleteImage(imageId: string) {
           @import="openDialog('import')"
           @action="datasetAction"
           @close-report="closeReport"
+          @refresh-report="syncReport(true)"
           @open-image="openAnnotation"
+          @review-pair="openSimilarityReview"
         />
       </main>
     </div>
@@ -325,6 +511,32 @@ async function deleteImage(imageId: string) {
     @splits="changeSplits"
     @delete="deleteCurrent"
     @notice="showNotice"
+  />
+  <SimilarityReviewDialog
+    v-if="review && reviewGroup"
+    :dataset-name="review.datasetName"
+    :images="reviewGroup.images"
+    :fingerprints="[reviewGroup.issue.image_sha256, reviewGroup.issue.related_image_sha256]"
+    :group-index="review.index"
+    :group-count="review.groups.length"
+    :reviewable="reviewable"
+    :confirmed="reviewGroup.issue.review_status === 'confirmed' || reviewGroup.decision === 'keep_both'"
+    :busy="reviewBusy"
+    :error="reviewError"
+    :feedback="reviewFeedback"
+    :result="reviewResult"
+    :refreshing="!!reviewResult && !!report?.pending"
+    :refresh-error="report?.status === 'failed' ? report.error : null"
+    @close="review = undefined"
+    @refresh="syncReport(true)"
+    @step="stepReview"
+    @submit="submitReview"
+  />
+  <DatasetExcludedImagesDialog
+    v-if="excludedDataset"
+    :dataset="excludedDataset"
+    @close="excludedDatasetId = ''"
+    @restored="restoreIntoDataset"
   />
   <div v-if="notice" class="workbench-notice" role="status">
     {{ notice }} <button type="button" aria-label="关闭提示" @click="notice = ''">×</button>

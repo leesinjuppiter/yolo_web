@@ -1,4 +1,8 @@
 import logging
+import os
+from asyncio import to_thread
+from contextlib import asynccontextmanager
+from threading import Event, Thread
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
@@ -8,9 +12,27 @@ from sqlalchemy.exc import IntegrityError, OperationalError
 from app.api.datasets import router as dataset_router
 from app.api.exchange import router as exchange_router
 from app.core.database import engine
+from app.dataset.analysis.reporting import compute_report
+from app.dataset.analysis.worker import run_worker
 from app.dataset.repository import Conflict, NotFound
 
-app = FastAPI(title="检测系统工作台")
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    if os.environ.get("WORKBENCH_ANALYSIS_WORKER", "1") == "0":
+        yield
+        return
+    stop = Event()
+    worker = Thread(target=run_worker, args=(stop, compute_report), name="dataset-analysis", daemon=True)
+    worker.start()
+    try:
+        yield
+    finally:
+        stop.set()
+        await to_thread(worker.join, 5)
+
+
+app = FastAPI(title="检测系统工作台", lifespan=lifespan)
 app.include_router(dataset_router)
 app.include_router(exchange_router)
 log = logging.getLogger(__name__)

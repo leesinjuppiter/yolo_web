@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import type { Dataset, DatasetAction, DatasetReport } from './domain'
-import { datasetCounts, taskLabels } from './domain'
+import type { Dataset, DatasetAction, DatasetReport, ReportIssue, SelectableDatasetTask } from './domain'
+import { datasetCounts, selectableDatasetTasks, taskLabels } from './domain'
 import DatasetQualityReport from './components/DatasetQualityReport.vue'
+import DatasetReportState from './components/DatasetReportState.vue'
 import DatasetValidationReport from './components/DatasetValidationReport.vue'
 
 type Task = Dataset['task']
@@ -12,11 +13,12 @@ const emit = defineEmits<{
   import: []
   action: [action: DatasetAction, dataset: Dataset]
   'close-report': []
+  'refresh-report': []
   'open-image': [dataset: Dataset, imageId: string]
+  'review-pair': [dataset: Dataset, issue: ReportIssue, issues: ReportIssue[]]
 }>()
 
-const tasks = Object.keys(taskLabels) as Task[]
-const taskShort: Record<Task, string> = { detect: '检测', obb: 'OBB', segment: '分割', classify: '分类', pose: '姿态' }
+const taskShort: Record<SelectableDatasetTask, string> = { detect: '检测', obb: 'OBB', segment: '分割', classify: '分类' }
 const taskIcon: Record<Task, string> = {
   detect: 'M4 6h12v10H4z M8 4V2h12v10h-2',
   obb: 'm12 3 9 9-9 9-9-9z M8 12h8m-4-4v8',
@@ -30,14 +32,15 @@ const operations: { action: DatasetAction; label: string }[] = [
   { action: 'auto', label: '自动标注' },
   { action: 'export', label: '导出数据集' },
   { action: 'splits', label: '调整分集' },
-  { action: 'duplicates', label: '重复／相似图' },
+  { action: 'duplicates', label: '精确重复' },
   { action: 'validate', label: '运行校验' },
   { action: 'quality', label: '质量报告' },
+  { action: 'excluded', label: '已排除样本' },
   { action: 'delete', label: '删除' },
 ]
 const requiresImages = new Set<DatasetAction>(['auto', 'export', 'splits', 'duplicates', 'validate', 'quality'])
 const query = ref('')
-const selectedTask = ref<Task | 'all'>('all')
+const selectedTask = ref<SelectableDatasetTask | 'all'>('all')
 const page = ref(1)
 const pageSize = 9
 const preferenceKey = 'inspection-workbench:datasets-view'
@@ -50,6 +53,17 @@ function initialView() {
 }
 const view = ref<'list' | 'cards'>(initialView())
 const menuId = ref<string>()
+const reportPage = ref(1)
+const reportPageSize = 5
+const reviewFilter = ref<'unconfirmed' | 'confirmed'>('unconfirmed')
+const reportIssues = computed(() => props.report?.issues ?? [])
+const confirmedCount = computed(() => reportIssues.value.filter(issue => issue.review_status === 'confirmed').length)
+const filteredIssues = computed(() => reportIssues.value.filter(issue =>
+  (issue.review_status === 'confirmed') === (reviewFilter.value === 'confirmed')))
+const reportMessageCount = computed(() => reportIssues.value.length ? filteredIssues.value.length : props.report?.messages?.length ?? 0)
+const reportPageCount = computed(() => Math.max(1, Math.ceil(reportMessageCount.value / reportPageSize)))
+const currentReportPage = computed(() => Math.min(reportPage.value, reportPageCount.value))
+const reportOffset = computed(() => (currentReportPage.value - 1) * reportPageSize)
 const numberFormat = new Intl.NumberFormat('zh-CN')
 const dateFormat = new Intl.DateTimeFormat('zh-CN', {
   month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit',
@@ -92,6 +106,12 @@ const totals = computed(() => {
 watch([query, selectedTask], () => { page.value = 1; menuId.value = undefined })
 watch(pageCount, maximum => { page.value = Math.min(page.value, maximum) })
 watch([currentPage, view], () => { menuId.value = undefined })
+watch([() => props.report?.datasetId, () => props.report?.kind], () => {
+  reviewFilter.value = 'unconfirmed'
+  reportPage.value = 1
+})
+watch(reviewFilter, () => { reportPage.value = 1 })
+watch(reportPageCount, maximum => { reportPage.value = Math.min(reportPage.value, maximum) })
 watch(view, value => {
   try {
     localStorage.setItem(preferenceKey, value)
@@ -115,14 +135,19 @@ function runAction(action: DatasetAction, dataset: Dataset) {
 }
 function actionLabel(action: DatasetAction, label: string, dataset: Dataset) {
   if (props.report?.datasetId !== dataset.id || props.report.kind !== action) return label
-  if (props.report.pending) return '处理中…'
   if (action === 'validate') return '收起校验'
   if (action === 'duplicates') return '收起重复图'
   return '收起报告'
 }
-function actionDisabled(action: DatasetAction, images: number, dataset: Dataset) {
-  return (!images && requiresImages.has(action))
-    || (props.report?.datasetId === dataset.id && props.report.kind === action && props.report.pending)
+function actionExpanded(action: DatasetAction, dataset: Dataset) {
+  if (action === 'validate' || action === 'duplicates' || action === 'quality') {
+    return props.report?.datasetId === dataset.id && props.report.kind === action
+  }
+  return undefined
+}
+function canReview(issue: ReportIssue) {
+  return props.report?.status === 'ready' && !props.report.stale && issue.code === 'duplicate_exact'
+    && issue.review_status === 'pending' && Boolean(issue.image_sha256 && issue.related_image_sha256)
 }
 function closeMenuOutside(event: FocusEvent) {
   const region = event.currentTarget as HTMLElement
@@ -159,7 +184,7 @@ function closeMenuOutside(event: FocusEvent) {
       </label>
       <div class="segmented task-filter" role="group" aria-label="任务类型">
         <button type="button" :aria-pressed="selectedTask === 'all'" @click="selectedTask = 'all'">全部</button>
-        <button v-for="task in tasks" :key="task" type="button" :aria-pressed="selectedTask === task" @click="selectedTask = task">
+        <button v-for="task in selectableDatasetTasks" :key="task" type="button" :aria-pressed="selectedTask === task" @click="selectedTask = task">
           {{ taskLabels[task] }}
         </button>
       </div>
@@ -236,7 +261,8 @@ function closeMenuOutside(event: FocusEvent) {
               <div v-if="menuId === row.dataset.id" class="action-menu">
                 <button v-if="row.images" type="button" @click="runAction('add', row.dataset)">添加图片</button>
                 <button v-for="item in operations" :key="item.action" type="button" :class="{ destructive: item.action === 'delete' }"
-                  :disabled="actionDisabled(item.action, row.images, row.dataset)" @click="runAction(item.action, row.dataset)">
+                  :aria-expanded="actionExpanded(item.action, row.dataset)"
+                  :disabled="!row.images && requiresImages.has(item.action)" @click="runAction(item.action, row.dataset)">
                   {{ actionLabel(item.action, item.label, row.dataset) }}
                 </button>
               </div>
@@ -244,8 +270,8 @@ function closeMenuOutside(event: FocusEvent) {
           </div>
           <div v-if="view === 'cards'" class="card-actions">
             <button v-for="item in operations" :key="item.action" class="button" :class="{ danger: item.action === 'delete' }" type="button"
-              :aria-expanded="item.action === 'validate' ? report?.datasetId === row.dataset.id && report.kind === 'validate' : undefined"
-              :disabled="actionDisabled(item.action, row.images, row.dataset)" @click="runAction(item.action, row.dataset)">
+              :aria-expanded="actionExpanded(item.action, row.dataset)"
+              :disabled="!row.images && requiresImages.has(item.action)" @click="runAction(item.action, row.dataset)">
               {{ actionLabel(item.action, item.label, row.dataset) }}
             </button>
           </div>
@@ -253,29 +279,50 @@ function closeMenuOutside(event: FocusEvent) {
 
         <div v-if="report?.datasetId === row.dataset.id" class="report-row" :role="view === 'list' ? 'row' : undefined">
           <DatasetQualityReport v-if="report.kind === 'quality'" :dataset="row.dataset" :report="report"
-            :role="view === 'list' ? 'cell' : undefined" :aria-colspan="view === 'list' ? 6 : undefined" @close="emit('close-report')" />
+            :role="view === 'list' ? 'cell' : undefined" :aria-colspan="view === 'list' ? 6 : undefined"
+            @close="emit('close-report')" @refresh="emit('refresh-report')" />
           <DatasetValidationReport v-else-if="report.kind === 'validate'" :report="report"
             :role="view === 'list' ? 'cell' : undefined" :aria-colspan="view === 'list' ? 6 : undefined"
-            @close="emit('close-report')" @open-image="emit('open-image', row.dataset, $event)" />
-          <div v-else class="report" :role="view === 'list' ? 'cell' : undefined" :aria-colspan="view === 'list' ? 6 : undefined">
+            @close="emit('close-report')" @refresh="emit('refresh-report')" @open-image="emit('open-image', row.dataset, $event)" />
+          <div v-else class="report" :role="view === 'list' ? 'cell' : undefined" :aria-colspan="view === 'list' ? 6 : undefined"
+            :aria-busy="report.pending">
             <div class="report-heading">
-              <strong role="status">{{ report.pending ? '正在分析…' : report.title || '分析结果' }}</strong>
+              <strong>{{ report.title || '精确重复分析' }}</strong>
               <button class="text-button" type="button" @click="emit('close-report')">收起结果</button>
             </div>
+            <DatasetReportState :report="report" @refresh="emit('refresh-report')" />
             <dl v-if="report.items?.length" class="report-metrics">
               <div v-for="item in report.items" :key="item.label">
                 <dt>{{ item.label }}</dt><dd>{{ item.value }}</dd>
               </div>
             </dl>
-            <ul v-if="report.issues?.length">
-              <li v-for="(issue, index) in report.issues" :key="index">
-                {{ issue.message }}
-                <button v-if="issue.image_id" type="button" class="text-button" @click="emit('open-image', row.dataset, issue.image_id)">查看图片</button>
-              </li>
-            </ul>
+            <template v-if="report.issues?.length">
+              <p v-if="report.messages?.length" class="report-hint">{{ report.messages[0] }}</p>
+              <div v-if="confirmedCount || reviewFilter === 'confirmed'" class="segmented review-filter" role="group" aria-label="重复图审核状态">
+                <button type="button" :aria-pressed="reviewFilter === 'unconfirmed'" @click="reviewFilter = 'unconfirmed'">待处理与其他结果</button>
+                <button type="button" :aria-pressed="reviewFilter === 'confirmed'" @click="reviewFilter = 'confirmed'">已确认重复（{{ formatNumber(confirmedCount) }}）</button>
+              </div>
+              <ul v-if="filteredIssues.length">
+                <li v-for="(issue, index) in filteredIssues.slice(reportOffset, reportOffset + reportPageSize)" :key="reportOffset + index">
+                  {{ issue.message }}
+                  <button v-if="issue.image_id" type="button" class="text-button" @click="emit('open-image', row.dataset, issue.image_id)">查看图片</button>
+                  <button v-if="issue.image_id && issue.related_image_id" type="button" class="text-button"
+                    @click="emit('review-pair', row.dataset, issue, filteredIssues)">{{ canReview(issue) ? '人工审核' : '查看对比图' }}</button>
+                </li>
+              </ul>
+              <p v-else class="report-hint">{{ reviewFilter === 'confirmed' ? '暂无已确认的重复图。' : '暂无待处理结果。' }}</p>
+            </template>
             <ul v-else-if="report.messages?.length">
-              <li v-for="(message, index) in report.messages" :key="index">{{ message }}</li>
+              <li v-for="(message, index) in report.messages.slice(reportOffset, reportOffset + reportPageSize)" :key="reportOffset + index">{{ message }}</li>
             </ul>
+            <div v-if="reportMessageCount > reportPageSize" class="pagination-bar report-pagination">
+              <span>共 {{ formatNumber(reportMessageCount) }} 条</span>
+              <nav class="page-controls" aria-label="精确重复结果分页">
+                <button class="button" type="button" :disabled="currentReportPage <= 1" @click="reportPage = currentReportPage - 1">上一页</button>
+                <span aria-live="polite">{{ currentReportPage }} / {{ reportPageCount }} 页</span>
+                <button class="button" type="button" :disabled="currentReportPage >= reportPageCount" @click="reportPage = currentReportPage + 1">下一页</button>
+              </nav>
+            </div>
           </div>
         </div>
       </div>
@@ -303,7 +350,7 @@ function closeMenuOutside(event: FocusEvent) {
       <div class="overview-cell type-overview">
         <dt>任务类型分布</dt>
         <dd class="overview-types">
-          <span v-for="task in tasks" :key="task">{{ taskShort[task] }} {{ totals.taskCounts[task] }}</span>
+          <span v-for="task in selectableDatasetTasks" :key="task">{{ taskShort[task] }} {{ totals.taskCounts[task] }}</span>
         </dd>
       </div>
       <div class="overview-cell">
@@ -477,6 +524,8 @@ progress.complete { color: #368150; }
 .report-metrics div { min-width: 56px; flex: 1; padding: 5px; background: var(--surface, #fff); }
 .report-metrics dt { color: var(--muted, #5c6775); }
 .report-metrics dd { margin: 1px 0 0; font-family: var(--numeric); font-weight: 600; }
+.report-hint { margin: 7px 0 0; color: var(--muted, #5c6775); }
+.review-filter { margin-top: 7px; width: fit-content; }
 .report ul { padding-left: 16px; margin: 7px 0 0; }
 .empty-state { text-align: center; padding: 42px 16px; border: 1px solid var(--line, #e6e9ed); }
 .empty-state p { font-size: 13px; color: var(--muted, #5c6775); }
@@ -485,6 +534,7 @@ progress.complete { color: #368150; }
   border: 1px solid var(--line, #e6e9ed); background: var(--soft, #f8f9fb);
   color: var(--muted, #5c6775); font-size: 12px;
 }
+.report-pagination { margin-top: 8px; padding: 5px 0 0; border-width: 1px 0 0; }
 .page-controls { gap: 4px; font-family: var(--numeric); }
 .page-controls button, .page-controls span {
   min-height: 25px; min-width: 25px; display: grid; place-items: center;

@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
-import { datasetCounts, taskLabels } from './domain'
-import type { Dataset, DialogKind, Split, TaskType } from './domain'
+import { datasetCounts, selectableDatasetTasks, taskLabels } from './domain'
+import type { Dataset, DialogKind, SelectableDatasetTask, Split } from './domain'
 
 const props = defineProps<{ kind: Exclude<DialogKind, 'import' | 'export'> | null; dataset?: Dataset; busy?: boolean; error?: string }>()
 const emit = defineEmits<{
   close: []
-  create: [name: string, task: TaskType, keypoints: string[]]
+  create: [name: string, task: SelectableDatasetTask]
   add: [files: File[], split: Split | null]
   splits: [splits: Record<string, Split | null>]
   delete: []
@@ -15,7 +15,7 @@ const emit = defineEmits<{
 
 const dialog = ref<HTMLDialogElement>()
 const name = ref('')
-const task = ref<TaskType>('obb')
+const task = ref<SelectableDatasetTask>('obb')
 const split = ref<Split | null>(null)
 const splits = ref<Record<string, Split | null>>({})
 const splitRatio = ref('6:2:2')
@@ -82,20 +82,17 @@ function applySplitRatio() {
 
 
 
-const keypoints = ref('')
-const keypointNames = computed(() => keypoints.value.split(/[,，、\n]/).map(point => point.trim()).filter(Boolean))
 const files = ref<{ file: File; preview: string }[]>([])
 const fileError = ref('')
 const confidence = ref(0.25)
 const includeAnnotated = ref(false)
 
-const tasks: { id: TaskType; description: string }[] = [
-  { id: 'detect', description: '为目标绘制水平矩形框' },
-  { id: 'segment', description: '使用多边形描出目标轮廓' },
-  { id: 'obb', description: '为倾斜目标绘制可旋转的框' },
-  { id: 'classify', description: '为整张图片选择一个类别' },
-  { id: 'pose', description: '绘制目标框并标注关键点' },
-]
+const taskDescriptions: Record<SelectableDatasetTask, string> = {
+  detect: '为目标绘制水平矩形框',
+  segment: '使用多边形描出目标轮廓',
+  obb: '为倾斜目标绘制可旋转的框',
+  classify: '为整张图片选择一个类别',
+}
 
 const counts = computed(() => props.dataset ? datasetCounts(props.dataset) : { images: 0, annotated: 0, classes: 0 })
 const displayCount = computed(() => counts.value.images.toLocaleString('zh-CN'))
@@ -132,8 +129,7 @@ const pendingLabels = {
 
 const actionDisabled = computed(() => {
   if (props.busy) return true
-  if (props.kind === 'create') return !name.value.trim() || (task.value === 'pose' &&
-    (!keypointNames.value.length || new Set(keypointNames.value).size !== keypointNames.value.length))
+  if (props.kind === 'create') return !name.value.trim()
   if (props.kind === 'add') return !files.value.length
   return false
 })
@@ -163,7 +159,6 @@ watch([() => props.kind, dialog], ([kind]) => {
   splitRatio.value = '6:2:2'
   ratioError.value = ''
 
-  keypoints.value = ''
   fileError.value = ''
   confidence.value = 0.25
   includeAnnotated.value = false
@@ -198,7 +193,7 @@ function submit() {
   if (actionDisabled.value) return
   switch (props.kind) {
     case 'create':
-      emit('create', name.value.trim(), task.value, task.value === 'pose' ? keypointNames.value : [])
+      emit('create', name.value.trim(), task.value)
       break
     case 'add':
       if (props.dataset) emit('add', files.value.map((item) => item.file), split.value)
@@ -242,16 +237,11 @@ function submit() {
           >
           <div class="field-label task-label" id="dataset-task-label">任务类型 <span class="required-mark">*</span></div>
           <div class="option-grid" role="radiogroup" aria-labelledby="dataset-task-label">
-            <label v-for="item in tasks" :key="item.id" class="option" :class="{ selected: task === item.id }">
-              <input v-model="task" type="radio" name="dataset-task" :value="item.id">
-              <span><strong>{{ taskLabels[item.id] }}</strong><small>{{ item.description }}</small></span>
+            <label v-for="item in selectableDatasetTasks" :key="item" class="option" :class="{ selected: task === item }">
+              <input v-model="task" type="radio" name="dataset-task" :value="item">
+              <span><strong>{{ taskLabels[item] }}</strong><small>{{ taskDescriptions[item] }}</small></span>
             </label>
           </div>
-          <template v-if="task === 'pose'">
-            <label class="field-label task-label" for="pose-keypoints">关键点名称 <span class="required-mark">*</span></label>
-            <input id="pose-keypoints" v-model="keypoints" type="text" placeholder="例如：中心点，左端，右端" required>
-            <p v-if="new Set(keypointNames).size !== keypointNames.length" class="dialog-error">关键点名称不能重复。</p>
-          </template>
         </template>
 
         <template v-else-if="kind === 'add'">

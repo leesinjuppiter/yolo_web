@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import { downloadYolo, importDatasetArchive, importDatasetDirectory } from '../api/datasets'
-import { taskLabels } from '../domain'
-import type { Dataset, TaskType } from '../domain'
+import type { SkippedSample } from '../api/datasets'
+import { selectableDatasetTasks, taskLabels } from '../domain'
+import type { Dataset, SelectableDatasetTask } from '../domain'
 import LocalDirectoryPicker from './LocalDirectoryPicker.vue'
 
 type Mode = 'import' | 'export'
@@ -16,12 +17,14 @@ const datasetId = ref(props.dataset?.id ?? '')
 const includeImages = ref(true)
 const includeNegative = ref(true)
 const source = ref<Source>('yolo')
-const task = ref<TaskType>('detect')
+const task = ref<SelectableDatasetTask>('detect')
+const skipInvalid = ref(false)
 const archive = ref<File>()
 const directory = ref('')
 const fileError = ref('')
 const prepared = ref(false)
 const busy = ref(false)
+const importResult = ref<{ count: number; skipped: SkippedSample[] }>()
 const sources: { id: Source; label: string; enabled?: boolean }[] = [
   { id: 'native', label: '原生工程归档（ZIP）' },
   { id: 'yolo', label: 'YOLO 数据集（ZIP）', enabled: true },
@@ -34,7 +37,7 @@ const sources: { id: Source; label: string; enabled?: boolean }[] = [
 const dataset = computed(() => props.datasets.find(item => item.id === datasetId.value))
 const localImport = computed(() => mode.value === 'import' && (source.value === 'local' || source.value === 'coco-local'))
 const importFormat = computed(() => source.value === 'coco' || source.value === 'coco-local' ? 'coco' : 'yolo')
-const importTasks = computed(() => Object.entries(taskLabels).filter(([key]) =>
+const importTasks = computed(() => selectableDatasetTasks.filter(key =>
   importFormat.value !== 'coco' || key === 'detect' || key === 'segment'))
 const importReady = computed(() => localImport.value ? Boolean(directory.value.trim()) : Boolean(archive.value))
 const classification = computed(() => dataset.value?.task === 'classify')
@@ -70,9 +73,10 @@ onMounted(() => dialog.value?.showModal())
 watch(importFormat, format => {
   if (format === 'coco' && task.value !== 'detect' && task.value !== 'segment') task.value = 'detect'
 })
-watch([mode, datasetId, includeImages, includeNegative, task, source, directory], () => {
+watch([mode, datasetId, includeImages, includeNegative, task, source, directory, skipInvalid], () => {
   prepared.value = false
   fileError.value = ''
+  importResult.value = undefined
 })
 
 function selectFile(file?: File) {
@@ -80,6 +84,7 @@ function selectFile(file?: File) {
   archive.value = undefined
   fileError.value = ''
   prepared.value = false
+  importResult.value = undefined
   if (!file) return
   if (!file.size || !/\.zip$/i.test(file.name)) {
     fileError.value = '请选择非空 ZIP 压缩包。'
@@ -113,10 +118,13 @@ async function exchange() {
       prepared.value = true
     } else if (mode.value === 'import' && importReady.value) {
       const imported = localImport.value
-        ? await importDatasetDirectory(directory.value.trim(), task.value, importFormat.value)
-        : await importDatasetArchive(archive.value!, task.value, importFormat.value)
+        ? await importDatasetDirectory(directory.value.trim(), task.value, importFormat.value, skipInvalid.value)
+        : await importDatasetArchive(archive.value!, task.value, importFormat.value, skipInvalid.value)
+      if (importFormat.value === 'coco') {
+        importResult.value = { count: imported.dataset.images.length, skipped: imported.skippedSamples }
+      }
       prepared.value = true
-      emit('imported', imported)
+      emit('imported', imported.dataset)
     }
   } catch (error) {
     fileError.value = error instanceof Error ? error.message : '数据集交换失败'
@@ -167,7 +175,7 @@ async function exchange() {
               <option disabled>DOTA 1.5（待接入）</option>
             </select>
           </label>
-          <div class="export-options">
+          <div class="exchange-options">
             <label><input type="checkbox" :checked="classification || includeImages" :disabled="busy || classification"
               @change="includeImages = ($event.target as HTMLInputElement).checked"> 打包原始图像</label>
             <label v-if="!classification"><input v-model="includeNegative" type="checkbox" :disabled="busy"> 包含已标记的负样本</label>
@@ -194,14 +202,17 @@ async function exchange() {
           <label>
             任务类型
             <select v-model="task" :disabled="busy">
-              <option v-for="[key, label] in importTasks" :key="key" :value="key">{{ label }}</option>
+              <option v-for="key in importTasks" :key="key" :value="key">{{ taskLabels[key] }}</option>
             </select>
             <small v-if="importFormat === 'coco'" class="task-note">
-              同时提供 COCO 标注 JSON 和图片。{{ task === 'segment' ? '每个实例须有一个多边形轮廓。' : '检测任务读取 bbox。' }}
+              同时提供 COCO 标注 JSON 和图片。{{ task === 'segment' ? '支持同一实例的多个多边形轮廓。' : '检测任务读取 bbox。' }}
             </small>
-            <small v-else-if="task === 'pose'" class="task-note">data.yaml 须包含 kpt_shape，各类别共用同一套关键点。</small>
             <small v-else-if="task === 'classify'" class="task-note">使用 train/类别/图片 和 val/类别/图片 目录结构。</small>
           </label>
+          <div v-if="importFormat === 'coco'" class="exchange-options">
+            <label><input v-model="skipInvalid" type="checkbox" :disabled="busy"> 跳过有问题的样本</label>
+            <small>图片或任一实例标注校验失败时，排除整张图片，并在导入结果里列出原因。</small>
+          </div>
           <LocalDirectoryPicker v-if="localImport" v-model="directory" :disabled="busy" />
           <label v-else class="exchange-drop" @dragover.prevent @drop.prevent="selectFile($event.dataTransfer?.files[0])">
             <input type="file" accept=".zip" :disabled="busy" @change="pickFile">
@@ -220,7 +231,7 @@ async function exchange() {
 
       <section class="exchange-results" aria-labelledby="exchange-result-title">
         <div class="results-heading">
-          <h3 id="exchange-result-title">{{ mode === 'export' ? '导出结果预览' : localImport ? '导入目录预览' : '导入文件预览' }}</h3>
+          <h3 id="exchange-result-title">{{ mode === 'export' ? '导出结果预览' : importResult ? '导入结果' : localImport ? '导入目录预览' : '导入文件预览' }}</h3>
           <span class="result-state" :class="{ prepared }">{{ busy ? '处理中' : prepared ? '已完成' : '待执行' }}</span>
         </div>
 
@@ -232,6 +243,21 @@ async function exchange() {
           <div><dt>目标标注总数</dt><dd><strong>{{ preview.annotations.toLocaleString('zh-CN') }}</strong></dd></div>
           <div class="full"><dt>归档结构</dt><dd>{{ classification ? '分集 / 类别 / 图片' : 'data.yaml、labels 目录及可选的 images 目录' }}</dd></div>
         </dl>
+        <div v-else-if="importResult">
+          <dl class="result-grid">
+            <div><dt>已导入</dt><dd>{{ importResult.count }} 张图片</dd></div>
+            <div><dt>已排除</dt><dd>{{ importResult.skipped.length }} 张图片</dd></div>
+          </dl>
+          <details v-if="importResult.skipped.length" class="skipped-samples">
+            <summary>查看排除明细</summary>
+            <ul>
+              <li v-for="(sample, index) in importResult.skipped" :key="index">
+                <strong>{{ sample.filename }}</strong>
+                <small>{{ sample.manifest }} · {{ sample.reason }}</small>
+              </li>
+            </ul>
+          </details>
+        </div>
         <dl v-else-if="localImport && directory.trim()" class="result-grid">
           <div class="full"><dt>本机目录</dt><dd class="path">{{ directory }}</dd></div>
           <div><dt>任务类型</dt><dd>{{ taskLabels[task] }}</dd></div>
@@ -337,9 +363,9 @@ async function exchange() {
   background: var(--soft);
   font-weight: normal;
 }
-.export-options { display: grid; gap: 6px; }
-.export-options label { display: flex; align-items: center; gap: 6px; }
-.export-options input { margin: 0; accent-color: var(--primary); }
+.exchange-options { display: grid; gap: 6px; }
+.exchange-options label { display: flex; align-items: center; gap: 6px; }
+.exchange-options input { margin: 0; accent-color: var(--primary); }
 .exchange-form > .button { min-height: 39px; border-radius: 8px; }
 .exchange-form > .exchange-drop {
   position: relative;
@@ -384,6 +410,11 @@ async function exchange() {
 .result-grid dt { color: var(--muted); font-size: 12px; }
 .result-grid dd { margin: 3px 0 0; overflow-wrap: anywhere; }
 .result-grid strong { font-size: 17px; font-variant-numeric: tabular-nums; }
+.skipped-samples { margin: 12px 0; overflow-wrap: anywhere; font-size: 13px; }
+.skipped-samples summary { cursor: pointer; }
+.skipped-samples ul { max-height: 240px; overflow: auto; margin: 8px 0 0; padding-left: 22px; }
+.skipped-samples li { margin-bottom: 8px; }
+.skipped-samples small { display: block; color: var(--muted); }
 .path { font-family: "Cascadia Mono", Consolas, monospace; }
 .exchange-empty { padding: 20px 12px; border: 1px dashed var(--line); border-radius: 8px; color: var(--muted); font-size: 12px; }
 .exchange-footer {

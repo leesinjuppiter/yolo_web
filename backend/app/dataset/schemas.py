@@ -59,6 +59,7 @@ class ImageResponse(BaseModel):
     version: int
     url: str
     annotations: list[Annotation]
+    excluded_at: datetime | None = None
 
 
 class DatasetResponse(BaseModel):
@@ -69,6 +70,11 @@ class DatasetResponse(BaseModel):
     keypoint_names: list[str]
     classes: list[ClassResponse]
     images: list[ImageResponse]
+
+
+class AnnotationSaveResponse(BaseModel):
+    image: ImageResponse
+    classes: list[ClassResponse]
 
 
 class SplitUpdate(RequestModel):

@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import type { Dataset, DatasetReport } from '../domain'
+import DatasetReportState from './DatasetReportState.vue'
 
 const props = defineProps<{ dataset: Dataset; report: DatasetReport }>()
-const emit = defineEmits<{ close: [] }>()
+const emit = defineEmits<{ close: []; refresh: [] }>()
 const formatNumber = new Intl.NumberFormat('zh-CN')
 const formatShare = new Intl.NumberFormat('zh-CN', { style: 'percent', maximumFractionDigits: 1, minimumFractionDigits: 1 })
 const coverageLabel = '已检查覆盖率'
@@ -25,17 +26,9 @@ const metricDetails = computed<Record<string, { unit?: string; note?: string; to
 }))
 
 const classBreakdown = computed(() => {
-  const counts = new Map<string, number>()
-  let total = 0
-  for (const image of props.dataset.images) {
-    for (const annotation of image.annotations) {
-      const id = annotation.class_id
-      counts.set(id, (counts.get(id) ?? 0) + 1)
-      total++
-    }
-  }
+  const total = totalCount.value
   return props.dataset.classes.map(entry => {
-    const count = counts.get(entry.id) ?? 0
+    const count = props.report.class_counts?.[entry.id] ?? 0
     return { ...entry, count, share: total ? count / total : 0 }
   }).sort((a, b) => b.count - a.count)
 })
@@ -45,8 +38,8 @@ const classBreakdown = computed(() => {
   <section class="quality-panel" aria-label="数据质量报告" :aria-busy="report.pending">
     <header class="quality-heading">
       <div class="quality-heading-main">
-        <strong role="status">{{ report.pending ? '正在分析…' : report.title || '数据质量报告' }}</strong>
-        <span v-if="metrics.length" class="quality-status">分析完成</span>
+        <strong>{{ report.title || '数据质量报告' }}</strong>
+        <span v-if="metrics.length && report.status === 'ready' && !report.stale" class="quality-status">分析完成</span>
       </div>
       <button class="quality-collapse" type="button" @click="emit('close')">
         收起结果
@@ -55,6 +48,7 @@ const classBreakdown = computed(() => {
         </svg>
       </button>
     </header>
+    <DatasetReportState :report="report" @refresh="emit('refresh')" />
 
     <template v-if="metrics.length">
       <dl class="quality-metrics">

@@ -1,5 +1,6 @@
-import type { Annotation, AnnotationStatus, Dataset, DatasetClass, DatasetImage, DatasetReport, ReportKind, Split, TaskType } from '../domain'
+import type { Annotation, AnnotationStatus, Dataset, DatasetClass, DatasetImage, ReportKind, ReportSnapshot, SelectableDatasetTask, SimilarityDecision, Split, TaskType } from '../domain'
 
+type ImageResponse = Omit<DatasetImage, 'src'> & { url: string }
 type DatasetResponse = {
   id: string
   name: string
@@ -7,7 +8,7 @@ type DatasetResponse = {
   created_at: string
   keypoint_names: string[]
   classes: DatasetClass[]
-  images: (Omit<DatasetImage, 'src'> & { url: string })[]
+  images: ImageResponse[]
 }
 
 const root = '/api/datasets'
@@ -35,11 +36,15 @@ const json = (method: string, value: unknown): RequestInit => ({
   method, body: JSON.stringify(value), headers: { 'Content-Type': 'application/json' },
 })
 
+function adaptImage({ url, ...image }: ImageResponse): DatasetImage {
+  return { ...image, src: url }
+}
+
 function adapt(record: DatasetResponse): Dataset {
   return {
     id: record.id, name: record.name, task: record.task_type, createdAt: record.created_at,
     keypointNames: record.keypoint_names, classes: record.classes,
-    images: record.images.map(({ url, ...image }) => ({ ...image, src: url })),
+    images: record.images.map(adaptImage),
   }
 }
 
@@ -51,8 +56,8 @@ export async function listDatasets() {
   return ((await (await request(root)).json()) as DatasetResponse[]).map(adapt)
 }
 
-export function createDataset(name: string, task: TaskType, keypointNames: string[]) {
-  return dataset(root, json('POST', { name, task_type: task, keypoint_names: keypointNames }))
+export function createDataset(name: string, task: SelectableDatasetTask) {
+  return dataset(root, json('POST', { name, task_type: task }))
 }
 
 export async function deleteDataset(id: string) {
@@ -70,6 +75,26 @@ export async function deleteDatasetImage(id: string, imageId: string) {
   await request(`${at(id)}/images/${encodeURIComponent(imageId)}`, { method: 'DELETE' })
 }
 
+export async function saveSimilarityReview(id: string, review: {
+  image_id: string
+  related_image_id: string
+  image_sha256: string
+  related_image_sha256: string
+  decision: SimilarityDecision
+}) {
+  await request(`${at(id)}/similarity-reviews`, json('POST', review))
+}
+
+export async function listExcludedImages(id: string) {
+  const response = await request(`${at(id)}/excluded-images`, { cache: 'no-store' })
+  return (await response.json() as ImageResponse[]).map(adaptImage)
+}
+
+export async function restoreExcludedImage(id: string, imageId: string) {
+  const response = await request(`${at(id)}/excluded-images/${encodeURIComponent(imageId)}/restore`, { method: 'POST' })
+  return adaptImage(await response.json() as ImageResponse)
+}
+
 export function saveSplits(id: string, splits: Record<string, Split | null>) {
   return dataset(`${at(id)}/splits`, json('PATCH', { splits }))
 }
@@ -79,23 +104,36 @@ export async function updateDatasetClass(id: string, entry: DatasetClass, name: 
   return (await request(`${at(id)}/classes/${encodeURIComponent(entry.id)}`, json('PATCH', { name, color, previous }))).json()
 }
 
-export function updateAnnotations(id: string, image: DatasetImage, annotations: Annotation[], classes: DatasetClass[], status: AnnotationStatus) {
+export async function updateAnnotations(id: string, image: DatasetImage, annotations: Annotation[], classes: DatasetClass[], status: AnnotationStatus) {
   const cleanClasses = classes.map(({ id, name, color }) => ({ id, name, color }))
-  return dataset(`${at(id)}/images/${encodeURIComponent(image.id)}/annotations`,
+  const response = await request(`${at(id)}/images/${encodeURIComponent(image.id)}/annotations?compact=true`,
     json('PUT', { version: image.version, status, annotations, classes: cleanClasses }))
+  const saved = await response.json() as { image: ImageResponse; classes: DatasetClass[] }
+  return { image: adaptImage(saved.image), classes: saved.classes }
 }
 
-export async function readReport(id: string, kind: ReportKind): Promise<Pick<DatasetReport, 'title' | 'items' | 'messages' | 'issues'>> {
-  return (await request(`${at(id)}/reports/${kind}`)).json()
+export async function readReportSnapshot(id: string, kind: ReportKind, signal: AbortSignal): Promise<ReportSnapshot> {
+  return (await request(`${at(id)}/reports/${kind}/snapshot`, { signal, cache: 'no-store' })).json()
+}
+
+export async function refreshReportSnapshot(id: string, kind: ReportKind, force: boolean, signal: AbortSignal): Promise<ReportSnapshot> {
+  return (await request(`${at(id)}/reports/${kind}/refresh`, { ...json('POST', { force }), signal })).json()
 }
 
 type ImportFormat = 'yolo' | 'coco'
+export type SkippedSample = { manifest: string; filename: string; reason: string }
 
-export function importDatasetArchive(file: File, task: TaskType, format: ImportFormat) {
+async function importDataset(url: string, init: RequestInit) {
+  const record = await (await request(url, init)).json() as DatasetResponse & { skipped_samples?: SkippedSample[] }
+  return { dataset: adapt(record), skippedSamples: record.skipped_samples ?? [] }
+}
+
+export function importDatasetArchive(file: File, task: TaskType, format: ImportFormat, skipInvalid = false) {
   const form = new FormData()
   form.append('file', file)
   form.append('task_type', task)
-  return dataset(`${root}/import/${format}`, { method: 'POST', body: form })
+  if (format === 'coco' && skipInvalid) form.append('skip_invalid', 'true')
+  return importDataset(`${root}/import/${format}`, { method: 'POST', body: form })
 }
 
 export type LocalDirectoryListing = {
@@ -109,8 +147,9 @@ export async function listLocalDirectories(path?: string): Promise<LocalDirector
   return (await request(`${root}/import/directories${query}`)).json()
 }
 
-export function importDatasetDirectory(path: string, task: TaskType, format: ImportFormat) {
-  return dataset(`${root}/import/${format}-directory`, json('POST', { path, task_type: task }))
+export function importDatasetDirectory(path: string, task: TaskType, format: ImportFormat, skipInvalid = false) {
+  const payload = { path, task_type: task, ...(format === 'coco' && skipInvalid ? { skip_invalid: true } : {}) }
+  return importDataset(`${root}/import/${format}-directory`, json('POST', payload))
 }
 
 export async function downloadYolo(id: string, includeImages: boolean, includeNegative: boolean) {

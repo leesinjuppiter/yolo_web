@@ -1,26 +1,29 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import type { DatasetReport } from '../domain'
+import DatasetReportState from './DatasetReportState.vue'
 
 const props = defineProps<{ report: DatasetReport }>()
-const emit = defineEmits<{ close: []; 'open-image': [imageId: string] }>()
+const emit = defineEmits<{ close: []; refresh: []; 'open-image': [imageId: string] }>()
 const number = new Intl.NumberFormat('zh-CN')
 const metrics = computed(() => props.report.items ?? [])
 const issues = computed(() => props.report.issues ?? [])
+const visibleIssues = ref(100)
 const hasErrors = computed(() => metrics.value.some(item => item.label === '错误' && Number(item.value) > 0))
+watch(() => props.report.generatedAt, () => { visibleIssues.value = 100 })
 </script>
 
 <template>
   <section class="validation-panel" aria-label="运行校验结果" :aria-busy="report.pending">
     <header class="validation-heading">
-      <strong class="validation-status" :class="metrics.length ? (hasErrors ? 'error' : 'pass') : undefined" role="status">
+      <strong class="validation-status" :class="metrics.length ? (hasErrors ? 'error' : 'pass') : undefined">
         <svg v-if="metrics.length" viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor"
           stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <circle cx="8" cy="8" r="6"/>
           <path v-if="hasErrors" d="m6 6 4 4m0-4-4 4"/>
           <path v-else d="m5 8 2 2 4-4"/>
         </svg>
-        {{ report.pending ? '正在校验…' : report.title || '运行校验结果' }}
+        {{ report.title || '运行校验结果' }}
       </strong>
       <button class="validation-action" type="button" @click="emit('close')">
         收起结果
@@ -29,6 +32,7 @@ const hasErrors = computed(() => metrics.value.some(item => item.label === '错�
         </svg>
       </button>
     </header>
+    <DatasetReportState :report="report" @refresh="emit('refresh')" />
 
     <template v-if="metrics.length">
       <dl class="validation-metrics">
@@ -47,7 +51,7 @@ const hasErrors = computed(() => metrics.value.some(item => item.label === '错�
           <span>数据集规则</span>
         </div>
         <ul v-if="issues.length" class="validation-issues">
-          <li v-for="(issue, index) in issues" :key="index" class="validation-issue" :class="issue.severity">
+          <li v-for="(issue, index) in issues.slice(0, visibleIssues)" :key="index" class="validation-issue" :class="issue.severity">
             <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor"
               stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"
               role="img" :aria-label="issue.severity === 'error' ? '错误' : '警告'">
@@ -63,9 +67,14 @@ const hasErrors = computed(() => metrics.value.some(item => item.label === '错�
                 <path d="M9 3h4v4m0-4L7 9m5 0v4H3V4h4"/>
               </svg>
             </button>
+            <button v-if="issue.related_image_id" class="validation-action image-link" type="button"
+              @click="emit('open-image', issue.related_image_id)">查看对比图</button>
           </li>
         </ul>
         <p v-else class="validation-empty">未发现校验问题。</p>
+        <button v-if="issues.length > visibleIssues" class="validation-action" type="button" @click="visibleIssues += 100">
+          显示更多（剩余 {{ number.format(issues.length - visibleIssues) }} 条）
+        </button>
       </section>
     </template>
     <p v-else-if="report.messages?.length" class="validation-feedback">{{ report.messages.join('；') }}</p>

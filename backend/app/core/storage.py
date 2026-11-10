@@ -1,5 +1,6 @@
 import logging
-from collections.abc import Iterable
+from collections.abc import Iterable, Iterator
+from contextlib import contextmanager
 from dataclasses import dataclass
 from io import BytesIO
 from pathlib import Path
@@ -22,7 +23,8 @@ class StoredImage:
     height: int
 
 
-def _decode_image(data: bytes) -> tuple[int, int, str, bytes]:
+@contextmanager
+def open_checked_image(data: bytes) -> Iterator[Image.Image]:
     if not data or len(data) > MAX_IMAGE_BYTES:
         raise ValueError("图片文件必须小于或等于 32 MiB")
     try:
@@ -32,16 +34,21 @@ def _decode_image(data: bytes) -> tuple[int, int, str, bytes]:
             width, height = image.size
             if width * height > MAX_IMAGE_PIXELS:
                 raise ValueError("图片不能超过 4000 万像素")
-            image_format = image.format
-            suffix = _IMAGE_SUFFIXES[image_format]
             image.verify()
         with Image.open(BytesIO(data)) as image:
             image.load()
-            if image.getexif().get(274, 1) in range(2, 9):
-                width, height, data = _normalize_orientation(image, image_format)
+            yield image
     except (UnidentifiedImageError, OSError, SyntaxError, Image.DecompressionBombError) as error:
         raise ValueError("无法读取图片内容") from error
-    return width, height, suffix, data
+
+
+def _decode_image(data: bytes) -> tuple[int, int, str, bytes]:
+    with open_checked_image(data) as image:
+        width, height = image.size
+        image_format = image.format
+        if image.getexif().get(274, 1) in range(2, 9):
+            width, height, data = _normalize_orientation(image, image_format)
+    return width, height, _IMAGE_SUFFIXES[image_format], data
 
 
 def _normalize_orientation(image: Image.Image, image_format: str) -> tuple[int, int, bytes]:
@@ -54,11 +61,6 @@ def _normalize_orientation(image: Image.Image, image_format: str) -> tuple[int, 
     with ImageOps.exif_transpose(image) as oriented:
         oriented.save(output, format=image_format, **options)
         return oriented.width, oriented.height, output.getvalue()
-
-
-def inspect_image(data: bytes) -> tuple[int, int, str]:
-    width, height, suffix, _ = _decode_image(data)
-    return width, height, suffix
 
 
 def resolve_image(path: str) -> Path:

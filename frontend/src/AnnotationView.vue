@@ -432,10 +432,11 @@ onUnmounted(() => {
             :class="{ active: split === filter.value }" @click="setSplit(filter.value)">{{ filter.label }}</button>
         </div>
         <div class="rail-summary"><span>当前子集</span><strong class="technical">共 {{ images.length }} 张</strong></div>
-        <div class="image-list">
-          <div v-for="item in images" :key="item.id" class="image-entry" :class="{ active: item.id === imageId }">
+        <fieldset class="image-list" :disabled="busy || switchingView" aria-label="图片列表">
+          <div v-for="item in images" :key="item.id" v-memo="[item, item.id === imageId, item.id === imageId ? status : item.status]"
+            class="image-entry" :class="{ active: item.id === imageId }">
             <button type="button" class="image-item" :aria-current="item.id === imageId ? 'true' : undefined"
-              :disabled="busy || switchingView" @click="selectImage(item)">
+              @click="selectImage(item)">
               <img v-if="item.src" :src="item.src" alt="" loading="lazy">
               <span v-else class="image-placeholder" aria-hidden="true">▧</span>
               <span class="image-meta">
@@ -447,14 +448,14 @@ onUnmounted(() => {
               </span>
             </button>
             <button class="button image-delete" type="button" title="删除图片" :aria-label="'删除图片 ' + item.name"
-              :disabled="busy" @click="removeImage(item)">
+              @click="removeImage(item)">
               <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true">
                 <path d="M4 6h16M9 6V3h6v3M6 6l1 15h10l1-15M10 10v7m4-7v7"/>
               </svg>
             </button>
           </div>
           <p v-if="!images.length" class="empty">当前分集暂无图片。</p>
-        </div>
+        </fieldset>
       </aside>
 
       <section class="workspace" :class="{ gridded: grid }" :aria-label="taskLabels[dataset.task] + '画布'">
@@ -640,6 +641,7 @@ onUnmounted(() => {
 .image-filters button.active { background:var(--surface,#fff); border-color:var(--line,#c3c6ce); }
 .rail-summary { display:flex; justify-content:space-between; gap:6px; padding:8px 10px; border-bottom:1px solid var(--line,#c3c6ce); color:var(--muted,#5c6775); font-size:11px; }
 .image-list, .object-list, .class-list { min-height:0; overflow:auto; }
+.image-list { min-width:0; margin:0; padding:0; border:0; }
 .image-entry { display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:center; padding-right:6px; border-bottom:1px solid var(--line,#c3c6ce); }
 .image-item { display:flex; min-width:0; align-items:center; gap:8px; padding:8px 4px 8px 8px; border:0; background:transparent; color:inherit; text-align:left; }
 .image-entry:hover, .image-entry.active, .class-row.active, .object-entry.active { background:var(--selected,#e6eeff); }

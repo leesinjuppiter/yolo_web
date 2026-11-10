@@ -1,4 +1,4 @@
-from typing import Annotated, Literal
+from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
@@ -9,7 +9,9 @@ from starlette.background import BackgroundTask
 
 from app.core.database import get_db
 from app.dataset import schemas
-from app.dataset.exchange.coco import CocoTask
+from app.dataset.analysis.queue import ReportKind
+from app.dataset.analysis.reporting import ReportSnapshot
+from app.dataset.exchange.coco import CocoImportResponse, CocoTask
 from app.dataset.exchange.service import stream_archive
 from app.dataset.exchange.tools import EXCHANGE_TOOLS
 from app.validation.report import DatasetReport
@@ -25,6 +27,11 @@ class DirectoryImport(BaseModel):
 
 class CocoDirectoryImport(DirectoryImport):
     task_type: CocoTask
+    skip_invalid: bool = False
+
+
+class ReportRefresh(schemas.RequestModel):
+    force: bool = False
 
 
 def _local_workbench(request: Request) -> None:
@@ -46,15 +53,20 @@ def browse_directories(path: str | None = None):
     return EXCHANGE_TOOLS["dataset.exchange.browse_local_directories"](path)
 
 
-@router.post("/import/coco", response_model=schemas.DatasetResponse, status_code=201)
-def import_coco_archive(file: Annotated[UploadFile, File()], task_type: Annotated[CocoTask, Form()], db: Database):
-    return EXCHANGE_TOOLS["dataset.exchange.import_coco"](db, file.file, file.filename or "COCO 数据集.zip", task_type)
+@router.post("/import/coco", response_model=CocoImportResponse, status_code=201)
+def import_coco_archive(file: Annotated[UploadFile, File()], task_type: Annotated[CocoTask, Form()], db: Database,
+                        skip_invalid: Annotated[bool, Form()] = False):
+    return EXCHANGE_TOOLS["dataset.exchange.import_coco"](
+        db, file.file, file.filename or "COCO 数据集.zip", task_type, skip_invalid=skip_invalid,
+    )
 
 
-@router.post("/import/coco-directory", response_model=schemas.DatasetResponse, status_code=201,
+@router.post("/import/coco-directory", response_model=CocoImportResponse, status_code=201,
              dependencies=[Depends(_local_workbench)])
 def import_coco_directory(payload: CocoDirectoryImport, db: Database):
-    return EXCHANGE_TOOLS["dataset.exchange.import_coco_directory"](db, payload.path, payload.task_type)
+    return EXCHANGE_TOOLS["dataset.exchange.import_coco_directory"](
+        db, payload.path, payload.task_type, skip_invalid=payload.skip_invalid,
+    )
 
 
 @router.post("/import/yolo-directory", response_model=schemas.DatasetResponse, status_code=201,
@@ -74,6 +86,16 @@ def export_archive(dataset_id: UUID, db: Database, include_images: bool = True, 
 
 
 @router.get("/{dataset_id}/reports/{kind}", response_model=DatasetReport)
-def report(dataset_id: UUID, kind: Literal["validate", "duplicates", "quality"], db: Database):
+def report(dataset_id: UUID, kind: ReportKind, db: Database):
     names = {"validate": "dataset.validate", "duplicates": "dataset.duplicates", "quality": "dataset.quality_report"}
     return EXCHANGE_TOOLS[names[kind]](db, str(dataset_id))
+
+
+@router.get("/{dataset_id}/reports/{kind}/snapshot", response_model=ReportSnapshot)
+def report_snapshot(dataset_id: UUID, kind: ReportKind, db: Database):
+    return EXCHANGE_TOOLS["dataset.report_snapshot"](db, str(dataset_id), kind)
+
+
+@router.post("/{dataset_id}/reports/{kind}/refresh", response_model=ReportSnapshot, status_code=202)
+def refresh_report(dataset_id: UUID, kind: ReportKind, payload: ReportRefresh, db: Database):
+    return EXCHANGE_TOOLS["dataset.refresh_report"](db, str(dataset_id), kind, force=payload.force)
