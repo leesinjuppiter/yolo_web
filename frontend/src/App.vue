@@ -124,7 +124,7 @@ async function openTrainingDraft(datasetId?: string) {
 }
 
 function retrain(config: TrainingConfig) {
-  trainingDraft.value = { datasetId: config.datasetId, config }
+  trainingDraft.value = { datasetId: config.datasetId, config: { ...config, name: '' } }
 }
 
 function openTrainingTask(id: string, tab?: 'logs') {

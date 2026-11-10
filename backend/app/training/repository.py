@@ -5,7 +5,7 @@ from sqlalchemy import Float, cast, extract, func, or_, select, text
 from sqlalchemy.orm import Session
 
 from app.core.config import data_dir
-from app.dataset.repository import NotFound
+from app.dataset.repository import Conflict, NotFound
 from app.models.training_versions import ModelVersion
 from app.training.models import TrainingTask
 from app.training.schemas import QUALITY_METRIC
@@ -39,6 +39,17 @@ def get_task(db: Session, task_id: str, *, lock: bool = False) -> TrainingTask:
 def require_task(db: Session, task_id: str) -> None:
     if db.scalar(select(TrainingTask.id).where(TrainingTask.id == task_id)) is None:
         raise NotFound("未找到训练任务")
+
+
+def reserve_task_name(db: Session, name: str) -> None:
+    normalized = db.scalar(select(func.lower(name)))
+    # Serialize creation by name, including requests with different idempotency keys.
+    db.execute(select(func.pg_advisory_xact_lock(func.hashtextextended(f"training-name:{normalized}", 0))))
+    existing = db.scalar(select(TrainingTask.id).where(
+        func.lower(func.btrim(TrainingTask.config["name"].astext)) == normalized,
+    ).limit(1))
+    if existing is not None:
+        raise Conflict("训练任务名称已存在，请使用其他名称")
 
 
 def get_model_version(db: Session, task_id: str) -> ModelVersion | None:

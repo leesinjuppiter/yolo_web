@@ -4,16 +4,17 @@ import type { TrainingPreview } from '../../types/training'
 
 const props = defineProps<{ previews: TrainingPreview[] }>()
 const index = ref(0)
-const showLabels = ref(false)
+const showLabels = ref(true)
 const imageFailed = ref(false)
 const preview = computed(() => props.previews[Math.min(index.value, props.previews.length - 1)])
-const imageUrl = computed(() => showLabels.value && preview.value?.groundTruthUrl ? preview.value.groundTruthUrl : preview.value?.url)
+const labelUrl = computed(() => showLabels.value ? preview.value?.groundTruthUrl : undefined)
+const imageUrl = computed(() => labelUrl.value || preview.value?.url)
 watch(() => props.previews.length, length => { index.value = Math.min(index.value, Math.max(0, length - 1)) })
 watch(imageUrl, () => { imageFailed.value = false })
 
 function changePreview(offset: number) {
   index.value += offset
-  showLabels.value = false
+  showLabels.value = true
 }
 </script>
 
@@ -25,13 +26,13 @@ function changePreview(offset: number) {
     </header>
     <div class="preview-image">
       <img v-if="imageUrl && !imageFailed" :key="imageUrl" :src="imageUrl"
-        :alt="`${preview?.name} ${showLabels ? '真实标注' : '模型预测'}`" @error="imageFailed = true">
+        :alt="`${preview?.name} ${labelUrl ? '真实标注' : '模型预测'}`" @error="imageFailed = true">
       <div v-else class="preview-empty">
         <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
           <rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="9" cy="9" r="2"/><path d="m3 17 5-4 4 3 4-5 5 5"/>
         </svg>
         <strong>{{ imageFailed ? '图片加载失败' : '暂无验证批次图片' }}</strong>
-        <span>{{ imageFailed ? '可以尝试打开原图或切换批次。' : '任务生成预测图后会在这里展示。' }}</span>
+        <span>{{ imageFailed ? '可以切换查看标注或预测。' : '任务生成验证集预览后会在这里展示。' }}</span>
       </div>
     </div>
     <footer v-if="preview">
@@ -42,7 +43,6 @@ function changePreview(offset: number) {
       <button v-if="preview.groundTruthUrl" class="button" type="button" :aria-pressed="showLabels" @click="showLabels = !showLabels">
         {{ showLabels ? '显示预测' : '显示真实标注' }}
       </button>
-      <a v-if="imageUrl" class="button" :href="imageUrl" target="_blank" rel="noopener noreferrer">打开原图</a>
     </footer>
   </section>
 </template>
@@ -60,5 +60,5 @@ small { overflow: hidden; max-width: 100%; text-overflow: ellipsis; white-space:
 .preview-empty svg { color: #8498b0; }
 .preview-empty strong { color: var(--text); }
 footer { border-top: 1px solid var(--line); }
-.button { min-height: 26px; padding: 4px 8px; font-size: 12px; text-decoration: none; }
+.button { min-height: 26px; padding: 4px 8px; font-size: 12px; }
 </style>

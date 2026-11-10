@@ -1,7 +1,7 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Header, Query
+from fastapi import APIRouter, Depends, Header, Query, Response
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
@@ -48,6 +48,12 @@ def status(task_id: UUID, db: Database):
 @router.post("/{task_id}/cancel")
 def cancel(task_id: UUID, db: Database):
     return TOOLS["training.cancel"](db, str(task_id))
+
+
+@router.delete("/{task_id}", status_code=204)
+def delete(task_id: UUID, db: Database):
+    TOOLS["training.delete"](db, str(task_id))
+    return Response(status_code=204)
 
 
 @router.get("/{task_id}/logs")

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onUnmounted, ref, watch } from 'vue'
 import { listTraining } from '../api/training'
+import DeleteTrainingButton from '../components/training/DeleteTrainingButton.vue'
 import { selectableDatasetTasks, taskLabels } from '../domain'
 import type { SelectableDatasetTask } from '../domain'
 import { terminalTrainingStates, trainingStatusLabels } from '../types/training'
@@ -279,6 +280,7 @@ function canRetrain(task: TrainingTask) {
             <button class="button primary" type="button" @click="emit('open', task.id)">{{ detailsLabel(task) }}</button>
             <button v-if="task.status !== 'queued'" class="button" type="button" @click="emit('open', task.id, 'logs')">查看日志</button>
             <button v-if="canRetrain(task)" class="button" type="button" @click="emit('retrain', task.config)">再次训练</button>
+            <DeleteTrainingButton :task="task" @deleted="refresh" />
           </footer>
         </article>
       </div>
@@ -306,6 +308,7 @@ function canRetrain(task: TrainingTask) {
                   <button class="button" type="button" @click="emit('open', task.id)">{{ detailsLabel(task) }}</button>
                   <button v-if="task.status !== 'queued'" class="button" type="button" @click="emit('open', task.id, 'logs')">查看日志</button>
                   <button v-if="canRetrain(task)" class="button" type="button" @click="emit('retrain', task.config)">再次训练</button>
+                  <DeleteTrainingButton :task="task" @deleted="refresh" />
                 </div>
               </td>
             </tr>

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
-import { checkTraining, createTraining, getTrainingOptions, trainingDatasetError } from '../../api/training'
+import { checkTraining, createTraining, DuplicateTrainingNameError, getTrainingOptions, trainingDatasetError } from '../../api/training'
 import { selectableDatasetTasks, taskLabels } from '../../domain'
 import type { Dataset, SelectableDatasetTask, Split } from '../../domain'
 import type { TrainingConfig, TrainingOptions } from '../../types/training'
@@ -20,6 +20,8 @@ const emit = defineEmits<{
 }>()
 
 const dialog = ref<HTMLDialogElement>()
+const nameWarning = ref<HTMLDialogElement>()
+const nameInput = ref<HTMLInputElement>()
 const options = ref<TrainingOptions>()
 const optionsLoading = ref(true)
 const optionsError = ref('')
@@ -135,6 +137,11 @@ function updateEarlyStopping() {
   if (earlyStopping.value && !draft.patience) draft.patience = 50
 }
 
+function focusNameInput() {
+  nameInput.value?.focus()
+  nameInput.value?.select()
+}
+
 async function submit() {
   if (!canSubmit.value || !dataset.value) return
   submitError.value = ''
@@ -167,7 +174,8 @@ async function submit() {
     const task = await createTraining(config, submission.key)
     emit('created', task.id)
   } catch (error) {
-    submitError.value = error instanceof Error ? error.message : '创建训练任务失败'
+    if (error instanceof DuplicateTrainingNameError) nameWarning.value?.showModal()
+    else submitError.value = error instanceof Error ? error.message : '创建训练任务失败'
   } finally {
     busy.value = false
   }
@@ -205,7 +213,7 @@ async function submit() {
             <div class="field-grid basic-grid">
               <label class="field">
                 <span>任务名称 <b>*</b></span>
-                <input v-model.trim="draft.name" type="text" maxlength="120" required autofocus placeholder="例如 coal-gangue-obb-v1">
+                <input ref="nameInput" v-model.trim="draft.name" type="text" maxlength="120" required autofocus placeholder="例如 coal-gangue-obb-v1">
               </label>
               <div class="field">
                 <span>任务类型 <b>*</b></span>
@@ -354,9 +362,23 @@ async function submit() {
       </footer>
     </form>
   </dialog>
+
+  <dialog ref="nameWarning" class="name-warning" role="alertdialog" aria-labelledby="name-warning-title"
+    aria-describedby="name-warning-message" @close="focusNameInput" @keydown.esc.stop.prevent="nameWarning?.close()">
+    <form method="dialog">
+      <h2 id="name-warning-title">训练任务名称重复</h2>
+      <p id="name-warning-message">任务「{{ draft.name.trim() }}」已存在，请输入其他名称。</p>
+      <button type="submit" class="button primary" autofocus>修改名称</button>
+    </form>
+  </dialog>
 </template>
 
 <style scoped>
+.name-warning { width: min(440px, calc(100vw - 32px)); padding: 20px; border: 1px solid var(--line); border-radius: 10px; color: var(--text); background: var(--surface); }
+.name-warning::backdrop { background: #29344944; }
+.name-warning h2 { margin: 0; color: #83530e; font-size: 17px; }
+.name-warning p { margin: 10px 0 16px; overflow-wrap: anywhere; }
+.name-warning .button { display: block; margin-left: auto; }
 .training-dialog {
   width: min(1040px, calc(100vw - 32px));
   max-height: calc(100dvh - 32px);

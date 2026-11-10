@@ -7,6 +7,7 @@ TOOLS = {
     "training.list": service.overview,
     "training.status": service.status,
     "training.cancel": service.cancel,
+    "training.delete": service.delete,
     "training.logs": service.logs,
     "training.metrics": service.metrics,
     "training.latest_result": service.latest_result,

@@ -86,6 +86,7 @@ def create(db: Session, config: TrainingConfig, key: str | None) -> dict:
                 if previous.config != config_json:
                     raise Conflict("该请求已提交，请重新填写任务后再提交")
                 return task_response(previous, repository.get_model_version(db, previous.id))
+        repository.reserve_task_name(db, config.name)
         model = _model_for(config)
         report = inspect_dataset(db, str(config.datasetId), config.task)
         if not report.get("datasetName"):
@@ -94,7 +95,7 @@ def create(db: Session, config: TrainingConfig, key: str | None) -> dict:
             idempotency_key=key, dataset_id=str(config.datasetId), dataset_name=report["datasetName"],
             dataset_image_count=report["imageCount"], dataset_class_count=report["classCount"],
             dataset_revision=report.get("revision"), config=config_json, model_name=model.name,
-            architecture=model.architecture,
+            architecture=model.architecture, status="queued", phase="queued",
         )
         db.add(task)
         db.flush()
@@ -125,6 +126,16 @@ def cancel(db: Session, task_id: str) -> dict:
             task.status, task.phase = "canceled", "canceled"
             task.finished_at = datetime.now(timezone.utc)
         return task_response(task)
+
+
+def delete(db: Session, task_id: str) -> None:
+    with db.begin():
+        task = repository.get_task(db, task_id, lock=True)
+        if task.status not in TERMINAL:
+            raise Conflict("请先取消或结束训练任务，再删除记录")
+        if repository.get_model_version(db, task_id) is not None:
+            raise Conflict("该训练任务已注册模型版本，需保留来源记录")
+        db.delete(task)
 
 
 def logs(db: Session, task_id: str, after: int, limit: int) -> list[dict]:

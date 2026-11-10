@@ -13,7 +13,7 @@ from threading import Event
 from time import monotonic
 from uuid import uuid4
 
-from sqlalchemy import select, text
+from sqlalchemy import select, text, update
 from sqlalchemy.orm import Session
 
 from app.core.config import data_dir
@@ -59,7 +59,11 @@ def _retained_artifacts(directory: Path) -> list[dict]:
 
 
 def _recover() -> None:
-    with Session(engine()) as db:
+    with Session(engine()) as db, db.begin():
+        # Older API versions saved unclaimed tasks as created.
+        db.execute(update(TrainingTask).where(
+            TrainingTask.status == "created", TrainingTask.worker_token.is_(None),
+        ).values(status="queued", phase="queued"))
         abandoned = db.scalars(select(TrainingTask.id).where(
             TrainingTask.status.in_(("created", "running")),
             TrainingTask.worker_token.is_not(None),
@@ -77,15 +81,15 @@ def _claim() -> TrainingTask | None:
     with Session(engine(), expire_on_commit=False) as db, db.begin():
         row = db.scalar(select(TrainingTask).where(
             TrainingTask.status.in_(("created", "queued")), TrainingTask.worker_token.is_(None),
-        ).order_by((TrainingTask.status == "queued").desc(), TrainingTask.created_at, TrainingTask.id)
+        ).order_by(TrainingTask.created_at, TrainingTask.id)
           .limit(1).with_for_update(skip_locked=True))
         if row is None:
             return None
         row.worker_token = str(uuid4())
         row.heartbeat_at = _now()
-        if row.status == "queued":
-            row.status = "running"
-            row.phase = "loading"
+        row.status = "running"
+        row.phase = "loading" if row.snapshot is not None else "snapshot"
+        if row.snapshot is not None:
             row.started_at = _now()
         return row
 
@@ -109,9 +113,7 @@ def _check(task: TrainingTask, stop: Event) -> None:
         raise Canceled()
 
 
-def _prepare(task: TrainingTask, directory: Path, check) -> None:
-    with _edit(task) as (_, row):
-        row.phase = "snapshot"
+def _prepare(task: TrainingTask, directory: Path, check) -> dict:
     with Session(engine()) as db:
         snapshot = prepare_snapshot(db, task.dataset_id, task.config["task"], directory / "input",
                                     expected_revision=task.dataset_revision, check_cancel=check)
@@ -124,7 +126,9 @@ def _prepare(task: TrainingTask, directory: Path, check) -> None:
         row.snapshot = snapshot
         row.dataset_image_count = snapshot["image_count"]
         row.dataset_class_count = snapshot["class_count"]
-        row.status, row.phase, row.worker_token = "queued", "queued", None
+        row.phase = "loading"
+        row.started_at = _now()
+    return snapshot
 
 
 def _copy_model(task: TrainingTask, directory: Path, check) -> tuple[Path, str, bool]:
@@ -233,10 +237,9 @@ def _process(task: TrainingTask, stop: Event, verify_lock) -> None:
     try:
         directory.mkdir(parents=True, exist_ok=True)
         check(force=True)
-        if task.status == "created":
-            _prepare(task, directory, check)
-        else:
-            _train(task, directory, stop, check)
+        if task.snapshot is None:
+            task.snapshot = _prepare(task, directory, check)
+        _train(task, directory, stop, check)
     except (Canceled, SnapshotError, WorkerStopping) as exc:
         artifacts = _retained_artifacts(directory)
         with _edit(task) as (_, row):

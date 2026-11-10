@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import TrainingCharts from '../components/training/TrainingCharts.vue'
+import DeleteTrainingButton from '../components/training/DeleteTrainingButton.vue'
 import TrainingLogPanel from '../components/training/TrainingLogPanel.vue'
 import TrainingPreview from '../components/training/TrainingPreview.vue'
 import { useTrainingMonitor } from '../composables/useTrainingMonitor'
@@ -108,6 +109,7 @@ watch([logPanel, () => props.initialTab], ([panel, tab]) => {
               {{ action || task.cancelRequested ? '处理中…' : actionLabel }}
             </button>
             <button v-if="finished" type="button" class="button primary" @click="emit('retrain', task.config)">再次训练</button>
+            <DeleteTrainingButton :task="task" @deleted="emit('back')" />
           </div>
         </div>
         <div v-if="actionError || task.failure || task.error" class="notice error" role="alert">

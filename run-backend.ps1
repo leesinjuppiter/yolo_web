@@ -10,11 +10,26 @@ $data = Join-Path $runtime 'postgres'
 $log = Join-Path $runtime 'postgres.log'
 $pgCtl = Join-Path $PostgresBin 'pg_ctl.exe'
 $pgPort = 55432
+$apiHost = '127.0.0.1'
+$apiPort = 8000
 
 function Invoke-Checked {
-    param([string]$Command, [string[]]$Arguments)
+    param([string]$Command, [string[]]$Arguments, [string]$Stage = $Command)
     & $Command @Arguments
-    if ($LASTEXITCODE -ne 0) { throw "$Command failed ($LASTEXITCODE)." }
+    if ($LASTEXITCODE -ne 0) { throw "$Stage failed (exit code $LASTEXITCODE). See the output above for the original error." }
+}
+
+function Assert-ApiPortAvailable {
+    $connection = [Net.Sockets.TcpClient]::new()
+    try {
+        $connection.Connect($apiHost, $apiPort)
+    } catch [Net.Sockets.SocketException] {
+        if ($_.Exception.SocketErrorCode -eq [Net.Sockets.SocketError]::ConnectionRefused) { return }
+        throw
+    } finally {
+        $connection.Dispose()
+    }
+    throw "API port ${apiHost}:$apiPort is already in use. To load the current code, stop the previous API (Ctrl+C in its window), then rerun this command. For the training worker, use -Mode worker."
 }
 
 if ($Mode -eq 'stop-db') {
@@ -24,6 +39,8 @@ if ($Mode -eq 'stop-db') {
     }
     exit
 }
+
+if ($Mode -eq 'api') { Assert-ApiPortAvailable }
 
 if (-not $env:WORKBENCH_DATABASE_URL) {
     New-Item -ItemType Directory -Force -Path $runtime | Out-Null
@@ -66,12 +83,12 @@ if (-not $env:WORKBENCH_DATA_DIR) { $env:WORKBENCH_DATA_DIR = Join-Path $runtime
 
 Push-Location (Join-Path $PSScriptRoot 'backend')
 try {
-    Invoke-Checked 'conda' @('run', '--no-capture-output', '-n', 'YoloWebAgentStarter', 'python', '-m', 'alembic', 'upgrade', 'head')
+    Invoke-Checked 'conda' @('run', '--no-capture-output', '-n', 'YoloWebAgentStarter', 'python', '-m', 'alembic', 'upgrade', 'head') 'Database migration (Alembic)'
     if ($Mode -eq 'api') {
         Invoke-Checked 'conda' @('run', '--no-capture-output', '-n', 'YoloWebAgentStarter', 'python', '-m', 'uvicorn',
-            'app.main:app', '--host', '127.0.0.1', '--port', '8000')
+            'app.main:app', '--host', $apiHost, '--port', "$apiPort") 'API startup (Uvicorn)'
     }
     if ($Mode -eq 'worker') {
-        Invoke-Checked 'conda' @('run', '--no-capture-output', '-n', 'YoloWebAgentStarter', 'python', '-B', '-m', 'app.training.worker')
+        Invoke-Checked 'conda' @('run', '--no-capture-output', '-n', 'YoloWebAgentStarter', 'python', '-B', '-m', 'app.training.worker') 'CPU training worker'
     }
 } finally { Pop-Location }

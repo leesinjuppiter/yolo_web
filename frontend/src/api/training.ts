@@ -8,6 +8,8 @@ const root = '/api/training'
 const at = (id: string) => `${root}/${encodeURIComponent(id)}`
 export const trainingPageLimit = 200
 
+export class DuplicateTrainingNameError extends Error {}
+
 async function request<T>(url: string, init?: RequestInit): Promise<T> {
   let response: Response
   try {
@@ -19,10 +21,14 @@ async function request<T>(url: string, init?: RequestInit): Promise<T> {
   if (!response.ok) {
     const body = await response.json().catch(() => null)
     const detail = body?.detail
+    if (response.status === 409 && detail === '训练任务名称已存在，请使用其他名称') {
+      throw new DuplicateTrainingNameError(detail)
+    }
     const reason = typeof detail === 'string' ? detail
       : Array.isArray(detail) ? detail.map(item => item.msg).join('；') : detail?.message
     throw new Error(reason || `训练请求失败（HTTP ${response.status}）`)
   }
+  if (response.status === 204) return undefined as T
   return response.json() as Promise<T>
 }
 
@@ -58,6 +64,7 @@ export const checkTraining = (config: TrainingConfig) => request<TrainingPreflig
 export const createTraining = (config: TrainingConfig, key: string) => request<TrainingTask>(root, post(config, key))
 export const getTraining = (id: string, signal?: AbortSignal) => request<TrainingTask>(at(id), { signal })
 export const cancelTraining = (id: string) => request<TrainingTask>(`${at(id)}/cancel`, post({}))
+export const deleteTraining = (id: string) => request<void>(at(id), { method: 'DELETE' })
 export const registerTrainingModel = (id: string) => request<TrainingTask['modelVersion']>(`${at(id)}/model-version`, post({}))
 
 export function getTrainingMetrics(id: string, after: number, signal?: AbortSignal) {
