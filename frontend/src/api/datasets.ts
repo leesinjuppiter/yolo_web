@@ -89,11 +89,28 @@ export async function readReport(id: string, kind: ReportKind): Promise<Pick<Dat
   return (await request(`${at(id)}/reports/${kind}`)).json()
 }
 
-export function importYolo(file: File, task: TaskType) {
+type ImportFormat = 'yolo' | 'coco'
+
+export function importDatasetArchive(file: File, task: TaskType, format: ImportFormat) {
   const form = new FormData()
   form.append('file', file)
   form.append('task_type', task)
-  return dataset(`${root}/import/yolo`, { method: 'POST', body: form })
+  return dataset(`${root}/import/${format}`, { method: 'POST', body: form })
+}
+
+export type LocalDirectoryListing = {
+  path: string | null
+  parent: string | null
+  directories: { name: string; path: string }[]
+}
+
+export async function listLocalDirectories(path?: string): Promise<LocalDirectoryListing> {
+  const query = path ? '?' + new URLSearchParams({ path }) : ''
+  return (await request(`${root}/import/directories${query}`)).json()
+}
+
+export function importDatasetDirectory(path: string, task: TaskType, format: ImportFormat) {
+  return dataset(`${root}/import/${format}-directory`, json('POST', { path, task_type: task }))
 }
 
 export async function downloadYolo(id: string, includeImages: boolean, includeNegative: boolean) {

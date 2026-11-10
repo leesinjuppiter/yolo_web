@@ -3,7 +3,7 @@ import { computed, onMounted, onUnmounted, ref, shallowRef, watch } from 'vue'
 import type Konva from 'konva'
 import { Circle, Group, Image as CanvasImage, Layer, Line, Rect, Stage, Text, type VueKonvaRef } from 'vue-konva'
 import type { Annotation, DatasetClass, DatasetImage, TaskType } from '../domain'
-import { bounds, boxHandles, clamp, corners, move, normalizeAngle, polygonArea, rotate, withinImage, type Point, type Shape } from './geometry'
+import { bounds, boxHandles, clamp, corners, move, nearestEdge, nearestVertex, normalizeAngle, polygonArea, rotate, withinImage, type Point, type Shape } from './geometry'
 
 export type AnnotationTool = 'select' | 'draw' | 'pan' | 'keypoint'
 
@@ -15,6 +15,7 @@ const props = defineProps<{
   task: TaskType
   tool: AnnotationTool
   selectedId: string
+  activeVertex?: number
   activeClassId: string
   activeKeypoint: string
   activeVisibility: 1 | 2
@@ -25,6 +26,7 @@ const emit = defineEmits<{
   select: [id: string]
   create: [annotation: Shape]
   update: [annotation: Shape]
+  vertex: [index: number | undefined]
   keypoint: [id: string, name: string]
   zoom: [value: number]
   draft: [count: number]
@@ -57,6 +59,9 @@ const origin = computed(() => ({ x: viewport.value.width / 2 - center.value.x * 
 const transform = computed(() => ({ ...origin.value, scaleX: scale.value, scaleY: scale.value }))
 const unit = computed(() => 1 / scale.value)
 const byClass = computed(() => new Map(props.classes.map(item => [item.id, item])))
+const selectedPolygon = computed(() => props.annotations.find(
+  item => item.type === 'polygon' && item.id === props.selectedId && !props.hiddenAnnotationIds.has(item.id),
+))
 
 watch([() => props.image?.id, () => props.image?.src], (_, previous, onCleanup) => {
   if (props.image?.id !== previous?.[0]) {
@@ -125,6 +130,35 @@ function cancelDraft() {
   polygon.value = []
 }
 
+function doubleClick(event: MouseEvent) {
+  if (props.tool === 'draw' && props.task === 'segment') {
+    finishPolygon()
+    return
+  }
+  const shape = selectedPolygon.value
+  if (props.tool !== 'select' || props.busy || shape?.type !== 'polygon' || shape.polygon.length >= 4000) return
+  const point = original(screen(event))
+  if (nearestVertex(shape.polygon, point, 8 * unit.value) !== -1) return
+  const edge = nearestEdge(shape.polygon, point, 7 * unit.value)
+  if (!edge) return
+  const index = edge.index + 1
+  const points = [...shape.polygon]
+  points.splice(index, 0, edge.point)
+  emit('update', { ...shape, polygon: points })
+  emit('vertex', index)
+}
+
+function removeVertex() {
+  const shape = selectedPolygon.value
+  const index = props.activeVertex
+  if (props.tool !== 'select' || props.busy || drag.value || shape?.type !== 'polygon' ||
+      index === undefined || shape.polygon.length <= 3) return
+  const points = shape.polygon.filter((_, i) => i !== index)
+  if (polygonArea(points.map(([x, y]) => ({ x, y }))) < 1) return
+  emit('update', { ...shape, polygon: points })
+  emit('vertex', undefined)
+}
+
 function nudgeAngle(delta: number) {
   const current = props.annotations.find(item => item.id === props.selectedId)
   if (current?.type !== 'obb' || props.busy || drag.value) return
@@ -132,7 +166,7 @@ function nudgeAngle(delta: number) {
   if (withinImage(next, width.value, height.value)) emit('update', next)
 }
 
-defineExpose({ fit, zoomBy, finishPolygon, cancelDraft, nudgeAngle })
+defineExpose({ fit, zoomBy, finishPolygon, cancelDraft, nudgeAngle, removeVertex })
 
 function placeKeypoint(point: Point) {
   const current = props.annotations.find(item => item.id === props.selectedId)
@@ -154,7 +188,18 @@ function start(event: PointerEvent) {
   const point = original(location)
   const node = stage.value?.getNode().getIntersection(location)
   const id = node?.getAttr('annotationId') as string | undefined
-  const annotation = props.annotations.find(item => item.id === id)
+  let annotation = props.annotations.find(item => item.id === id)
+  let handle = (node?.getAttr('handle') ?? 'move') as Extract<Drag, { type: 'edit' }>['handle']
+  let index = Number(node?.getAttr('handleIndex') ?? 0)
+  const activePolygon = selectedPolygon.value
+  if (props.tool === 'select' && activePolygon?.type === 'polygon') {
+    const vertex = nearestVertex(activePolygon.polygon, point, 8 * unit.value)
+    if (vertex >= 0) {
+      annotation = activePolygon
+      handle = 'vertex'
+      index = vertex
+    }
+  }
   if (props.tool === 'pan') {
     drag.value = { type: 'pan', start: location, center: { ...center.value } }
   } else if (props.tool === 'keypoint') {
@@ -173,8 +218,7 @@ function start(event: PointerEvent) {
     drag.value = { type: 'draw', start: point, current: point }
   } else if (annotation && annotation.type !== 'classify') {
     emit('select', annotation.id)
-    const handle = (node?.getAttr('handle') ?? 'move') as Extract<Drag, { type: 'edit' }>['handle']
-    const index = Number(node?.getAttr('handleIndex') ?? 0)
+    emit('vertex', handle === 'vertex' ? index : undefined)
     if (handle === 'keypoint' && annotation.type === 'pose') {
       const point = annotation.keypoints[index]
       if (point) emit('keypoint', annotation.id, point.name)
@@ -219,7 +263,8 @@ function updateShape(current: Extract<Drag, { type: 'edit' }>, point: Point) {
     const last = Math.atan2(point.y - cy, point.x - cx)
     next = { ...shape, obb: { ...shape.obb, angle: normalizeAngle(angle + (last - first) * 180 / Math.PI) } }
   } else if (current.handle === 'vertex' && shape.type === 'polygon') {
-    const vertex = limit(point)
+    const [x, y] = shape.polygon[current.index]
+    const vertex = limit({ x: x + delta.x, y: y + delta.y })
     const points = shape.polygon.map(([x, y], index) => index === current.index ? vertex : { x, y })
     if (polygonArea(points) < 1) return
     next = { ...shape, polygon: points.map(({ x, y }) => [x, y]) }
@@ -293,7 +338,7 @@ const nodes = computed<ShapeNode[]>(() => {
     if (annotation.type === 'polygon') {
       const points = annotation.polygon.map(([x, y]) => ({ x, y }))
       anchor = bounds(points)
-      add(Line, id, { ...line, points: annotation.polygon.flat(), closed: true })
+      add(Line, id, { ...line, points: annotation.polygon.flat(), closed: true, hitStrokeWidth: 12 * u })
     } else if (annotation.type === 'obb') {
       const box = annotation.obb
       anchor = boxHandles(annotation).reduce((top, point) =>
@@ -334,7 +379,7 @@ const nodes = computed<ShapeNode[]>(() => {
       key: id + '-handle-' + pointIndex, component: Rect,
       config: {
         x: point.x - 4 * u, y: point.y - 4 * u, width: 8 * u, height: 8 * u,
-        fill: '#fff', stroke: color, strokeWidth: 1.5 * u,
+        fill: annotation.type === 'polygon' && pointIndex === props.activeVertex ? color : '#fff', stroke: color, strokeWidth: 1.5 * u,
         annotationId: id, handle: annotation.type === 'polygon' ? 'vertex' : 'resize', handleIndex: pointIndex,
       },
     }))
@@ -390,7 +435,7 @@ onUnmounted(() => observer?.disconnect())
     @pointerdown="start" @pointermove="track" @pointerup="stop($event)" @pointercancel="stop($event, true)"
     @lostpointercapture="stop($event, true)" @pointerleave="cursor = undefined"
     @wheel.prevent="zoomBy($event.deltaY < 0 ? 1.12 : 1 / 1.12, original(screen($event)))"
-    @dblclick="tool === 'draw' && task === 'segment' && finishPolygon()">
+    @dblclick="doubleClick">
     <Stage ref="stage" :config="viewport">
       <Layer>
         <Group v-if="raster" :config="transform">

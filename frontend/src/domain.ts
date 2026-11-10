@@ -61,7 +61,7 @@ export interface DatasetReport {
   title?: string
   items?: { label: string; value: string | number }[]
   messages?: string[]
-  issues?: { image_id?: string | null; message: string; code: string }[]
+  issues?: { image_id?: string | null; message: string; code: string; severity: 'error' | 'warning' }[]
 }
 
 export const taskLabels: Record<TaskType, string> = {

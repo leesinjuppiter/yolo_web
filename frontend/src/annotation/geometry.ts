@@ -72,3 +72,37 @@ export function polygonArea(points: Point[]) {
   }, 0)
   return Math.abs(twiceArea) / 2
 }
+
+export function nearestVertex(points: [number, number][], point: Point, radius: number) {
+  let index = -1
+  let distance = radius ** 2
+  points.forEach(([x, y], i) => {
+    const candidate = (x - point.x) ** 2 + (y - point.y) ** 2
+    if (candidate < distance) {
+      index = i
+      distance = candidate
+    }
+  })
+  return index
+}
+
+export function nearestEdge(points: [number, number][], point: Point, radius: number) {
+  let match: { index: number; point: [number, number] } | undefined
+  let distance = radius ** 2
+  points.forEach(([x, y], index) => {
+    const [nextX, nextY] = points[(index + 1) % points.length]
+    const dx = nextX - x
+    const dy = nextY - y
+    const lengthSquared = dx ** 2 + dy ** 2
+    if (!lengthSquared) return
+    const t = ((point.x - x) * dx + (point.y - y) * dy) / lengthSquared
+    if (t <= 0 || t >= 1) return
+    const projected: [number, number] = [x + t * dx, y + t * dy]
+    const candidate = (projected[0] - point.x) ** 2 + (projected[1] - point.y) ** 2
+    if (candidate < distance) {
+      distance = candidate
+      match = { index, point: projected }
+    }
+  })
+  return match
+}

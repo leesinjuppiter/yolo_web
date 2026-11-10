@@ -1,11 +1,12 @@
 """Persist YOLO imports and write archives from saved dataset records."""
 
-from collections.abc import Iterator
+from collections.abc import Callable, Collection, Iterator
+from functools import partial
 from pathlib import Path, PurePosixPath
 from tempfile import SpooledTemporaryFile
 from typing import BinaryIO
 from uuid import uuid4
-from zipfile import BadZipFile, ZIP_DEFLATED, ZipFile, ZipInfo
+from zipfile import BadZipFile, ZIP_DEFLATED, ZipFile
 
 import yaml
 from sqlalchemy.orm import Session
@@ -17,80 +18,102 @@ from app.dataset import repository, schemas
 from app.yolo import from_yolo, to_yolo
 
 from .archive import (
-    MAX_ARCHIVE_BYTES, MAX_IMAGE_BYTES, SPLITS, classification_index, detection_index,
-    inspect_members, label_path, pose_schema, read_bytes, read_config, read_text,
+    MAX_ARCHIVE_BYTES, MAX_IMAGE_BYTES, MAX_TEXT_BYTES, SPLITS, archive_reference, classification_index,
+    detection_index, inspect_members, label_path, pose_schema, read_bytes, read_config,
 )
+from .local_directory import directory_members, directory_reference, directory_root, read_directory_file
 
 CLASS_COLORS = ("#2589bd", "#7651ed", "#d18a12", "#358161", "#be5372")
 
 
-def _dataset_index(archive: ZipFile, files: dict[PurePosixPath, ZipInfo], task_type: str):
+def _dataset_index(files: Collection[PurePosixPath], text_at: Callable[[PurePosixPath], str], task_type: str,
+                   reference: Callable[[PurePosixPath, str], PurePosixPath]):
     if task_type == "classify":
         names, entries = classification_index(files)
         return names, entries, [], 3
-    root, config = read_config(archive, files, required=True)
-    names, entries = detection_index(archive, files, root, config)
+    root, config = read_config(files, text_at, required=True)
+    names, entries = detection_index(files, root, config, text_at, reference)
     if task_type != "pose" and "kpt_shape" in config:
         raise ValueError("此归档包含姿态定义，请选择姿态任务")
     keypoints, dimensions = pose_schema(config, len(names)) if task_type == "pose" else ([], 3)
     return names, entries, keypoints, dimensions
 
 
-def _labels(archive: ZipFile, files: dict[PurePosixPath, ZipInfo], path: PurePosixPath, class_name: str | None,
-            names: list[str]) -> tuple[str, str]:
+def _labels(files: Collection[PurePosixPath], text_at: Callable[[PurePosixPath], str], path: PurePosixPath,
+            class_name: str | None, class_indices: dict[str, int]) -> tuple[str, str]:
     if class_name is not None:
-        return str(names.index(class_name)), "annotated"
-    entry = files.get(label_path(path))
-    if entry is None:
+        return str(class_indices[class_name]), "annotated"
+    label = label_path(path)
+    if label not in files:
         return "", "unlabeled"
-    labels = read_text(archive, entry)
+    labels = text_at(label)
     return labels, "annotated" if labels.strip() else "negative"
+
+
+def _import_samples(
+    db: Session, name: str, task_type: str, files: Collection[PurePosixPath],
+    bytes_at: Callable[[PurePosixPath, int], bytes], reference: Callable[[PurePosixPath, str], PurePosixPath],
+) -> schemas.DatasetResponse:
+    def text_at(path: PurePosixPath) -> str:
+        return bytes_at(path, MAX_TEXT_BYTES).decode("utf-8-sig")
+
+    names, entries, keypoints, dimensions = _dataset_index(files, text_at, task_type, reference)
+    if not entries:
+        raise ValueError("数据集中没有符合布局的分集图片")
+    request = schemas.DatasetCreate(name=name, task_type=task_type, keypoint_names=keypoints)
+    saved_paths = []
+    try:
+        dataset = repository.create_dataset(db, request.name, request.task_type, request.keypoint_names)
+        class_ids = [str(uuid4()) for _ in names]
+        for index, (label, class_id) in enumerate(zip(names, class_ids)):
+            repository.add_class(db, dataset.id, class_id, label, CLASS_COLORS[index % len(CLASS_COLORS)], index)
+        class_id_set = set(class_ids)
+        class_indices = {label: index for index, label in enumerate(names)}
+        for count, (path, split, class_name) in enumerate(entries, 1):
+            try:
+                stored = save_image(bytes_at(path, MAX_IMAGE_BYTES))
+                saved_paths.append(stored.path)
+                labels, status = _labels(files, text_at, path, class_name, class_indices)
+                annotations = from_yolo(labels, task_type, stored.width, stored.height, class_ids, keypoints, dimensions)
+                validated = validate_annotations(task_type=task_type, width=stored.width, height=stored.height,
+                                                 keypoint_names=keypoints, class_ids=class_id_set,
+                                                 status=status, annotations=annotations)
+                repository.add_image(db, dataset.id, path.name, stored.width, stored.height, split, stored.path,
+                                     status=status, annotations=validated)
+            except ValueError as exc:
+                raise ValueError(f"{path}：{exc}") from exc
+            if count % 500 == 0:
+                db.flush()
+        response = repository.serialize(dataset)
+        db.commit()
+        return response
+    except Exception:
+        db.rollback()
+        remove_images(saved_paths)
+        raise
 
 
 def import_yolo(db: Session, source: BinaryIO, filename: str, task_type: str) -> schemas.DatasetResponse:
     if source.seek(0, 2) > MAX_ARCHIVE_BYTES:
         raise ValueError("ZIP 文件不能超过 256 MiB")
     source.seek(0)
-    saved_paths = []
+    name = Path(filename.replace("\\", "/")).stem[:120] or "YOLO 数据集"
     try:
         with ZipFile(source) as archive:
             files = inspect_members(archive)
-            names, entries, keypoints, dimensions = _dataset_index(archive, files, task_type)
-            if not entries:
-                raise ValueError("ZIP 中没有符合布局的分集图片")
-            request = schemas.DatasetCreate(
-                name=Path(filename.replace("\\", "/")).stem[:120] or "YOLO 数据集",
-                task_type=task_type, keypoint_names=keypoints,
-            )
-            dataset = repository.create_dataset(db, request.name, request.task_type, request.keypoint_names)
-            class_ids = [str(uuid4()) for _ in names]
-            for index, (name, class_id) in enumerate(zip(names, class_ids)):
-                request_class = schemas.ClassInput(id=class_id, name=name, color=CLASS_COLORS[index % len(CLASS_COLORS)])
-                repository.add_class(db, dataset.id, class_id, request_class.name, request_class.color, index)
-            class_id_set = set(class_ids)
-            for path, split, class_name in entries:
-                try:
-                    data = read_bytes(archive, files[path], MAX_IMAGE_BYTES)
-                    stored = save_image(data)
-                    saved_paths.append(stored.path)
-                    labels, status = _labels(archive, files, path, class_name, names)
-                    annotations = from_yolo(labels, task_type, stored.width, stored.height, class_ids, keypoints, dimensions)
-                    validated = validate_annotations(task_type=task_type, width=stored.width, height=stored.height,
-                                                     keypoint_names=keypoints, class_ids=class_id_set,
-                                                     status=status, annotations=annotations)
-                    repository.add_image(db, dataset.id, path.name, stored.width, stored.height, split, stored.path,
-                                         status=status, annotations=validated)
-                except ValueError as exc:
-                    raise ValueError(f"{path}：{exc}") from exc
-            response = repository.serialize(dataset)
-            db.commit()
-            return response
-    except Exception as exc:
-        db.rollback()
-        remove_images(saved_paths)
-        if isinstance(exc, (BadZipFile, NotImplementedError, EOFError)):
-            raise ValueError("无法读取 ZIP 或不支持此压缩方式") from exc
-        raise
+
+            def bytes_at(path: PurePosixPath, limit: int) -> bytes:
+                return read_bytes(archive, files[path], limit)
+
+            return _import_samples(db, name, task_type, files, bytes_at, archive_reference)
+    except (BadZipFile, NotImplementedError, EOFError) as exc:
+        raise ValueError("无法读取 ZIP 或不支持此压缩方式") from exc
+
+
+def import_yolo_directory(db: Session, folder: str, task_type: str) -> schemas.DatasetResponse:
+    root = directory_root(folder)
+    return _import_samples(db, root.name[:120], task_type, directory_members(root),
+                           partial(read_directory_file, root), partial(directory_reference, root))
 
 
 def _portable_component(name: str) -> str:

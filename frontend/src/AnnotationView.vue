@@ -32,6 +32,7 @@ const classes = ref<DatasetClass[]>([])
 const negative = ref(false)
 const activeClassId = ref('')
 const selectedId = ref('')
+const activeVertex = ref<number>()
 const activeKeypoint = ref('')
 const activeVisibility = ref<1 | 2>(2)
 const tool = ref<AnnotationTool>('select')
@@ -56,6 +57,7 @@ const image = computed(() => props.dataset.images.find(item => item.id === image
 const imageIndex = computed(() => images.value.findIndex(item => item.id === imageId.value))
 const selected = computed(() => annotations.value.find(item => item.id === selectedId.value))
 const selectedHidden = computed(() => hiddenAnnotationIds.value.has(selectedId.value))
+const polygonSelection = computed(() => !selectedHidden.value && selected.value?.type === 'polygon' ? selected.value : undefined)
 const pose = computed(() => selected.value?.type === 'pose' ? selected.value : undefined)
 const byClass = computed(() => new Map(classes.value.map(item => [item.id, item])))
 const status = computed<AnnotationStatus>(() => annotations.value.length ? 'annotated' : negative.value ? 'negative' : 'unlabeled')
@@ -96,6 +98,7 @@ function openImage(item?: DatasetImage) {
   baseline.value = snapshot(annotations.value, classes.value, status.value)
   unfinishedNotice.value = false
   selectedId.value = ''
+  activeVertex.value = undefined
   activeKeypoint.value = ''
   activeVisibility.value = 2
   classForm.value = undefined
@@ -114,6 +117,7 @@ watch(image, current => {
 })
 
 watch(draftPoints, count => { if (!count) unfinishedNotice.value = false })
+watch(tool, value => { if (value !== 'select') activeVertex.value = undefined })
 
 function ask(mode: typeof dialogMode.value) {
   if (!dialog.value || confirmResult) return false
@@ -134,26 +138,30 @@ function closeDialog(confirmed: boolean) {
   confirmResult = undefined
 }
 
-async function switchAfterSave(apply: () => void) {
-  if (props.busy || switchingView.value || confirmResult) return
+async function saveBeforeSwitch() {
+  if (props.busy || switchingView.value || confirmResult) return false
   if (draftPoints.value) {
     unfinishedNotice.value = true
-    return
+    return false
   }
   switchingView.value = true
   try {
-    if (!dirty.value || await save()) {
-      await nextTick()
-      apply()
-    }
+    if (dirty.value && !(await save())) return false
+    await nextTick()
+    return true
   } finally {
     switchingView.value = false
   }
 }
 
-function selectImage(item: DatasetImage) {
-  if (item.id === imageId.value) return
-  void switchAfterSave(() => openImage(images.value.find(candidate => candidate.id === item.id)))
+async function backToDatasets() {
+  if (await saveBeforeSwitch()) emit('back')
+}
+
+async function selectImage(item: DatasetImage) {
+  if (item.id !== imageId.value && await saveBeforeSwitch()) {
+    openImage(images.value.find(candidate => candidate.id === item.id))
+  }
 }
 
 async function removeImage(item: DatasetImage) {
@@ -172,12 +180,10 @@ async function removeImage(item: DatasetImage) {
   }
 }
 
-function setSplit(value: Filter) {
-  if (split.value === value) return
-  void switchAfterSave(() => {
-    split.value = value
-    if (imageIndex.value < 0) openImage(images.value[0])
-  })
+async function setSplit(value: Filter) {
+  if (split.value === value || !(await saveBeforeSwitch())) return
+  split.value = value
+  if (imageIndex.value < 0) openImage(images.value[0])
 }
 
 function step(offset: -1 | 1) {
@@ -197,6 +203,7 @@ async function save() {
 }
 
 function selectObject(id: string) {
+  if (selectedId.value !== id) activeVertex.value = undefined
   selectedId.value = id
   if (!selected.value) {
     activeKeypoint.value = ''
@@ -208,8 +215,16 @@ function selectObject(id: string) {
   }
 }
 
+function selectFromList(id: string) {
+  selectObject(id)
+  if (polygonSelection.value && !draftPoints.value) tool.value = 'select'
+}
+
 function toggleAnnotationVisibility(id: string) {
-  if (!hiddenAnnotationIds.value.delete(id)) hiddenAnnotationIds.value.add(id)
+  if (!hiddenAnnotationIds.value.delete(id)) {
+    hiddenAnnotationIds.value.add(id)
+    if (selectedId.value === id) activeVertex.value = undefined
+  }
 }
 
 function update(item: Annotation) {
@@ -358,7 +373,13 @@ function onKey(event: KeyboardEvent) {
     case 'arrowleft': event.preventDefault(); if (!event.repeat) void step(-1); break
     case 'f':
     case 'arrowright': event.preventDefault(); if (!event.repeat) void step(1); break
-    case 'delete': remove(); break
+    case 'delete':
+      if (event.repeat) break
+      if (tool.value === 'select' && polygonSelection.value && activeVertex.value !== undefined) {
+        event.preventDefault()
+        canvas.value?.removeVertex()
+      } else remove()
+      break
     case 'escape': canvas.value?.cancelDraft(); selectObject(''); tool.value = 'select'; break
     case 'enter': if (draftPoints.value) { event.preventDefault(); canvas.value?.finishPolygon() }; break
     case 'v': tool.value = 'select'; break
@@ -390,7 +411,7 @@ onUnmounted(() => {
 <template>
   <main class="annotation">
     <header class="annotation-bar">
-      <button class="button" :disabled="busy" @click="emit('back')">← 返回数据集</button>
+      <button class="button" :disabled="busy || switchingView" @click="backToDatasets">← 返回数据集</button>
       <div class="image-context">
         <strong>{{ dataset.name }}</strong>
         <span v-if="image" class="file-tag" :title="image.name">{{ image.name }}</span>
@@ -463,17 +484,23 @@ onUnmounted(() => {
           </template>
         </div>
         <div v-if="tool === 'draw' && dataset.task === 'segment'" class="canvas-hint" aria-live="polite">
-          <span v-if="unfinishedNotice" class="class-error">请完成或取消当前多边形后再切换图片。</span>
+          <span v-if="unfinishedNotice" class="class-error">请先完成或取消当前多边形。</span>
           <span>依次点击顶点 · 已放置 {{ draftPoints }} 点</span>
           <button class="button primary" :disabled="draftPoints < 3 || busy" @click="canvas?.finishPolygon()">完成多边形</button>
           <button class="button" :disabled="!draftPoints" @click="canvas?.cancelDraft()">取消绘制</button>
         </div>
+        <div v-else-if="tool === 'select' && polygonSelection" class="canvas-hint" aria-live="polite">
+          <span>顶点编辑 · 拖动方点调整，双击边线加点</span>
+          <span v-if="activeVertex !== undefined">已选顶点 {{ activeVertex + 1 }}</span>
+          <button class="button" type="button" :disabled="busy || activeVertex === undefined || polygonSelection.polygon.length <= 3"
+            title="至少保留 3 个顶点" @click="canvas?.removeVertex()">删除顶点 <kbd>Del</kbd></button>
+        </div>
         <div v-else-if="tool === 'keypoint' && activeKeypoint" class="canvas-hint">在图片上点击放置「{{ activeKeypoint }}」</div>
         <div class="canvas-area">
           <AnnotationCanvas ref="canvas" :image="image" :annotations="annotations" :hidden-annotation-ids="hiddenAnnotationIds" :classes="classes"
-            :task="dataset.task" :tool="tool" :selected-id="selectedId" :active-class-id="activeClassId"
+            :task="dataset.task" :tool="tool" :selected-id="selectedId" :active-vertex="activeVertex" :active-class-id="activeClassId"
             :active-keypoint="activeKeypoint" :active-visibility="activeVisibility" :keypoint-names="dataset.keypointNames" :busy="busy"
-            @select="selectObject" @create="add" @update="update" @keypoint="focusKeypoint"
+            @select="selectObject" @create="add" @update="update" @vertex="activeVertex = $event" @keypoint="focusKeypoint"
             @zoom="zoom = $event" @draft="draftPoints = $event" />
         </div>
         <footer class="canvas-status technical">
@@ -526,7 +553,7 @@ onUnmounted(() => {
           </div>
           <div class="object-list">
             <div v-for="(item, index) in annotations" :key="item.id" class="object-entry" :class="{ active: item.id === selectedId }">
-              <button type="button" class="object-row" :aria-pressed="item.id === selectedId" @click="selectObject(item.id)">
+              <button type="button" class="object-row" :aria-pressed="item.id === selectedId" @click="selectFromList(item.id)">
                 <i :style="{ backgroundColor: byClass.get(item.class_id)?.color }"></i>
                 <span class="technical">#{{ String(index + 1).padStart(2, '0') }}</span>
                 <span class="object-name">{{ byClass.get(item.class_id)?.name ?? '未知类别' }}</span>

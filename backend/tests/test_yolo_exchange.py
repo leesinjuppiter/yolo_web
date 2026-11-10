@@ -1,7 +1,9 @@
+import asyncio
 from io import BytesIO
 from uuid import uuid4
 from zipfile import ZipFile
 
+import httpx
 import pytest
 from PIL import Image
 
@@ -103,6 +105,71 @@ def test_zip_import_export_statuses_and_cross_split_report(client):
 def test_invalid_label_rolls_back_zip_import(client, tmp_path):
     before = len(client.get("/api/datasets").json())
     response = _upload(client, _archive("5 .4 .4 .2 .2"))
+    assert response.status_code == 422, response.text
+    assert len(client.get("/api/datasets").json()) == before
+    assert list((tmp_path / "images").glob("*")) == []
+
+
+def _local_request(client, method, path, **kwargs):
+    async def send():
+        transport = httpx.ASGITransport(app=client.app, client=("127.0.0.1", 50000))
+        async with httpx.AsyncClient(transport=transport, base_url="http://127.0.0.1") as local:
+            return await local.request(method, path, **kwargs)
+
+    return asyncio.run(send())
+
+
+def test_directory_import_keeps_splits_and_labels(client, tmp_path):
+    root = tmp_path / "本地样本"
+    root.mkdir()
+    (root / "data.yaml").write_text("train: images/train\nval: images/val\nnames: [煤]\n", encoding="utf-8")
+    for split, label in (("train", "0 .4 .4 .2 .2"), ("val", "")):
+        image = root / "images" / split / "sample.png"
+        annotation = root / "labels" / split / "sample.txt"
+        image.parent.mkdir(parents=True)
+        annotation.parent.mkdir(parents=True)
+        image.write_bytes(_png())
+        annotation.write_text(label, encoding="utf-8")
+    browse = _local_request(client, "GET", "/api/datasets/import/directories", params={"path": str(root)})
+    assert browse.status_code == 200, browse.text
+    assert {entry["name"] for entry in browse.json()["directories"]} == {"images", "labels"}
+    response = _local_request(client, "POST", "/api/datasets/import/yolo-directory",
+                              json={"path": str(root), "task_type": "detect"})
+    assert response.status_code == 201, response.text
+    data = response.json()
+    try:
+        assert data["name"] == root.name
+        assert data["classes"][0]["name"] == "煤"
+        images = {image["split"]: image for image in data["images"]}
+        assert images["train"]["annotations"][0]["source"] == "imported"
+        assert images["val"]["status"] == "negative"
+        assert client.get(images["train"]["url"]).content == _png()
+    finally:
+        client.delete(f"/api/datasets/{data['id']}")
+    assert (root / "images" / "train" / "sample.png").exists()
+
+
+def test_local_directory_rejects_remote_requests_and_external_references(client, tmp_path):
+    assert client.get("/api/datasets/import/directories").status_code == 403
+    root = tmp_path / "outside-reference"
+    root.mkdir()
+    (root / "data.yaml").write_text("train: ../outside\nnames: [coal]\n", encoding="utf-8")
+    response = _local_request(client, "POST", "/api/datasets/import/yolo-directory",
+                              json={"path": str(root), "task_type": "detect"})
+    assert response.status_code == 422
+    assert "超出所选目录" in response.json()["detail"]
+
+
+def test_invalid_local_label_rolls_back_copied_image(client, tmp_path):
+    root = tmp_path / "invalid-directory"
+    (root / "images" / "train").mkdir(parents=True)
+    (root / "labels" / "train").mkdir(parents=True)
+    (root / "data.yaml").write_text("names: [coal]\n", encoding="utf-8")
+    (root / "images" / "train" / "sample.png").write_bytes(_png())
+    (root / "labels" / "train" / "sample.txt").write_text("5 .4 .4 .2 .2", encoding="utf-8")
+    before = len(client.get("/api/datasets").json())
+    response = _local_request(client, "POST", "/api/datasets/import/yolo-directory",
+                              json={"path": str(root), "task_type": "detect"})
     assert response.status_code == 422, response.text
     assert len(client.get("/api/datasets").json()) == before
     assert list((tmp_path / "images").glob("*")) == []

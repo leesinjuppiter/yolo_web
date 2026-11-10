@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
-import { downloadYolo, importYolo } from '../api/datasets'
+import { downloadYolo, importDatasetArchive, importDatasetDirectory } from '../api/datasets'
 import { taskLabels } from '../domain'
 import type { Dataset, TaskType } from '../domain'
+import LocalDirectoryPicker from './LocalDirectoryPicker.vue'
 
 type Mode = 'import' | 'export'
-type Source = 'native' | 'yolo' | 'coco' | 'video'
+type Source = 'native' | 'yolo' | 'local' | 'coco' | 'coco-local' | 'video'
 
 const props = defineProps<{ initialMode: Mode; dataset?: Dataset; datasets: Dataset[] }>()
 const emit = defineEmits<{ close: []; imported: [dataset: Dataset] }>()
@@ -17,17 +18,25 @@ const includeNegative = ref(true)
 const source = ref<Source>('yolo')
 const task = ref<TaskType>('detect')
 const archive = ref<File>()
+const directory = ref('')
 const fileError = ref('')
 const prepared = ref(false)
 const busy = ref(false)
-const sources: { id: Source; label: string }[] = [
+const sources: { id: Source; label: string; enabled?: boolean }[] = [
   { id: 'native', label: '原生工程归档（ZIP）' },
-  { id: 'yolo', label: 'YOLO 数据集（ZIP）' },
-  { id: 'coco', label: 'COCO 数据集（ZIP）' },
+  { id: 'yolo', label: 'YOLO 数据集（ZIP）', enabled: true },
+  { id: 'local', label: '本地 YOLO 目录（大数据集）', enabled: true },
+  { id: 'coco', label: 'COCO 数据集（ZIP）', enabled: true },
+  { id: 'coco-local', label: '本地 COCO 目录（大数据集）', enabled: true },
   { id: 'video', label: '视频抽帧' },
 ]
 
 const dataset = computed(() => props.datasets.find(item => item.id === datasetId.value))
+const localImport = computed(() => mode.value === 'import' && (source.value === 'local' || source.value === 'coco-local'))
+const importFormat = computed(() => source.value === 'coco' || source.value === 'coco-local' ? 'coco' : 'yolo')
+const importTasks = computed(() => Object.entries(taskLabels).filter(([key]) =>
+  importFormat.value !== 'coco' || key === 'detect' || key === 'segment'))
+const importReady = computed(() => localImport.value ? Boolean(directory.value.trim()) : Boolean(archive.value))
 const classification = computed(() => dataset.value?.task === 'classify')
 const preview = computed(() => {
   const images = dataset.value?.images.filter(image =>
@@ -58,7 +67,10 @@ const fileSize = computed(() => {
 })
 
 onMounted(() => dialog.value?.showModal())
-watch([mode, datasetId, includeImages, includeNegative, task], () => {
+watch(importFormat, format => {
+  if (format === 'coco' && task.value !== 'detect' && task.value !== 'segment') task.value = 'detect'
+})
+watch([mode, datasetId, includeImages, includeNegative, task, source, directory], () => {
   prepared.value = false
   fileError.value = ''
 })
@@ -99,8 +111,10 @@ async function exchange() {
     if (mode.value === 'export' && dataset.value) {
       await downloadYolo(dataset.value.id, classification.value || includeImages.value, includeNegative.value)
       prepared.value = true
-    } else if (mode.value === 'import' && archive.value) {
-      const imported = await importYolo(archive.value, task.value)
+    } else if (mode.value === 'import' && importReady.value) {
+      const imported = localImport.value
+        ? await importDatasetDirectory(directory.value.trim(), task.value, importFormat.value)
+        : await importDatasetArchive(archive.value!, task.value, importFormat.value)
       prepared.value = true
       emit('imported', imported)
     }
@@ -118,9 +132,9 @@ async function exchange() {
       <div>
         <div class="exchange-heading">
           <h2 id="exchange-title">数据集交换<span v-if="mode === 'export' && dataset"> · {{ dataset.name }}</span></h2>
-          <span class="mode-tag">YOLO ZIP</span>
+          <span class="mode-tag">{{ mode === 'export' ? 'YOLO ZIP' : importFormat.toUpperCase() + (localImport ? ' · 本地目录' : ' ZIP') }}</span>
         </div>
-        <p>导入或导出 YOLO 数据集，保留图片分集和类别标注。</p>
+        <p>导入数据集或导出 YOLO ZIP，保留图片分集和类别标注。</p>
       </div>
       <button class="close-exchange" type="button" aria-label="关闭数据集交换" :disabled="busy" @click="close">×</button>
     </header>
@@ -172,37 +186,41 @@ async function exchange() {
           <label>
             导入来源
             <select v-model="source" :disabled="busy">
-              <option v-for="item in sources" :key="item.id" :value="item.id" :disabled="item.id !== 'yolo'">
-                {{ item.label }}{{ item.id === 'yolo' ? '' : '（待接入）' }}
+              <option v-for="item in sources" :key="item.id" :value="item.id" :disabled="!item.enabled">
+                {{ item.label }}{{ item.enabled ? '' : '（待接入）' }}
               </option>
             </select>
           </label>
           <label>
             任务类型
             <select v-model="task" :disabled="busy">
-              <option v-for="(label, key) in taskLabels" :key="key" :value="key">{{ label }}</option>
+              <option v-for="[key, label] in importTasks" :key="key" :value="key">{{ label }}</option>
             </select>
-            <small v-if="task === 'pose'" class="task-note">data.yaml 须包含 kpt_shape，各类别共用同一套关键点。</small>
+            <small v-if="importFormat === 'coco'" class="task-note">
+              同时提供 COCO 标注 JSON 和图片。{{ task === 'segment' ? '每个实例须有一个多边形轮廓。' : '检测任务读取 bbox。' }}
+            </small>
+            <small v-else-if="task === 'pose'" class="task-note">data.yaml 须包含 kpt_shape，各类别共用同一套关键点。</small>
             <small v-else-if="task === 'classify'" class="task-note">使用 train/类别/图片 和 val/类别/图片 目录结构。</small>
           </label>
-          <label class="exchange-drop" @dragover.prevent @drop.prevent="selectFile($event.dataTransfer?.files[0])">
+          <LocalDirectoryPicker v-if="localImport" v-model="directory" :disabled="busy" />
+          <label v-else class="exchange-drop" @dragover.prevent @drop.prevent="selectFile($event.dataTransfer?.files[0])">
             <input type="file" accept=".zip" :disabled="busy" @change="pickFile">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V3m-4 4 4-4 4 4M4 15v5h16v-5"/></svg>
             <strong>{{ archive?.name ?? '拖放或选择 ZIP 归档包' }}</strong>
             <small>ZIP 压缩包 · 最大 256 MiB</small>
           </label>
-          <button class="button primary" type="submit" :disabled="!archive || busy || prepared">{{ busy ? '正在导入…' : '导入数据集' }}</button>
+          <button class="button primary" type="submit" :disabled="!importReady || busy || prepared">{{ busy ? '正在导入…' : '导入数据集' }}</button>
         </form>
 
         <p v-if="fileError" class="exchange-error" role="alert">{{ fileError }}</p>
         <p v-else class="exchange-note" role="status">
-          {{ prepared ? (mode === 'export' ? '已交给浏览器下载。' : '数据集已导入。') : (mode === 'export' ? '跳过未标注图片，按已保存的分集打包。' : '归档内的分集和类别会随图片导入。') }}
+          {{ prepared ? (mode === 'export' ? '已交给浏览器下载。' : '数据集已导入。') : (mode === 'export' ? '跳过未标注图片，按已保存的分集打包。' : localImport ? '后端直接读取本机目录并复制图片。大目录导入期间请保持页面打开。' : '归档内的分集和类别会随图片导入。') }}
         </p>
       </section>
 
       <section class="exchange-results" aria-labelledby="exchange-result-title">
         <div class="results-heading">
-          <h3 id="exchange-result-title">{{ mode === 'export' ? '导出结果预览' : '导入文件预览' }}</h3>
+          <h3 id="exchange-result-title">{{ mode === 'export' ? '导出结果预览' : localImport ? '导入目录预览' : '导入文件预览' }}</h3>
           <span class="result-state" :class="{ prepared }">{{ busy ? '处理中' : prepared ? '已完成' : '待执行' }}</span>
         </div>
 
@@ -214,12 +232,17 @@ async function exchange() {
           <div><dt>目标标注总数</dt><dd><strong>{{ preview.annotations.toLocaleString('zh-CN') }}</strong></dd></div>
           <div class="full"><dt>归档结构</dt><dd>{{ classification ? '分集 / 类别 / 图片' : 'data.yaml、labels 目录及可选的 images 目录' }}</dd></div>
         </dl>
-        <dl v-else-if="mode === 'import' && archive" class="result-grid">
+        <dl v-else-if="localImport && directory.trim()" class="result-grid">
+          <div class="full"><dt>本机目录</dt><dd class="path">{{ directory }}</dd></div>
+          <div><dt>任务类型</dt><dd>{{ taskLabels[task] }}</dd></div>
+          <div><dt>读取方式</dt><dd>由本地服务读取</dd></div>
+        </dl>
+        <dl v-else-if="mode === 'import' && archive && !localImport" class="result-grid">
           <div class="full"><dt>文件名称</dt><dd class="path">{{ archive.name }}</dd></div>
           <div><dt>任务类型</dt><dd>{{ taskLabels[task] }}</dd></div>
           <div><dt>文件大小</dt><dd class="path">{{ fileSize }}</dd></div>
         </dl>
-        <p v-else class="exchange-empty">{{ mode === 'export' ? '选择数据集以查看当前图片、分集和标注。' : '选择文件后可查看名称、类型和大小。' }}</p>
+        <p v-else class="exchange-empty">{{ mode === 'export' ? '选择数据集以查看当前图片、分集和标注。' : localImport ? '浏览本机磁盘，或粘贴数据集目录的绝对路径。' : '选择文件后可查看名称、类型和大小。' }}</p>
 
         <footer class="exchange-footer">
           <button class="button" type="button" :disabled="busy" @click="close">{{ prepared ? '完成' : '关闭' }}</button>

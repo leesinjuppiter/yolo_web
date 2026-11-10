@@ -1,6 +1,6 @@
 """Read a portable YOLO archive without extracting member paths."""
 
-from collections.abc import Iterable
+from collections.abc import Callable, Collection, Iterable
 from pathlib import PurePosixPath
 from stat import S_IFLNK, S_IFMT
 from zipfile import ZipFile, ZipInfo
@@ -54,20 +54,16 @@ def read_bytes(archive: ZipFile, entry: ZipInfo, limit: int) -> bytes:
     return data
 
 
-def read_text(archive: ZipFile, entry: ZipInfo) -> str:
-    return read_bytes(archive, entry, MAX_TEXT_BYTES).decode("utf-8-sig")
-
-
-def read_config(archive: ZipFile, files: dict[PurePosixPath, ZipInfo],
+def read_config(files: Collection[PurePosixPath], text_at: Callable[[PurePosixPath], str],
                 required: bool) -> tuple[PurePosixPath, dict]:
     candidates = [path for path in files if path.name.lower() in ("data.yaml", "dataset.yaml", "data.yml", "dataset.yml")]
     if not candidates and not required:
         return PurePosixPath("."), {}
     if len(candidates) != 1:
-        raise ValueError("ZIP 须包含唯一的 data.yaml 或 dataset.yaml")
+        raise ValueError("数据集须包含唯一的 data.yaml 或 dataset.yaml")
     path = candidates[0]
     try:
-        config = yaml.safe_load(read_text(archive, files[path]))
+        config = yaml.safe_load(text_at(path))
     except yaml.YAMLError as exc:
         raise ValueError("无法解析 YOLO 数据集配置") from exc
     if not isinstance(config, dict):
@@ -119,27 +115,33 @@ def _under(path: PurePosixPath, directory: PurePosixPath) -> bool:
     return path != directory and path.is_relative_to(directory)
 
 
-def _image_paths(archive: ZipFile, files: dict[PurePosixPath, ZipInfo], root: PurePosixPath,
-                 source: str, image_paths: list[PurePosixPath]) -> Iterable[PurePosixPath]:
-    path = root / _safe_path(source)
+def archive_reference(base: PurePosixPath, value: str) -> PurePosixPath:
+    return base / _safe_path(value)
+
+
+def _image_paths(files: Collection[PurePosixPath], root: PurePosixPath, source: str,
+                 image_paths: list[PurePosixPath], text_at: Callable[[PurePosixPath], str],
+                 reference: Callable[[PurePosixPath, str], PurePosixPath]) -> Iterable[PurePosixPath]:
+    path = reference(root, source)
     if path.suffix.lower() == ".txt":
         if path not in files:
             raise ValueError(f"分集清单缺失：{path}")
-        for line in read_text(archive, files[path]).splitlines():
+        for line in text_at(path).splitlines():
             if not line.strip():
                 continue
-            relative = _safe_path(line.strip())
-            candidates = (path.parent / relative, root / relative)
-            image = next((item for item in candidates if item in files and item.suffix.lower() in IMAGE_EXTENSIONS), None)
-            if image is None:
-                raise ValueError(f"分集清单引用了归档中不存在的图片：{line.strip()}")
+            image = reference(path.parent, line.strip())
+            if image not in files:
+                image = reference(root, line.strip())
+            if image not in files or image.suffix.lower() not in IMAGE_EXTENSIONS:
+                raise ValueError(f"分集清单引用了数据集中不存在的图片：{line.strip()}")
             yield image
     else:
         yield from (image for image in image_paths if _under(image, path))
 
 
-def detection_index(archive: ZipFile, files: dict[PurePosixPath, ZipInfo], root: PurePosixPath,
-                    config: dict) -> tuple[list[str], list[tuple[PurePosixPath, str, str | None]]]:
+def detection_index(files: Collection[PurePosixPath], root: PurePosixPath, config: dict,
+                    text_at: Callable[[PurePosixPath], str],
+                    reference: Callable[[PurePosixPath, str], PurePosixPath]) -> tuple[list[str], list[tuple[PurePosixPath, str, str | None]]]:
     image_paths = [path for path in files if path.suffix.lower() in IMAGE_EXTENSIONS]
     entries: dict[PurePosixPath, tuple[str, str | None]] = {}
     for split in SPLITS:
@@ -147,16 +149,16 @@ def detection_index(archive: ZipFile, files: dict[PurePosixPath, ZipInfo], root:
         if isinstance(sources, str):
             sources = [sources]
         if not isinstance(sources, list) or any(not isinstance(source, str) for source in sources):
-            raise ValueError(f"{split} 分集须引用 ZIP 内的图片目录或清单")
+            raise ValueError(f"{split} 分集须引用数据集内的图片目录或清单")
         for source in sources:
-            for path in _image_paths(archive, files, root, source, image_paths):
+            for path in _image_paths(files, root, source, image_paths, text_at, reference):
                 if path in entries and entries[path][0] != split:
                     raise ValueError(f"图片同时出现在多个分集：{path}")
                 entries[path] = (split, None)
     return _classes(config.get("names")), [(path, *entry) for path, entry in entries.items()]
 
 
-def classification_index(files: dict[PurePosixPath, ZipInfo]) -> tuple[list[str], list[tuple[PurePosixPath, str, str | None]]]:
+def classification_index(files: Collection[PurePosixPath]) -> tuple[list[str], list[tuple[PurePosixPath, str, str | None]]]:
     entries = []
     roots = set()
     for path in files:
@@ -168,7 +170,7 @@ def classification_index(files: dict[PurePosixPath, ZipInfo]) -> tuple[list[str]
                 entries.append((path, "val" if part == "valid" else part, path.parts[index + 1]))
                 break
     if len(roots) > 1:
-        raise ValueError("分类 ZIP 须使用同一个根目录下的 train、val 或 test 目录")
+        raise ValueError("分类数据须使用同一个根目录下的 train、val 或 test 目录")
     names = sorted({name for _, _, name in entries}, key=str.casefold)
     return names, entries
 

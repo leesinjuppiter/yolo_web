@@ -18,6 +18,70 @@ const name = ref('')
 const task = ref<TaskType>('obb')
 const split = ref<Split | null>(null)
 const splits = ref<Record<string, Split | null>>({})
+const splitRatio = ref('6:2:2')
+const ratioError = ref('')
+const splitKeys: Split[] = ['train', 'val', 'test']
+
+const splitTotals = computed(() => {
+  const totals = { train: 0, val: 0, test: 0, unassigned: 0 }
+  for (const assigned of Object.values(splits.value)) {
+    totals[assigned ?? 'unassigned'] += 1
+  }
+  return totals
+})
+
+function applySplitRatio() {
+  ratioError.value = ''
+  const images = props.dataset?.images
+  if (props.busy || !images?.length) return
+
+  const parts = splitRatio.value.split(/[:：]/).map(part => part.trim())
+  if (parts.length !== 3 || parts.some(part => !/^\d{1,3}$/.test(part))) {
+    ratioError.value = '请输入三个非负整数，例如 6:2:2。'
+    return
+  }
+
+  const weights = parts.map(Number)
+  const total = weights.reduce((sum, weight) => sum + weight, 0)
+  if (total === 0) {
+    ratioError.value = '三个比例不能同时为 0。'
+    return
+  }
+
+  // 先取整数部分，再按余数从大到小补齐剩余名额。
+  const numerators = weights.map(weight => images.length * weight)
+  const counts = numerators.map(value => Math.floor(value / total))
+  const remaining = images.length - counts.reduce((sum, count) => sum + count, 0)
+  const order = [0, 1, 2].sort(
+    (a, b) => (numerators[b] % total) - (numerators[a] % total) || a - b,
+  )
+  for (const index of order.slice(0, remaining)) {
+    counts[index] += 1
+  }
+
+  // 打乱 ID 的副本，避免总按上传顺序划分。
+  const ids = images.map(image => image.id)
+  for (let i = ids.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[ids[i], ids[j]] = [ids[j], ids[i]]
+  }
+
+  const draft: Record<string, Split | null> = {}
+  let offset = 0
+  splitKeys.forEach((target, index) => {
+    const end = offset + counts[index]
+    for (; offset < end; offset++) {
+      draft[ids[offset]] = target
+    }
+  })
+  splits.value = draft
+}
+
+
+
+
+
+
 const keypoints = ref('')
 const keypointNames = computed(() => keypoints.value.split(/[,，、\n]/).map(point => point.trim()).filter(Boolean))
 const files = ref<{ file: File; preview: string }[]>([])
@@ -96,6 +160,9 @@ watch([() => props.kind, dialog], ([kind]) => {
   task.value = 'obb'
   split.value = null
   splits.value = Object.fromEntries(props.dataset?.images.map(image => [image.id, image.split]) ?? [])
+  splitRatio.value = '6:2:2'
+  ratioError.value = ''
+
   keypoints.value = ''
   fileError.value = ''
   confidence.value = 0.25
@@ -210,17 +277,36 @@ function submit() {
           </ul>
         </template>
 
-        <div v-else-if="kind === 'splits'" class="split-list">
-          <label v-for="image in dataset?.images" :key="image.id">
-            <span :title="image.name">{{ image.name }}</span>
-            <select v-model="splits[image.id]" :aria-label="`${image.name} 的分集`">
-              <option :value="null">待分配</option>
-              <option value="train">train · 训练集</option>
-              <option value="val">val · 验证集</option>
-              <option value="test">test · 测试集</option>
-            </select>
-          </label>
-        </div>
+        <template v-else-if="kind === 'splits'">
+          <div class="split-ratio">
+            <label class="field-label" for="split-ratio">分配比例（train : val : test）</label>
+            <div class="split-ratio-controls">
+              <input
+                id="split-ratio" v-model="splitRatio" type="text" maxlength="20" placeholder="6:2:2"
+                @input="ratioError = ''" @keydown.enter.prevent="applySplitRatio"
+              >
+              <button class="button" type="button" :disabled="!dataset?.images.length" @click="applySplitRatio">按比例分配</button>
+            </div>
+            <p class="split-ratio-note">按比例重新分配全部图片，可逐张调整。点击「保存分集」后生效。</p>
+            <p class="split-ratio-note" aria-live="polite">
+              train {{ splitTotals.train }} 张 · val {{ splitTotals.val }} 张 ·
+              test {{ splitTotals.test }} 张 · 待分配 {{ splitTotals.unassigned }} 张
+            </p>
+            <p v-if="ratioError" class="dialog-error" role="alert">{{ ratioError }}</p>
+          </div>
+
+          <div class="split-list">
+            <label v-for="image in dataset?.images" :key="image.id">
+              <span :title="image.name">{{ image.name }}</span>
+              <select v-model="splits[image.id]" :aria-label="`${image.name} 的分集`">
+                <option :value="null">待分配</option>
+                <option value="train">train · 训练集</option>
+                <option value="val">val · 验证集</option>
+                <option value="test">test · 测试集</option>
+              </select>
+            </label>
+          </div>
+        </template>
 
         <p v-else-if="kind === 'delete'" class="delete-description">
           这会永久删除该数据集及其 {{ displayCount }} 张图片、类别和标注。<strong>此操作无法撤销。</strong>
@@ -345,6 +431,11 @@ function submit() {
 .file-list img { width: 36px; height: 27px; object-fit: cover; border-radius: 3px; background: var(--soft); }
 .file-list span { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .file-list button { border: 0; background: none; color: var(--primary); font: inherit; cursor: pointer; }
+.split-ratio { margin-bottom: 14px; }
+.split-ratio-controls { display: flex; align-items: center; gap: 8px; }
+.split-ratio-controls input { flex: 1; min-width: 0; }
+.split-ratio-controls .button { flex: none; white-space: nowrap; }
+.split-ratio-note { margin: 6px 0 0; color: var(--muted); font-size: 12px; }
 .split-list { display: grid; gap: 8px; max-height: 45dvh; overflow-y: auto; }
 .split-list label { display: grid; grid-template-columns: minmax(0, 1fr) 140px; align-items: center; gap: 12px; }
 .split-list span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

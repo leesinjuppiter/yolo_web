@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue'
 import type { Dataset, DatasetAction, DatasetReport } from './domain'
 import { datasetCounts, taskLabels } from './domain'
 import DatasetQualityReport from './components/DatasetQualityReport.vue'
+import DatasetValidationReport from './components/DatasetValidationReport.vue'
 
 type Task = Dataset['task']
 const props = defineProps<{ datasets: Dataset[]; report?: DatasetReport }>()
@@ -243,6 +244,7 @@ function closeMenuOutside(event: FocusEvent) {
           </div>
           <div v-if="view === 'cards'" class="card-actions">
             <button v-for="item in operations" :key="item.action" class="button" :class="{ danger: item.action === 'delete' }" type="button"
+              :aria-expanded="item.action === 'validate' ? report?.datasetId === row.dataset.id && report.kind === 'validate' : undefined"
               :disabled="actionDisabled(item.action, row.images, row.dataset)" @click="runAction(item.action, row.dataset)">
               {{ actionLabel(item.action, item.label, row.dataset) }}
             </button>
@@ -252,16 +254,16 @@ function closeMenuOutside(event: FocusEvent) {
         <div v-if="report?.datasetId === row.dataset.id" class="report-row" :role="view === 'list' ? 'row' : undefined">
           <DatasetQualityReport v-if="report.kind === 'quality'" :dataset="row.dataset" :report="report"
             :role="view === 'list' ? 'cell' : undefined" :aria-colspan="view === 'list' ? 6 : undefined" @close="emit('close-report')" />
+          <DatasetValidationReport v-else-if="report.kind === 'validate'" :report="report"
+            :role="view === 'list' ? 'cell' : undefined" :aria-colspan="view === 'list' ? 6 : undefined"
+            @close="emit('close-report')" @open-image="emit('open-image', row.dataset, $event)" />
           <div v-else class="report" :role="view === 'list' ? 'cell' : undefined" :aria-colspan="view === 'list' ? 6 : undefined">
             <div class="report-heading">
               <strong role="status">{{ report.pending ? '正在分析…' : report.title || '分析结果' }}</strong>
               <button class="text-button" type="button" @click="emit('close-report')">收起结果</button>
             </div>
             <dl v-if="report.items?.length" class="report-metrics">
-              <div v-for="item in report.items" :key="item.label" :class="{
-                'metric-error': report.kind === 'validate' && item.label === '错误',
-                'metric-warning': report.kind === 'validate' && item.label === '警告',
-              }">
+              <div v-for="item in report.items" :key="item.label">
                 <dt>{{ item.label }}</dt><dd>{{ item.value }}</dd>
               </div>
             </dl>
@@ -460,6 +462,10 @@ progress.complete { color: #368150; }
 .card-view .main-action { width: 100%; }
 .card-actions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 5px; margin-top: 8px; }
 .card-actions .button { min-width: 0; min-height: 25px; padding: 3px 4px; font-size: 11px; }
+.card-actions .button[aria-expanded="true"] { color: #fff; background: var(--primary, #4f6885); border-color: var(--primary, #4f6885); }
+.card-actions .button[aria-expanded="true"]::before {
+  content: ''; width: 5px; height: 5px; border-top: 1px solid; border-left: 1px solid; transform: translateY(1px) rotate(45deg);
+}
 .report-row { padding: 0 13px 13px; }
 .report {
   padding: 9px 10px; border: 1px solid var(--line, #e6e9ed); border-radius: 5px;
@@ -471,9 +477,6 @@ progress.complete { color: #368150; }
 .report-metrics div { min-width: 56px; flex: 1; padding: 5px; background: var(--surface, #fff); }
 .report-metrics dt { color: var(--muted, #5c6775); }
 .report-metrics dd { margin: 1px 0 0; font-family: var(--numeric); font-weight: 600; }
-.report-metrics .metric-error { color: var(--danger, #a9292f); background: #fff2f2; }
-.report-metrics .metric-warning { color: #805500; background: #fff6d8; }
-.report-metrics :is(.metric-error, .metric-warning) dt { color: inherit; }
 .report ul { padding-left: 16px; margin: 7px 0 0; }
 .empty-state { text-align: center; padding: 42px 16px; border: 1px solid var(--line, #e6e9ed); }
 .empty-state p { font-size: 13px; color: var(--muted, #5c6775); }
