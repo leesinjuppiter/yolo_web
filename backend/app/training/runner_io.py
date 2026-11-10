@@ -107,6 +107,11 @@ class OutputCapture:
                 self.failure = event
             if event["kind"] == "metric":
                 self.metric_sequence += 1
+                values = event["values"]
+                keys = ("boxLoss", "clsLoss", "segLoss", "map50", "map50_95", "maskMap50", "top1", "learningRate")
+                summary = " | ".join(f"{key}={values[key]:.5g}" for key in keys if key in values)
+                self.log_sequence += 1
+                logs.append((self.log_sequence, "metric", f"Epoch {event['epoch']}" + (f" | {summary}" if summary else "")))
             events.append((self.metric_sequence, event))
         return logs, events
 

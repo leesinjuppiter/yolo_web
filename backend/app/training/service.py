@@ -1,5 +1,6 @@
 from datetime import datetime, timezone
 from hashlib import file_digest
+from math import isfinite
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -7,7 +8,9 @@ from sqlalchemy.orm import Session
 from app.dataset.repository import Conflict, NotFound
 from app.models.training_versions import ModelVersion
 from app.training import catalog, repository
-from app.training.models import TrainingLog, TrainingMetric, TrainingTask
+from app.training.models import TrainingMetric, TrainingTask
+from app.training.resources import resource_status
+from app.training.runtime import public_runtime
 from app.training.schemas import ACTIVE, TERMINAL, TrainingConfig
 from app.training.snapshot import inspect_dataset
 
@@ -111,7 +114,34 @@ def overview(db: Session, **filters) -> dict:
 
 def status(db: Session, task_id: str) -> dict:
     task = repository.get_task(db, task_id)
-    return task_response(task, repository.get_model_version(db, task_id))
+    response = task_response(task, repository.get_model_version(db, task_id))
+    if runtime := public_runtime(task.environment):
+        response["runtime"] = runtime
+    if (eta := _eta_seconds(db, task)) is not None:
+        response["etaSeconds"] = eta
+    return response
+
+
+def _eta_seconds(db: Session, task: TrainingTask) -> float | None:
+    if task.status != "running" or task.phase != "training" or task.cancel_requested or task.epoch < 2:
+        return None
+    if not task.heartbeat_at or (datetime.now(timezone.utc) - task.heartbeat_at).total_seconds() > 10:
+        return None
+    timings = repository.recent_epoch_timings(db, task.id, task.epoch)
+    if len(timings) < 2:
+        return None
+    latest, latest_time = timings[0]
+    first, first_time = timings[-1]
+    remaining = task.config["epochs"] - latest
+    if remaining > 0 and latest > first and latest_time > first_time:
+        estimate = remaining * (latest_time - first_time) / (latest - first)
+        if isfinite(estimate):
+            return estimate
+    return None
+
+
+def resources(db: Session, task_id: str) -> dict:
+    return resource_status(repository.get_task(db, task_id))
 
 
 def cancel(db: Session, task_id: str) -> dict:
@@ -140,8 +170,7 @@ def delete(db: Session, task_id: str) -> None:
 
 def logs(db: Session, task_id: str, after: int, limit: int) -> list[dict]:
     repository.require_task(db, task_id)
-    rows = db.scalars(select(TrainingLog).where(TrainingLog.task_id == task_id, TrainingLog.sequence > after)
-                      .order_by(TrainingLog.sequence).limit(limit))
+    rows = db.execute(repository.log_query(task_id, after).limit(limit))
     return [{"sequence": row.sequence, "time": row.time, "level": row.level, "message": row.message}
             for row in rows]
 

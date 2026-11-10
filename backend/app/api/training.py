@@ -2,7 +2,7 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Header, Query, Response
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
@@ -59,6 +59,19 @@ def delete(task_id: UUID, db: Database):
 @router.get("/{task_id}/logs")
 def logs(task_id: UUID, db: Database, after_sequence: After = 0, limit: Limit = 200):
     return TOOLS["training.logs"](db, str(task_id), after_sequence, limit)
+
+
+@router.get("/{task_id}/logs/download", response_class=StreamingResponse)
+def download_log(task_id: UUID, db: Database):
+    stream = TOOLS["training.export_log"](db, str(task_id))
+    return StreamingResponse(stream, media_type="text/plain",
+                             headers={"Content-Disposition": f'attachment; filename="training-{task_id}.log"',
+                                      "Cache-Control": "no-store"})
+
+
+@router.get("/{task_id}/resources")
+def resources(task_id: UUID, db: Database):
+    return TOOLS["training.resources"](db, str(task_id))
 
 
 @router.get("/{task_id}/metrics")

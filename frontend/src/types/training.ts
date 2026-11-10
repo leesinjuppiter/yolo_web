@@ -92,6 +92,25 @@ export interface TrainingLogEntry {
   message: string
 }
 
+export interface TrainingRuntime {
+  processId?: number
+  versions?: Record<string, string>
+  arguments?: Record<string, string | number | boolean>
+}
+
+export interface TrainingResources {
+  state: 'waiting' | 'live' | 'stale' | 'unavailable' | 'finished'
+  sample?: {
+    sampledAt: string
+    hostCpuPercent?: number
+    hostMemoryUsedBytes?: number
+    hostMemoryTotalBytes?: number
+    processCpuPercent?: number
+    processMemoryBytes?: number
+    processId?: number
+  }
+}
+
 export interface TrainingTask {
   id: string
   config: TrainingConfig
@@ -116,6 +135,7 @@ export interface TrainingTask {
   actions: TrainingAction[]
   artifacts: TrainingArtifact[]
   device?: TrainingDevice
+  runtime?: TrainingRuntime
   previews: TrainingPreview[]
 }
 

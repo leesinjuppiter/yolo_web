@@ -1,7 +1,7 @@
 import type { Dataset } from '../domain'
 import type {
   TrainingConfig, TrainingFilters, TrainingLogEntry, TrainingMetricPoint,
-  TrainingOptions, TrainingOverview, TrainingPreflight, TrainingTask,
+  TrainingOptions, TrainingOverview, TrainingPreflight, TrainingResources, TrainingTask,
 } from '../types/training'
 
 const root = '/api/training'
@@ -63,6 +63,9 @@ export function listTraining(filters: TrainingFilters, signal?: AbortSignal) {
 export const checkTraining = (config: TrainingConfig) => request<TrainingPreflight>(`${root}/preflight`, post(config))
 export const createTraining = (config: TrainingConfig, key: string) => request<TrainingTask>(root, post(config, key))
 export const getTraining = (id: string, signal?: AbortSignal) => request<TrainingTask>(at(id), { signal })
+export const getTrainingResources = (id: string, signal?: AbortSignal) =>
+  request<TrainingResources>(`${at(id)}/resources`, { signal })
+export const trainingLogDownloadUrl = (id: string) => `${at(id)}/logs/download`
 export const cancelTraining = (id: string) => request<TrainingTask>(`${at(id)}/cancel`, post({}))
 export const deleteTraining = (id: string) => request<void>(at(id), { method: 'DELETE' })
 export const registerTrainingModel = (id: string) => request<TrainingTask['modelVersion']>(`${at(id)}/model-version`, post({}))

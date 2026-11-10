@@ -1,4 +1,4 @@
-from app.training import service
+from app.training import repository, service
 
 TOOLS = {
     "training.options": service.options,
@@ -9,6 +9,8 @@ TOOLS = {
     "training.cancel": service.cancel,
     "training.delete": service.delete,
     "training.logs": service.logs,
+    "training.export_log": repository.export_log,
+    "training.resources": service.resources,
     "training.metrics": service.metrics,
     "training.latest_result": service.latest_result,
     "training.diagnose_failure": service.diagnose_failure,

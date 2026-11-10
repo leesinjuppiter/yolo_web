@@ -21,6 +21,7 @@ from app.core.database import engine
 from app.training.catalog import expand_arguments, resolve_model
 from app.training.models import TrainingLog, TrainingMetric, TrainingTask
 from app.training.repository import task_dir, WORKER_LOCK
+from app.training.resources import ResourceSampler
 from app.training.runner_io import artifact_manifest, failure_for, OutputCapture
 from app.training.runner_process import command, run_child, worker_file_lock
 from app.training.snapshot import prepare_snapshot, SnapshotError
@@ -165,9 +166,12 @@ def _invoke(task: TrainingTask, directory: Path, check) -> OutputCapture:
     return OutputCapture(directory)
 
 
-def _capture(task: TrainingTask, capture: OutputCapture, *, finished: bool = False) -> None:
+def _capture(task: TrainingTask, capture: OutputCapture, *, finished: bool = False,
+             resource_sample: dict | None = None) -> None:
     logs, events = capture.read(finished=finished)
     with _edit(task) as (db, row):
+        if resource_sample is not None:
+            row.environment = {**(row.environment or {}), "resourceSample": resource_sample}
         for sequence, level, message in logs:
             db.add(TrainingLog(task_id=row.id, sequence=sequence, level=level, message=message))
         for sequence, event in events:
@@ -189,11 +193,12 @@ def _train(task: TrainingTask, directory: Path, stop: Event, check) -> None:
     capture = _invoke(task, directory, check)
     try:
         with run_child(directory) as child:
+            sampler = ResourceSampler(child.pid)
             with _edit(task) as (_, row):
                 row.environment = {**row.environment, "processId": child.pid}
             while child.poll() is None:
                 check()
-                _capture(task, capture)
+                _capture(task, capture, resource_sample=sampler.sample())
                 stop.wait(0.75)
     finally:
         while True:

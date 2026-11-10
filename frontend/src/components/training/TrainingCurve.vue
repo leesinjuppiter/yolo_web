@@ -1,34 +1,41 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import type { TrainingMetricPoint } from '../../types/training'
 
 type Axis = 'epoch' | 'step' | 'elapsedSeconds'
 const props = defineProps<{
   title: string
-  series: { key: string; label: string }[]
+  series: { key: string; label: string; colorIndex: number }[]
   points: TrainingMetricPoint[]
   axis: Axis
   smoothing: number
   logarithmic: boolean
 }>()
 
-const palette = ['#315d91', '#18826d', '#9a6343', '#7358a5']
-const plot = { left: 58, right: 408, top: 13, bottom: 145 }
+const palette = ['#385d85', '#a74244', '#19724f', '#896024']
+const plot = { left: 61, right: 398, top: 15, bottom: 148 }
 const activeX = ref<number>()
 const number = new Intl.NumberFormat('zh-CN', { maximumSignificantDigits: 4 })
 const axisTitle: Record<Axis, string> = { epoch: 'Epoch', step: 'Step', elapsedSeconds: '耗时（秒）' }
-const traces = computed(() => props.series.map((series, index) => {
+const format = (value: number) => value !== 0 && (Math.abs(value) < .0001 || Math.abs(value) >= 100000)
+  ? value.toExponential(2) : number.format(value)
+const traces = computed(() => props.series.map(series => {
   let previous: number | undefined
   const samples = props.points.flatMap(point => {
     const x = point[props.axis]
     const raw = point.values[series.key]
-    if (x === undefined || !Number.isFinite(x) || !Number.isFinite(raw) || (props.logarithmic && raw <= 0)) return []
+    if (x === undefined || !Number.isFinite(x) || !Number.isFinite(raw) || (props.logarithmic && raw <= 0)) {
+      previous = undefined
+      return []
+    }
+    const startsSegment = previous === undefined
     const smoothed: number = previous === undefined ? raw : props.smoothing * previous + (1 - props.smoothing) * raw
     previous = smoothed
-    return [{ x, raw, y: props.logarithmic ? Math.log10(smoothed) : smoothed }]
+    return [{ x, raw, startsSegment, y: props.logarithmic ? Math.log10(smoothed) : smoothed }]
   })
-  return { ...series, color: palette[index % palette.length], samples }
+  return { ...series, color: palette[series.colorIndex % palette.length], dashed: series.key.startsWith('val'), samples }
 }).filter(trace => trace.samples.length))
+watch(() => props.axis, () => { activeX.value = undefined })
 
 const domain = computed(() => {
   const first = traces.value[0]?.samples[0]
@@ -46,7 +53,7 @@ const domain = computed(() => {
     }
   }
   const padding = maxY === minY ? Math.abs(maxY) * .08 || .1 : (maxY - minY) * .08
-  return { minX, maxX, minY: minY - padding, maxY: maxY + padding }
+  return { minX, maxX, minY: !props.logarithmic && minY >= 0 ? Math.max(0, minY - padding) : minY - padding, maxY: maxY + padding }
 })
 
 const xPosition = (x: number) => {
@@ -56,7 +63,9 @@ const xPosition = (x: number) => {
 const yPosition = (y: number) => plot.bottom - (y - domain.value.minY) / (domain.value.maxY - domain.value.minY) * (plot.bottom - plot.top)
 const paths = computed(() => traces.value.map(trace => ({
   ...trace,
-  coordinates: trace.samples.map(point => `${xPosition(point.x)},${yPosition(point.y)}`).join(' '),
+  path: trace.samples.map(point => `${point.startsSegment ? 'M' : 'L'}${xPosition(point.x)},${yPosition(point.y)}`).join(' '),
+  isolated: trace.samples.filter((point, index) =>
+    point.startsSegment && (index === trace.samples.length - 1 || trace.samples[index + 1].startsSegment)),
 })))
 const xValues = computed(() => [...new Set(traces.value.flatMap(trace => trace.samples.map(point => point.x)))].sort((a, b) => a - b))
 const selectedX = computed(() => {
@@ -92,30 +101,37 @@ function moveSelection(offset: number) {
 
 <template>
   <article class="curve">
-    <h3>{{ title }}</h3>
+    <div class="curve-heading">
+      <h3>{{ title }}</h3>
+      <span v-if="selectedX !== undefined" class="curve-sample">{{ axisTitle[axis] }} {{ format(selectedX) }}</span>
+    </div>
     <div v-if="traces.length" class="curve-content">
-      <svg viewBox="0 0 420 173" :aria-label="`${title}曲线，使用左右方向键查看采样点`" tabindex="0"
+      <svg viewBox="0 0 420 176" role="img" :aria-label="`${title}曲线，使用左右方向键查看采样点`" tabindex="0"
         @pointermove="selectAt" @pointerleave="activeX = undefined" @blur="activeX = undefined"
         @keydown.left.prevent="moveSelection(-1)" @keydown.right.prevent="moveSelection(1)">
         <g v-for="tick in yTicks" :key="tick">
           <line :x1="plot.left" :x2="plot.right" :y1="yPosition(tick)" :y2="yPosition(tick)" class="curve-grid"/>
-          <text :x="plot.left - 7" :y="yPosition(tick) + 4" text-anchor="end">{{ number.format(logarithmic ? 10 ** tick : tick) }}</text>
+          <text :x="plot.left - 7" :y="yPosition(tick) + 4" text-anchor="end">{{ format(logarithmic ? 10 ** tick : tick) }}</text>
         </g>
         <line :x1="plot.left" :x2="plot.right" :y1="plot.bottom" :y2="plot.bottom" class="curve-axis"/>
-        <text v-for="tick in xTicks" :key="tick" :x="xPosition(tick)" y="164" text-anchor="middle">{{ number.format(tick) }}</text>
+        <text v-for="tick in xTicks" :key="tick" :x="xPosition(tick)" y="165" text-anchor="middle">{{ format(tick) }}</text>
         <line v-if="selectedX !== undefined" :x1="xPosition(selectedX)" :x2="xPosition(selectedX)"
           :y1="plot.top" :y2="plot.bottom" class="curve-selection"/>
-        <polyline v-for="trace in paths" :key="trace.key" :stroke="trace.color" :points="trace.coordinates"
-          fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>
+        <g v-for="trace in paths" :key="trace.key">
+          <path :stroke="trace.color" :d="trace.path" :stroke-dasharray="trace.dashed ? '5 3' : undefined"
+            fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>
+          <circle v-for="(point, index) in trace.isolated" :key="index"
+            :cx="xPosition(point.x)" :cy="yPosition(point.y)" r="2.5" :fill="trace.color"/>
+        </g>
         <template v-for="trace in selectedPoints" :key="trace.key">
           <circle v-if="trace.point" :cx="xPosition(trace.point.x)" :cy="yPosition(trace.point.y)" r="3.5" :fill="trace.color"/>
         </template>
       </svg>
       <div class="curve-legend">
-        <strong>{{ axisTitle[axis] }} {{ selectedX === undefined ? '—' : number.format(selectedX) }}</strong>
+        <span v-if="smoothing > 0" class="raw-label">原始值</span>
         <span v-for="trace in selectedPoints" :key="trace.key">
-          <i :style="{ background: trace.color }"></i>
-          {{ trace.label }} {{ trace.point ? number.format(trace.point.raw) : '—' }}
+          <i :style="{ color: trace.color }" :class="{ dashed: trace.dashed }"></i>
+          {{ trace.label }} <strong>{{ trace.point ? format(trace.point.raw) : '—' }}</strong>
         </span>
       </div>
     </div>
@@ -124,16 +140,20 @@ function moveSelection(offset: number) {
 </template>
 
 <style scoped>
-.curve { min-width: 0; border: 1px solid var(--line); border-radius: 7px; background: var(--surface); padding: 11px 12px; }
-h3 { margin: 0 0 6px; font-size: 13px; }
-svg { display: block; width: 100%; min-height: 142px; touch-action: pan-y; }
+.curve { min-width: 0; border: 1px solid var(--line); border-radius: 5px; background: var(--surface); padding: 11px 12px; }
+.curve-heading { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px; margin-bottom: 9px; }
+h3 { margin: 0; font-size: 14px; }
+.curve-sample { padding: 2px 6px; color: #36516f; background: var(--selected); font: 11px/1.5 Consolas, monospace; }
+svg { display: block; width: 100%; min-height: 142px; max-height: 245px; touch-action: pan-y; border: 1px solid var(--line); background: var(--soft); }
 text { font: 10px ui-monospace, monospace; fill: var(--muted); }
 .curve-grid { stroke: var(--line); stroke-dasharray: 3 3; }
 .curve-axis { stroke: #bac7d6; }
 .curve-selection { stroke: #a1b0c3; stroke-dasharray: 4 3; }
-.curve-legend { min-height: 18px; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; font-size: 11px; color: var(--muted); }
+.curve-legend { min-height: 20px; margin-top: 8px; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; font-size: 12px; color: var(--muted); }
 .curve-legend strong { color: var(--text); font-variant-numeric: tabular-nums; }
 .curve-legend span { white-space: nowrap; }
-.curve-legend i { display: inline-block; width: 8px; height: 8px; margin-right: 2px; border-radius: 50%; }
+.curve-legend i { display: inline-block; width: 14px; margin: 0 2px 3px 0; border-top: 2px solid currentColor; }
+.curve-legend i.dashed { border-top-style: dashed; }
+.raw-label { padding-right: 8px; border-right: 1px solid var(--line); }
 .empty-curve { display: grid; min-height: 155px; place-items: center; color: var(--muted); font-size: 12px; margin: 0; }
 </style>

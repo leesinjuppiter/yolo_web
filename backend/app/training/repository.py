@@ -1,3 +1,4 @@
+from collections.abc import Iterator
 from pathlib import Path
 from uuid import UUID
 
@@ -7,7 +8,7 @@ from sqlalchemy.orm import Session
 from app.core.config import data_dir
 from app.dataset.repository import Conflict, NotFound
 from app.models.training_versions import ModelVersion
-from app.training.models import TrainingTask
+from app.training.models import TrainingLog, TrainingMetric, TrainingTask
 from app.training.schemas import QUALITY_METRIC
 
 WORKER_LOCK = 154026221039
@@ -39,6 +40,35 @@ def get_task(db: Session, task_id: str, *, lock: bool = False) -> TrainingTask:
 def require_task(db: Session, task_id: str) -> None:
     if db.scalar(select(TrainingTask.id).where(TrainingTask.id == task_id)) is None:
         raise NotFound("未找到训练任务")
+
+
+def log_query(task_id: str, after: int = 0):
+    return (select(TrainingLog.sequence, TrainingLog.time, TrainingLog.level, TrainingLog.message)
+            .where(TrainingLog.task_id == task_id, TrainingLog.sequence > after).order_by(TrainingLog.sequence))
+
+
+def export_log(db: Session, task_id: str) -> Iterator[str]:
+    bind = db.get_bind()
+    with Session(bind) as lookup:
+        require_task(lookup, task_id)
+    labels = {"info": "INFO", "warn": "WARNING", "error": "ERROR", "metric": "METRICS"}
+
+    def stream() -> Iterator[str]:
+        # Own the cursor and its session for the entire HTTP stream.
+        with Session(bind) as session, session.execute(log_query(task_id).execution_options(yield_per=256)) as rows:
+            for batch in rows.partitions(256):
+                yield "".join(f"[{row.time.isoformat()}] [{labels.get(row.level, row.level.upper())}] {row.message}\n"
+                              for row in batch)
+
+    return stream()
+
+
+def recent_epoch_timings(db: Session, task_id: str, epoch: int) -> list[tuple[int, float]]:
+    rows = db.execute(select(TrainingMetric.epoch, TrainingMetric.elapsed_seconds)
+                      .where(TrainingMetric.task_id == task_id, TrainingMetric.epoch <= epoch,
+                             TrainingMetric.elapsed_seconds.is_not(None))
+                      .order_by(TrainingMetric.sequence.desc()).limit(4))
+    return [(row.epoch, row.elapsed_seconds) for row in rows]
 
 
 def reserve_task_name(db: Session, name: str) -> None:
