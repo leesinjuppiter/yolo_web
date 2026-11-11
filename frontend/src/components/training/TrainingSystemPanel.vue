@@ -9,6 +9,7 @@ const resources = shallowRef<TrainingResources>()
 const error = shallowRef('')
 const history = shallowRef<NonNullable<TrainingResources['sample']>[]>([])
 const sample = computed(() => resources.value?.sample)
+const memoryLabel = computed(() => sample.value?.memoryScope === 'container' ? '实例内存' : '宿主机内存')
 const gpu = computed(() => sample.value?.gpu)
 const usesGpu = computed(() => props.task.config.deviceId.startsWith('cuda:'))
 const live = computed(() => resources.value?.state === 'live' && !error.value)
@@ -73,11 +74,13 @@ watch([() => props.active, () => props.task.id, () => terminalTrainingStates.has
     <div class="resource-cards">
       <article><h3>主机 CPU 使用率</h3><strong>{{ percent(sample?.hostCpuPercent) }}</strong>
         <progress v-if="sample?.hostCpuPercent != null" :value="sample.hostCpuPercent" max="100" aria-label="主机 CPU 使用率"/></article>
-      <article><h3>主机内存</h3><strong>{{ memory(sample?.hostMemoryUsedBytes) }}</strong><span> / {{ memory(sample?.hostMemoryTotalBytes) }}</span>
-        <progress v-if="hostMemoryPercent != null" :value="hostMemoryPercent" max="100" aria-label="主机内存使用率"/></article>
+      <article><h3>{{ memoryLabel }}</h3><strong>{{ memory(sample?.hostMemoryUsedBytes) }}</strong><span> / {{ memory(sample?.hostMemoryTotalBytes) }}</span>
+        <progress v-if="hostMemoryPercent != null" :value="hostMemoryPercent" max="100" :aria-label="`${memoryLabel}使用率`"/>
+        <p class="resource-notice">{{ sample?.memoryScope === 'container' ? '容器总占用（含文件缓存）/ 实例内存上限' : '宿主机内存口径，非当前实例配额' }}</p></article>
       <article><h3>训练进程 CPU 使用率</h3><strong>{{ percent(sample?.processCpuPercent) }}</strong></article>
       <article><h3>训练进程常驻内存</h3><strong>{{ memory(sample?.processMemoryBytes) }}</strong></article>
     </div>
+    <p v-if="sample?.hostMemoryTotalBytes != null && !sample.memoryScope" class="resource-notice">该任务保留历史采样，记录的是宿主机内存；新训练任务将记录实例内存。</p>
     <div class="system-grid">
       <article class="system-box">
         <h3>执行关系</h3>

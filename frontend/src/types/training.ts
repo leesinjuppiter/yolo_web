@@ -146,6 +146,7 @@ export interface TrainingResources {
     hostCpuPercent?: number
     hostMemoryUsedBytes?: number
     hostMemoryTotalBytes?: number
+    memoryScope?: 'host' | 'container'
     processCpuPercent?: number
     processMemoryBytes?: number
     processId?: number

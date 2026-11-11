@@ -9,6 +9,7 @@ from time import monotonic
 import psutil
 
 from app.training.models import TrainingTask
+from app.training.memory import memory_sample
 from app.training.devices import normalize_gpu_uuid
 from app.training.schemas import TERMINAL
 
@@ -85,10 +86,9 @@ class ResourceSampler:
             if self._host_cpu_ready:
                 values["hostCpuPercent"] = host_cpu
             self._host_cpu_ready = True
-            memory = psutil.virtual_memory()
-            values.update(hostMemoryUsedBytes=memory.total - memory.available, hostMemoryTotalBytes=memory.total)
         except (OSError, psutil.Error):
             pass
+        values.update(memory_sample())
         if self._process is not None:
             try:
                 if self._process.is_running():
