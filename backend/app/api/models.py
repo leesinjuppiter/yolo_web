@@ -1,7 +1,7 @@
 from typing import Annotated, Literal
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Response
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
@@ -28,6 +28,12 @@ def compare(request: CompareRequest, db: Database):
 @router.get("/{version_id}")
 def detail(version_id: UUID, db: Database):
     return TOOLS["model.detail"](db, str(version_id))
+
+
+@router.delete("/{version_id}", status_code=204)
+def delete(version_id: UUID, db: Database):
+    TOOLS["model.delete"](db, str(version_id))
+    return Response(status_code=204)
 
 
 @router.patch("/{version_id}")

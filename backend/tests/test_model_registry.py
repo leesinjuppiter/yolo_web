@@ -11,6 +11,7 @@ from app.core.database import engine
 from app.evaluation.models import EvaluationRun
 from app.evaluation.snapshot import prepare_test_snapshot
 from app.models.training_versions import ModelVersion
+from app.model_exports.models import ExportTask
 from app.training.models import TrainingTask
 from app.training.repository import task_dir
 from test_dataset_api import client
@@ -118,6 +119,49 @@ def test_registry_metadata_archive_and_evaluation_idempotency(client, registry_v
 def test_compare_rejects_duplicates_and_does_not_rank_training_metrics(client, registry_version):
     payload = {"versionIds": [registry_version, registry_version], "baselineId": registry_version}
     assert client.post("/api/models/compare", json=payload).status_code == 422
+
+
+def test_delete_model_record_preserves_source_training_and_weights(client, registry_version):
+    with Session(engine()) as db:
+        version = db.get(ModelVersion, registry_version)
+        source_id = version.task_id
+        weight = task_dir(source_id) / "best.pt"
+        original = weight.read_bytes()
+    result = client.delete(f"/api/models/{registry_version}")
+    assert result.status_code == 204, result.text
+    assert client.get(f"/api/models/{registry_version}").status_code == 404
+    assert client.delete(f"/api/models/{registry_version}").status_code == 404
+    with Session(engine()) as db:
+        assert db.get(TrainingTask, source_id) is not None
+    assert weight.read_bytes() == original
+    listing = client.get("/api/models").json()
+    assert all(row["id"] != registry_version for row in listing["items"])
+
+
+@pytest.mark.parametrize("reference", ["evaluation", "export", "training"])
+def test_delete_model_rejects_referenced_versions(client, registry_version, reference):
+    linked_id = str(uuid4())
+    if reference == "evaluation":
+        model = EvaluationRun
+        row = model(id=linked_id, version_id=registry_version, config={}, status="failed")
+    elif reference == "export":
+        model = ExportTask
+        row = model(id=linked_id, version_id=registry_version, config={}, status="failed")
+    else:
+        model = TrainingTask
+        row = model(id=linked_id, dataset_id=str(uuid4()), dataset_name="reference",
+                    config={"name": f"reference-{uuid4()}", "task": "detect"},
+                    model_name="YOLO11n", architecture="yolo11n", parent_model_version_id=registry_version)
+    with Session(engine()) as db, db.begin():
+        db.add(row)
+    try:
+        result = client.delete(f"/api/models/{registry_version}")
+        assert result.status_code == 409, result.text
+        assert "引用" in result.json()["detail"]
+        assert client.get(f"/api/models/{registry_version}").status_code == 200
+    finally:
+        with Session(engine()) as db, db.begin():
+            db.execute(delete(model).where(model.id == linked_id))
 
 
 def test_compare_requires_matching_protocol_for_deltas(monkeypatch):

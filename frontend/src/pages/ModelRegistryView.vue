@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed,nextTick,onActivated,onDeactivated,onUnmounted,ref,watch } from 'vue'
 import { useRoute,useRouter } from 'vue-router'
-import { archiveModel,getModel,listModels,updateModel } from '../api/models'
+import { archiveModel,deleteModel,getModel,listModels,updateModel } from '../api/models'
 import ModelActionDialog from '../components/models/ModelActionDialog.vue'
 import { taskLabels } from '../domain'
 import { formatDate,formatValue } from '../types/models'
@@ -11,6 +11,7 @@ const router=useRouter(),route=useRoute()
 const data=ref<RegistryList>(),error=ref(''),loading=ref(false),query=ref(''),task=ref('all'),lifecycle=ref('all'),page=ref(1)
 const selected=ref<string[]>([]),detail=ref<ModelVersion>(),detailError=ref(''),detailLoading=ref(false)
 const action=ref<'evaluate'|'export'>(),name=ref(''),description=ref(''),busy=ref(false),notice=ref('')
+const deleteDialog=ref<HTMLDialogElement>(),deleteTarget=ref<ModelVersion>(),deleteError=ref('')
 let active=false,timer:ReturnType<typeof setTimeout>|undefined,controller:AbortController|undefined,detailController:AbortController|undefined,listScroll=0
 const pages=computed(()=>Math.max(1,Math.ceil((data.value?.total??0)/10)))
 const types=['detect','segment','obb','classify'] as const
@@ -47,6 +48,25 @@ async function loadDetail(){
 }
 function open(id:string){listScroll=window.scrollY;void router.replace({name:'models',query:{model:id}});window.scrollTo(0,0)}
 function back(){action.value=undefined;void router.replace({name:'models'})}
+function requestDelete(){
+ if(!detail.value||busy.value)return
+ deleteTarget.value=detail.value;deleteError.value='';deleteDialog.value?.showModal()
+}
+function closeDelete(){if(!busy.value){deleteDialog.value?.close();deleteTarget.value=undefined}}
+async function confirmDelete(){
+ const target=deleteTarget.value
+ if(!target||busy.value)return
+ busy.value=true;deleteError.value=''
+ try{
+  await deleteModel(target.id)
+  selected.value=selected.value.filter(id=>id!==target.id)
+  deleteDialog.value?.close();deleteTarget.value=undefined
+  notice.value='模型记录已删除，来源训练任务和权重文件已保留'
+  if(route.query.model===target.id)back()
+  void refresh()
+ }catch(reason){deleteError.value=reason instanceof Error?reason.message:'删除失败，请重试'}
+ finally{busy.value=false}
+}
 function toggle(id:string,checked:boolean){
  if(checked){if(selected.value.length>=4){notice.value='最多选择 4 个模型';return}selected.value=[...selected.value,id]}
  else selected.value=selected.value.filter(value=>value!==id)
@@ -62,9 +82,9 @@ function created(id:string){const type=action.value;action.value=undefined;void 
 function metric(model:ModelVersion){const values=model.trainingMetrics;return model.taskType==='classify'?'Top-1 '+formatValue(values.top1):model.taskType==='segment'?'Mask mAP50–95 '+formatValue(values.maskMap50_95):'mAP50–95 '+formatValue(values.map50_95)}
 watch([query,task,lifecycle],()=>{page.value=1})
 watch([query,task,lifecycle,page],()=>{if(active){clearTimeout(timer);controller?.abort();timer=setTimeout(refresh,200)}})
-watch(()=>route.query.model,async(id,previous)=>{void loadDetail();if(!id&&previous){await nextTick();window.scrollTo(0,listScroll)}})
+watch(()=>route.query.model,async(id,previous)=>{closeDelete();void loadDetail();if(!id&&previous){await nextTick();window.scrollTo(0,listScroll)}})
 onActivated(()=>{active=true;void refresh();void loadDetail()})
-onDeactivated(()=>{active=false;action.value=undefined;stop()})
+onDeactivated(()=>{active=false;action.value=undefined;closeDelete();stop()})
 onUnmounted(stop)
 </script>
 <template>
@@ -92,7 +112,7 @@ onUnmounted(stop)
    <p v-if="detailError" class="model-error" role="alert">{{detailError}}</p>
    <div v-if="detail" class="model-panel model-detail">
     <div class="model-section-title"><div><h2>{{detail.displayName||detail.name}} <span class="model-chip">{{detail.version}}</span></h2><p>{{taskLabels[detail.taskType]}} · {{detail.lifecycle==='archived'?'已归档':'候选模型'}}</p></div><button class="button" :disabled="busy" @click="mutate('archive')">{{detail.lifecycle==='archived'?'恢复为候选':'归档模型'}}</button></div>
-    <div class="model-toolbar"><button class="button" :disabled="!canExecute" @click="action='evaluate'">创建独立评估</button><button class="button primary" :disabled="!canExecute" @click="action='export'">导出 ONNX FP32</button><button class="button" :disabled="detail.lifecycle==='archived'" @click="emit('finetune',detail)">使用此模型微调</button><button class="button" @click="router.push({name:'training-detail',params:{taskId:detail.taskId}})">查看来源训练</button></div>
+    <div class="model-toolbar"><button class="button" :disabled="!canExecute" @click="action='evaluate'">创建独立评估</button><button class="button primary" :disabled="!canExecute" @click="action='export'">导出 ONNX FP32</button><button class="button" :disabled="detail.lifecycle==='archived'" @click="emit('finetune',detail)">使用此模型微调</button><button class="button" @click="router.push({name:'training-detail',params:{taskId:detail.taskId}})">查看来源训练</button><button class="button danger" :disabled="busy" @click="requestDelete">删除模型记录</button></div>
     <p v-if="!['detect','obb'].includes(detail.taskType)" class="model-note">首轮独立评估与导出仅开放目标检测和旋转框。此版本保留训练来源及指标。</p>
     <dl class="model-facts"><div><dt>来源数据集</dt><dd>{{detail.datasetName}}</dd></div><div><dt>训练任务</dt><dd>{{detail.taskId}}</dd></div><div><dt>快照摘要</dt><dd>{{detail.snapshotDigest}}</dd></div><div><dt>权重 SHA-256</dt><dd>{{detail.sha256}}</dd></div><div><dt>注册时间</dt><dd>{{formatDate(detail.createdAt)}}</dd></div><div><dt>验证依据</dt><dd>{{detail.evaluation?'已完成独立评估，结论见报告':'尚无独立评估报告'}}</dd></div></dl>
     <div class="model-edit-grid"><label class="model-field">显示名称<input v-model="name" maxlength="120"></label><label class="model-field">说明<input v-model="description" maxlength="2000"></label><button class="button" :disabled="busy||!name.trim()" @click="mutate('save')">保存信息</button></div>
@@ -101,5 +121,12 @@ onUnmounted(stop)
    </div>
   </template>
   <ModelActionDialog v-if="detail&&action" :model="detail" :action="action" @close="action=undefined" @created="created"/>
+  <dialog ref="deleteDialog" class="confirm-dialog" aria-labelledby="delete-model-title" @cancel.prevent="closeDelete">
+   <h2 id="delete-model-title">确认删除模型记录？</h2>
+   <p>将删除「{{deleteTarget?.displayName||deleteTarget?.name}}」{{deleteTarget?.version}} 的仓库记录，此操作无法撤销。</p>
+   <p>来源训练任务和权重文件会保留。有评估、导出、部署包或后续训练引用时无法删除，可改用归档。</p>
+   <p v-if="deleteError" class="model-error" role="alert">{{deleteError}}</p>
+   <div class="actions"><button type="button" class="button" :disabled="busy" autofocus @click="closeDelete">取消</button><button type="button" class="button danger" :disabled="busy" @click="confirmDelete">{{busy?'正在删除…':'确认删除'}}</button></div>
+  </dialog>
  </section>
 </template>

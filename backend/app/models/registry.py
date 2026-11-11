@@ -2,10 +2,11 @@
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.dataset.repository import NotFound
+from app.dataset.repository import Conflict, NotFound
 from app.evaluation.models import EvaluationRun
 from app.evaluation.repository import response
 from app.models.training_versions import ModelVersion
+from app.model_exports.models import ExportTask
 from app.training.models import TrainingTask
 
 
@@ -88,6 +89,22 @@ def lifecycle(db: Session, version_id: str, archived: bool) -> dict:
         return item(db, version, task)
 
 
+def delete_version(db: Session, version_id: str) -> None:
+    with db.begin():
+        version = db.get(ModelVersion, version_id, with_for_update=True)
+        if version is None:
+            raise NotFound("模型版本不存在")
+        references = (
+            (EvaluationRun, EvaluationRun.version_id, "评估记录"),
+            (ExportTask, ExportTask.version_id, "导出或部署包记录"),
+            (TrainingTask, TrainingTask.parent_model_version_id, "后续训练任务"),
+        )
+        for model, field, label in references:
+            if db.scalar(select(model.id).where(field == version_id).limit(1)) is not None:
+                raise Conflict(f"该模型已有{label}引用，无法删除；可使用归档保留追溯关系。")
+        db.delete(version)
+
+
 def compare(db: Session, request) -> dict:
     ids = [str(value) for value in request.versionIds]
     baseline = str(request.baselineId)
@@ -115,4 +132,4 @@ def compare(db: Session, request) -> dict:
 
 
 TOOLS = {"model.list": listing, "model.detail": detail, "model.update_metadata": update,
-         "model.lifecycle": lifecycle, "model.compare": compare}
+         "model.lifecycle": lifecycle, "model.compare": compare, "model.delete": delete_version}
