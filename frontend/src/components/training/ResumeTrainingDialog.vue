@@ -2,6 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { getTrainingOptions, resumeTraining } from '../../api/training'
 import type { TrainingOptions, TrainingResumeConfig, TrainingTask } from '../../types/training'
+import { createUuid } from '../../utils/id'
 
 const props = defineProps<{ task: TrainingTask }>()
 const emit = defineEmits<{ close: []; created: [id: string] }>()
@@ -41,7 +42,7 @@ async function submit() {
   busy.value = true
   const config = { ...draft, name: draft.name.trim(), amp: isCuda.value && draft.amp }
   const payload = JSON.stringify(config)
-  if (submission?.payload !== payload) submission = { payload, key: crypto.randomUUID() }
+  if (submission?.payload !== payload) submission = { payload, key: createUuid() }
   try {
     const task = await resumeTraining(props.task.id, config, submission.key)
     emit('created', task.id)

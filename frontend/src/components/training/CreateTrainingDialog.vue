@@ -4,6 +4,7 @@ import { checkTraining, createTraining, DuplicateTrainingNameError, getTrainingO
 import { selectableDatasetTasks, taskLabels } from '../../domain'
 import type { SelectableDatasetTask, Split } from '../../domain'
 import type { TrainingConfig, TrainingDatasetSummary, TrainingOptions } from '../../types/training'
+import { createUuid } from '../../utils/id'
 
 const props = defineProps<{
   datasetsRevision?: number
@@ -193,7 +194,7 @@ async function submit() {
         warnings.value = currentWarnings
         return
       }
-      submission = { payload, key: crypto.randomUUID() }
+      submission = { payload, key: createUuid() }
     }
     const task = await createTraining(config, submission.key)
     emit('created', task.id)

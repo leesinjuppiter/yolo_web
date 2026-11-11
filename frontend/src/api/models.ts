@@ -1,4 +1,5 @@
 import type { RegistryList,ModelVersion,Comparison } from '../types/models'
+import { createUuid } from '../utils/id'
 export async function modelRequest<T>(url:string,init?:RequestInit):Promise<T>{
  const response=await fetch(url,{cache:'no-store',...init})
  if(!response.ok){
@@ -8,7 +9,7 @@ export async function modelRequest<T>(url:string,init?:RequestInit):Promise<T>{
  if(response.status===204)return undefined as T
  return response.json()
 }
-export const jsonPost=(body:unknown,key:string=crypto.randomUUID()):RequestInit=>({method:'POST',headers:{'Content-Type':'application/json','Idempotency-Key':key},body:JSON.stringify(body)})
+export const jsonPost=(body:unknown,key:string=createUuid()):RequestInit=>({method:'POST',headers:{'Content-Type':'application/json','Idempotency-Key':key},body:JSON.stringify(body)})
 export const listModels=(params:URLSearchParams,signal?:AbortSignal)=>modelRequest<RegistryList>('/api/models?'+params,{signal})
 export const getModel=(id:string,signal?:AbortSignal)=>modelRequest<ModelVersion>('/api/models/'+encodeURIComponent(id),{signal})
 export const deleteModel=(id:string)=>modelRequest<void>('/api/models/'+encodeURIComponent(id),{method:'DELETE'})

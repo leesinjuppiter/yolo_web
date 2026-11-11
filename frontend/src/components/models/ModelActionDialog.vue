@@ -3,11 +3,12 @@ import { onMounted,ref,watch } from 'vue'
 import { evaluateModel } from '../../api/evaluation'
 import { createExport } from '../../api/deployment'
 import type { ModelVersion } from '../../types/models'
+import { createUuid } from '../../utils/id'
 const props=defineProps<{model:ModelVersion;action:'evaluate'|'export'}>()
 const emit=defineEmits<{close:[];created:[id:string]}>()
 const dialog=ref<HTMLDialogElement>(),imgsz=ref(640),busy=ref(false),error=ref('')
-let key=crypto.randomUUID()
-watch(imgsz,()=>{key=crypto.randomUUID()})
+let key=createUuid()
+watch(imgsz,()=>{key=createUuid()})
 onMounted(()=>{imgsz.value=props.model.config?.imageSize??640;dialog.value?.showModal()})
 async function submit(){
  if(busy.value)return

@@ -7,6 +7,7 @@ import type { JobResource } from '../api/deployment'
 import type { ModelJob,JobLog } from '../types/models'
 import { formatDate,jobLabels } from '../types/models'
 import ModelReport from '../components/models/ModelReport.vue'
+import { createUuid } from '../utils/id'
 const route=useRoute(),router=useRouter()
 type Tab='exports'|'packages'|'reports'
 const tab=computed<Tab>(()=>route.query.tab==='packages'?'packages':route.query.tab==='reports'?'reports':'exports')
@@ -52,7 +53,7 @@ async function cancel(){
 async function build(id:string){
  if(busy.value)return
  busy.value=true;error.value=''
- try{if(!packageKeys.has(id))packageKeys.set(id,crypto.randomUUID());const job=await createPackage(id,packageKeys.get(id));packageKeys.delete(id);notice.value='部署包构建任务已创建';void router.replace({name:'deployments',query:{tab:'packages',job:job.id}})}
+ try{if(!packageKeys.has(id))packageKeys.set(id,createUuid());const job=await createPackage(id,packageKeys.get(id));packageKeys.delete(id);notice.value='部署包构建任务已创建';void router.replace({name:'deployments',query:{tab:'packages',job:job.id}})}
  catch(reason){error.value=reason instanceof Error?reason.message:'创建部署包失败'}
  finally{busy.value=false}
 }

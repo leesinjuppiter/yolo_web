@@ -4,6 +4,7 @@ import type Konva from 'konva'
 import { Circle, Group, Image as CanvasImage, Layer, Line, Rect, Stage, Text, type VueKonvaRef } from 'vue-konva'
 import type { Annotation, DatasetClass, DatasetImage, TaskType } from '../domain'
 import { bounds, boxHandles, clamp, corners, move, nearestEdge, nearestVertex, normalizeAngle, polygonArea, rotate, withinImage, type Point, type Shape } from './geometry'
+import { createUuid } from '../utils/id'
 
 export type AnnotationTool = 'select' | 'draw' | 'pan' | 'keypoint'
 
@@ -117,7 +118,7 @@ function inImage(point: Point) {
 }
 
 function makeBase() {
-  return { id: crypto.randomUUID(), class_id: props.activeClassId, source: 'manual' as const }
+  return { id: createUuid(), class_id: props.activeClassId, source: 'manual' as const }
 }
 
 function finishPolygon() {

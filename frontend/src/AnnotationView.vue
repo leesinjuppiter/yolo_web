@@ -2,6 +2,7 @@
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { taskLabels, type Annotation, type AnnotationStatus, type Dataset, type DatasetClass, type DatasetImage } from './domain'
 import AnnotationCanvas, { type AnnotationTool } from './annotation/AnnotationCanvas.vue'
+import { createUuid } from './utils/id'
 
 const props = defineProps<{
   dataset: Dataset
@@ -259,7 +260,7 @@ function selectClass(id: string, assign = false) {
   if (props.dataset.task === 'classify') {
     if (annotations.value[0]?.class_id === id) return
     const label: Annotation = {
-      id: annotations.value[0]?.id ?? crypto.randomUUID(), class_id: id, source: 'manual', type: 'classify',
+      id: annotations.value[0]?.id ?? createUuid(), class_id: id, source: 'manual', type: 'classify',
     }
     annotations.value = [label]
     selectObject(label.id)
@@ -288,7 +289,7 @@ async function submitClass() {
     return
   }
   if (!entry) {
-    const label = { id: crypto.randomUUID(), name, color }
+    const label = { id: createUuid(), name, color }
     classes.value = [...classes.value, label]
     selectClass(label.id)
   } else if (entry.name !== name || entry.color.toLowerCase() !== color) {
