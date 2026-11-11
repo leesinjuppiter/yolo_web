@@ -2,6 +2,8 @@
 import { computed,onActivated,onDeactivated,onUnmounted,ref,watch } from 'vue'
 import { useRoute,useRouter } from 'vue-router'
 import { refreshOnChanges } from '../api/changes'
+import { startup } from '../startup'
+import type { DeploymentPage } from '../startup'
 import { cancelModelJob,createPackage,getModelJob,listModelJobs,modelJobLogs } from '../api/deployment'
 import { cancelEvaluation,evaluationLogs,getEvaluation,listEvaluations } from '../api/evaluation'
 import type { JobResource } from '../api/deployment'
@@ -10,6 +12,7 @@ import { formatDate,jobLabels } from '../types/models'
 import ModelReport from '../components/models/ModelReport.vue'
 import { createUuid } from '../utils/id'
 const route=useRoute(),router=useRouter()
+let initial=startup.take<DeploymentPage>('deployments')
 type Tab='exports'|'packages'|'reports'
 const tab=computed<Tab>(()=>route.query.tab==='packages'?'packages':route.query.tab==='reports'?'reports':'exports')
 const items=ref<ModelJob[]>([]),exports=ref<ModelJob[]>([]),packages=ref<ModelJob[]>([]),evaluations=ref<ModelJob[]>([])
@@ -24,12 +27,12 @@ const finishedPackages=computed(()=>packages.value.filter(item=>item.status==='s
 const running=computed(()=>[...exports.value,...packages.value,...evaluations.value].filter(item=>['queued','running'].includes(item.status)).length)
 const resource=computed<JobResource>(()=>tab.value==='packages'?'deployment-packages':'exports')
 function stop(){controller?.abort();loading.value=false}
-async function refresh(quiet=false){
+async function refresh(quiet=false,cached?:DeploymentPage){
  if(!active)return
  stop();controller=new AbortController();const signal=controller.signal;loading.value=!quiet;error.value=''
  const currentTab=tab.value,currentResource=resource.value,id=typeof route.query.job==='string'?route.query.job:''
  try{
-  const [a,b,c]=await Promise.all([listModelJobs('exports',signal,currentTab==='exports'?page.value:1),listModelJobs('deployment-packages',signal,currentTab==='packages'?page.value:1),listEvaluations(signal)])
+  const [a,b,c]=cached??await Promise.all([listModelJobs('exports',signal,currentTab==='exports'?page.value:1),listModelJobs('deployment-packages',signal,currentTab==='packages'?page.value:1),listEvaluations(signal)])
   if(signal.aborted)return
   exports.value=a.items;packages.value=b.items;evaluations.value=c.items
   items.value=currentTab==='exports'?a.items:currentTab==='packages'?b.items:c.items
@@ -61,7 +64,7 @@ async function build(id:string){
 function saveReport(job:ModelJob){const url=URL.createObjectURL(new Blob([JSON.stringify(job.report,null,2)],{type:'application/json'})),link=document.createElement('a');link.href=url;link.download='report-'+job.id+'.json';link.click();URL.revokeObjectURL(url)}
 watch(()=>route.fullPath,()=>{if(route.query.job!==selected.value?.id){selected.value=undefined;logs.value=[]}void refresh()})
 watch(page,()=>void refresh())
-onActivated(()=>{active=true;unsubscribe=refreshOnChanges(['exports','packages','evaluations'],()=>refresh(true));void refresh()})
+onActivated(()=>{active=true;unsubscribe=refreshOnChanges(['exports','packages','evaluations'],()=>refresh(true));void refresh(false,initial&&!initial.stale?initial.value:undefined);initial=undefined})
 onDeactivated(()=>{active=false;unsubscribe?.();stop()});onUnmounted(()=>{unsubscribe?.();stop()})
 </script>
 <template>

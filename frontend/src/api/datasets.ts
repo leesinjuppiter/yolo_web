@@ -52,8 +52,8 @@ async function dataset(url: string, init: RequestInit) {
   return adapt(await (await request(url, init)).json() as DatasetResponse)
 }
 
-export async function listDatasets() {
-  return ((await (await request(root)).json()) as DatasetResponse[]).map(adapt)
+export async function listDatasets(signal?: AbortSignal) {
+  return ((await (await request(root, { signal })).json()) as DatasetResponse[]).map(adapt)
 }
 
 export async function getDataset(id: string) {

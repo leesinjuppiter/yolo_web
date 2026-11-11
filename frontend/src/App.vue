@@ -4,13 +4,14 @@ import { useRoute, useRouter } from 'vue-router'
 import AnnotationView from './AnnotationView.vue'
 import DatasetDialogs from './DatasetDialogs.vue'
 import ChangeConnection from './components/ChangeConnection.vue'
+import StartupLoading from './components/StartupLoading.vue'
+import { startup, invalidateStartup } from './startup'
+import type { StepState } from './startup/preloader'
 import { changeRefresh, observeChanges } from './api/changes'
 import DatasetExchangeDialog from './components/DatasetExchangeDialog.vue'
 import DatasetExcludedImagesDialog from './components/DatasetExcludedImagesDialog.vue'
 import SimilarityReviewDialog from './components/SimilarityReviewDialog.vue'
 import CreateTrainingDialog from './components/training/CreateTrainingDialog.vue'
-import DatasetsView from './DatasetsView.vue'
-import TrainingView from './pages/TrainingView.vue'
 import TrainingDetailView from './pages/TrainingDetailView.vue'
 import { getTraining } from './api/training'
 import type { ModelVersion } from './types/models'
@@ -18,10 +19,15 @@ import { createDataset, deleteDataset, deleteDatasetImage, getDataset, listDatas
 import type { Annotation, AnnotationStatus, Dataset, DatasetAction, DatasetClass, DatasetImage, DatasetReport, DialogKind, ReportIssue, ReportKind, ReportSnapshot, SelectableDatasetTask, SimilarityDecision, Split } from './domain'
 import type { TrainingConfig } from './types/training'
 
+const DatasetsView = defineAsyncComponent(() => import('./DatasetsView.vue'))
+const TrainingView = defineAsyncComponent(() => import('./pages/TrainingView.vue'))
 const ModelRegistryView = defineAsyncComponent(() => import('./pages/ModelRegistryView.vue'))
 const ModelCompareView = defineAsyncComponent(() => import('./pages/ModelCompareView.vue'))
 const DeploymentCenterView = defineAsyncComponent(() => import('./pages/DeploymentCenterView.vue'))
 
+const startupReady = ref(false)
+const startupRunning = ref(false)
+const startupSteps = ref<StepState[]>(startup.states.map(step => ({ ...step })))
 const route = useRoute()
 const router = useRouter()
 const inTraining = computed(() => route.name === 'training' || route.name === 'training-detail')
@@ -131,15 +137,33 @@ const reportUpdates = changeRefresh(async () => {
   syncReport(false, 'change')
   await reportRequest
 })
+let notificationSynced = false
 const unsubscribeChanges = observeChanges(change => {
+  if (change || notificationSynced) invalidateStartup(change)
+  if (!change) notificationSynced = true
+  if (!startupReady.value) return
   if (!change || change.topic === 'datasets') datasetUpdates.notify()
   if (!change || (change.topic === 'reports' && change.id === report.value?.datasetId && change.kind === report.value?.kind)) reportUpdates.notify()
 })
 watch([() => route.name, busy], () => { if (datasetsDirty && route.name === 'datasets' && !busy.value) datasetUpdates.notify() })
 onUnmounted(() => { unsubscribeChanges(); datasetUpdates.stop(); reportUpdates.stop() })
 
-onMounted(async () => { await router.isReady(); if (inDatasets.value) void initialize() })
-watch(inDatasets, visible => { if (visible && !loaded.value) void initialize(); if (visible && report.value) reportUpdates.notify() })
+async function loadSystem() {
+  if (startupRunning.value) return
+  startupRunning.value = true
+  const ready = await startup.run(steps => { startupSteps.value = steps })
+  startupRunning.value = false
+  if (!ready) return
+  const initial = startup.take<Dataset[]>('datasets')!
+  datasets.value = initial.value
+  loaded.value = true
+  datasetsDirty = initial.stale
+  startupReady.value = true
+  if (datasetsDirty) datasetUpdates.notify()
+}
+onMounted(async () => { await router.isReady(); void loadSystem() })
+onUnmounted(() => startup.cancel())
+watch(inDatasets, visible => { if (!startupReady.value) return; if (visible && !loaded.value) void initialize(); if (visible && report.value) reportUpdates.notify() })
 onUnmounted(() => clearTimeout(noticeTimer))
 onUnmounted(stopReportSync)
 
@@ -497,6 +521,8 @@ async function deleteImage(imageId: string) {
 </script>
 
 <template>
+  <StartupLoading v-if="!startupReady" :steps="startupSteps" :running="startupRunning" @retry="loadSystem" />
+  <template v-else>
   <div v-show="route.name !== 'annotation'" class="app-shell">
     <aside class="workbench-nav">
       <div class="brand">
@@ -676,4 +702,5 @@ async function deleteImage(imageId: string) {
   <div v-if="notice" class="workbench-notice" role="status">
     {{ notice }} <button type="button" aria-label="关闭提示" @click="notice = ''">×</button>
   </div>
+  </template>
 </template>

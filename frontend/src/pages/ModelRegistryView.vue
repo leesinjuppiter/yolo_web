@@ -2,6 +2,7 @@
 import { computed,nextTick,onActivated,onDeactivated,onUnmounted,ref,watch } from 'vue'
 import { useRoute,useRouter } from 'vue-router'
 import { refreshOnChanges } from '../api/changes'
+import { startup } from '../startup'
 import { archiveModel,deleteModel,getModel,listModels,updateModel } from '../api/models'
 import ModelActionDialog from '../components/models/ModelActionDialog.vue'
 import { taskLabels } from '../domain'
@@ -9,7 +10,8 @@ import { formatDate,formatValue } from '../types/models'
 import type { ModelVersion,RegistryList } from '../types/models'
 const emit=defineEmits<{finetune:[model:ModelVersion]}>()
 const router=useRouter(),route=useRoute()
-const data=ref<RegistryList>(),error=ref(''),loading=ref(false),query=ref(''),task=ref('all'),lifecycle=ref('all'),page=ref(1)
+let initial=startup.take<RegistryList>('models')
+const data=ref<RegistryList|undefined>(initial?.value),error=ref(''),loading=ref(false),query=ref(''),task=ref('all'),lifecycle=ref('all'),page=ref(1)
 const selected=ref<string[]>([]),detail=ref<ModelVersion>(),detailError=ref(''),detailLoading=ref(false)
 const action=ref<'evaluate'|'export'>(),name=ref(''),description=ref(''),busy=ref(false),notice=ref('')
 const deleteDialog=ref<HTMLDialogElement>(),deleteTarget=ref<ModelVersion>(),deleteError=ref('')
@@ -85,7 +87,7 @@ function metric(model:ModelVersion){const values=model.trainingMetrics;return mo
 watch([query,task,lifecycle],()=>{page.value=1})
 watch([query,task,lifecycle,page],()=>{if(active){clearTimeout(timer);controller?.abort();timer=setTimeout(refresh,200)}})
 watch(()=>route.query.model,async(id,previous)=>{closeDelete();void loadDetail();if(!id&&previous){await nextTick();window.scrollTo(0,listScroll)}})
-onActivated(()=>{active=true;unsubscribe=refreshOnChanges(['models','evaluations'],async()=>{await Promise.all([refresh(true),loadDetail(true)])});void refresh();void loadDetail()})
+onActivated(()=>{active=true;unsubscribe=refreshOnChanges(['models','evaluations'],async()=>{await Promise.all([refresh(true),loadDetail(true)])});if(!initial||initial.stale)void refresh(!!data.value);initial=undefined;void loadDetail()})
 onDeactivated(()=>{active=false;unsubscribe?.();action.value=undefined;closeDelete();stop()})
 onUnmounted(()=>{unsubscribe?.();stop()})
 </script>

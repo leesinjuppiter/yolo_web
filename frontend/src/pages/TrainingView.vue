@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onActivated, onDeactivated, onUnmounted, ref, watch } from 'vue'
 import { refreshOnChanges } from '../api/changes'
+import { startup } from '../startup'
 import { listTraining } from '../api/training'
 import DeleteTrainingButton from '../components/training/DeleteTrainingButton.vue'
 import CpuBrandIcon from '../components/training/CpuBrandIcon.vue'
@@ -20,7 +21,8 @@ type View = 'cards' | 'list'
 type Sort = 'newest' | 'progress' | 'metric' | 'duration'
 
 const statusFilters = Object.keys(trainingStatusLabels) as TrainingTask['status'][]
-const overview = ref<TrainingOverview>()
+let initial = startup.take<TrainingOverview>('training')
+const overview = ref<TrainingOverview | undefined>(initial?.value)
 const loading = ref(false)
 const error = ref('')
 const search = ref('')
@@ -123,7 +125,8 @@ watch([search, status, taskType, architecture, sort, page], () => {
 onActivated(() => {
   active = true
   unsubscribe = refreshOnChanges(['training', 'models', 'worker'], () => refresh(true), change => change.table !== 'training_logs' && change.table !== 'training_metrics')
-  void refresh()
+  if (!initial || initial.stale) void refresh(!!overview.value)
+  initial = undefined
 })
 onDeactivated(() => {
   active = false
