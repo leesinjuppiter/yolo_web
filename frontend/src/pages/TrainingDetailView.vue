@@ -177,10 +177,9 @@ watch([logPanel, () => props.initialTab], ([panel, tab]) => {
           </dl>
         </article>
         <article>
-          <h2>设备与学习率</h2>
+          <h2>设备信息</h2>
           <dl class="stat-grid">
             <div><dt>设备</dt><dd>{{ task.device?.name ?? task.config.deviceId }}</dd></div>
-            <div><dt>当前学习率</dt><dd class="number">{{ metric('learningRate') }}</dd></div>
             <div v-if="task.runtime?.processId"><dt>{{ finished ? '训练 PID' : 'PID' }}</dt><dd class="number">{{ task.runtime.processId }}</dd></div>
           </dl>
         </article>
