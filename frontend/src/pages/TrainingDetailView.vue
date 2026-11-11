@@ -18,6 +18,7 @@ const emit = defineEmits<{ back: []; retrain: [config: TrainingConfig]; 'open-ta
 const { task, metrics, logs, refreshing, refreshError, action, actionError, refresh, runAction } = useTrainingMonitor(() => props.taskId)
 const logPanel = ref<InstanceType<typeof TrainingLogPanel>>()
 const confirmDialog = ref<HTMLDialogElement>()
+const registrationDialog = ref<HTMLDialogElement>()
 const actionLabel = computed(() => task.value?.status === 'running' ? '终止训练' : '取消任务')
 const percent = computed(() => task.value?.status === 'succeeded' ? 100
   : task.value ? Math.min(100, Math.max(0, task.value.epoch / task.value.config.epochs * 100)) : 0)
@@ -73,13 +74,27 @@ function confirmAction() {
   confirmDialog.value?.close()
 }
 
+function requestRegistration() {
+  if (registering.value || task.value?.status !== 'succeeded' || task.value.modelVersion) return
+  registrationError.value = ''
+  registrationDialog.value?.showModal()
+}
+
+function closeRegistration() {
+  if (!registering.value) registrationDialog.value?.close()
+}
+
 async function registerModel() {
+  if (registering.value || task.value?.id !== props.taskId || task.value.status !== 'succeeded' || task.value.modelVersion) return
   const id = props.taskId
   registering.value = true
   registrationError.value = ''
   try {
     const modelVersion = await registerTrainingModel(id)
-    if (props.taskId === id && task.value?.id === id) task.value = { ...task.value, modelVersion }
+    if (props.taskId === id && task.value?.id === id) {
+      task.value = { ...task.value, modelVersion }
+      registrationDialog.value?.close()
+    }
   } catch (error) {
     if (props.taskId === id) registrationError.value = error instanceof Error ? error.message : '注册模型版本失败'
   } finally {
@@ -89,6 +104,7 @@ async function registerModel() {
 
 watch(() => props.taskId, () => {
   confirmDialog.value?.close()
+  registrationDialog.value?.close()
   registrationError.value = ''
   registering.value = false
   resumeOpen.value = false
@@ -132,6 +148,8 @@ watch([logPanel, () => props.initialTab], ([panel, tab]) => {
             <button v-if="task.modelVersion" type="button" class="button primary"
               @click="emit('retrain', { ...task.config, modelId: 'version:' + task.modelVersion.id, freeze: 0 })">使用此模型微调</button>
             <button v-if="finished" type="button" class="button" @click="emit('retrain', task.config)">复制配置新建</button>
+            <button v-if="task.status === 'succeeded' && !task.modelVersion" type="button" class="button primary"
+              :disabled="registering" @click="requestRegistration">{{ registering ? '正在注册…' : '注册模型版本' }}</button>
             <DeleteTrainingButton :task="task" @deleted="emit('back')" />
           </div>
         </div>
@@ -220,10 +238,7 @@ watch([logPanel, () => props.initialTab], ([panel, tab]) => {
               <p>版本 {{ task.modelVersion.version }} · {{ task.modelVersion.validationStatus === 'verified' ? '已验证' : '待独立验证' }}</p>
               <p class="artifact-digest">权重 SHA-256 {{ task.modelVersion.sha256 }}</p>
             </template>
-            <button v-else type="button" class="button primary" :disabled="registering" @click="registerModel">
-              {{ registering ? '正在注册…' : '注册模型版本' }}
-            </button>
-            <p v-if="registrationError" class="notice error" role="alert">{{ registrationError }}</p>
+            <p v-else>尚未注册，可使用顶部操作区的“注册模型版本”。</p>
           </section>
         </div>
       </div>
@@ -231,6 +246,17 @@ watch([logPanel, () => props.initialTab], ([panel, tab]) => {
         @created="resumeOpen = false; emit('open-task', $event)" />
     </template>
 
+    <dialog ref="registrationDialog" class="confirm-dialog" aria-labelledby="confirm-model-registration"
+      @cancel.prevent="closeRegistration">
+      <h2 id="confirm-model-registration">确认注册模型版本？</h2>
+      <p>将使用训练任务「{{ task?.config.name }}」的最优权重注册模型版本，并记录来源训练任务和数据快照。</p>
+      <p>注册后可在模型仓库查看，该版本仍需独立评估。</p>
+      <p v-if="registrationError" class="notice error" role="alert">{{ registrationError }}</p>
+      <div class="actions">
+        <button type="button" class="button" :disabled="registering" autofocus @click="closeRegistration">取消</button>
+        <button type="button" class="button primary" :disabled="registering" @click="registerModel">{{ registering ? '正在注册…' : '确认注册' }}</button>
+      </div>
+    </dialog>
     <dialog ref="confirmDialog" class="confirm-dialog" aria-labelledby="confirm-training-action">
       <form method="dialog">
         <h2 id="confirm-training-action">{{ actionLabel }}？</h2>
