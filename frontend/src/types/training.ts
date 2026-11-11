@@ -47,7 +47,9 @@ export interface TrainingModel {
   architecture: string
   task: SelectableDatasetTask
   pretrained: boolean
-  sourceType?: 'architecture' | 'local_weights' | 'model_version'
+  sourceType?: 'architecture' | 'local_weights' | 'official_weights' | 'model_version'
+  sourceUrl?: string | null
+  pretrainingDataset?: string | null
   versionId?: string
   sourceTaskId?: string
 }

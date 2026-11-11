@@ -1,0 +1,406 @@
+{
+  "release": "v8.4.0",
+  "source": "https://api.github.com/repos/ultralytics/assets/releases/tags/v8.4.0",
+  "models": {
+    "yolo11n.pt": {
+      "task": "detect",
+      "url": "https://github.com/ultralytics/assets/releases/download/v8.4.0/yolo11n.pt",
+      "sha256": "0ebbc80d4a7680d14987a577cd21342b65ecfd94632bd9a8da63ae6417644ee1",
+      "sizeBytes": 5613764,
+      "dataset": "COCO",
+      "downloadedAt": "2026-11-11T11:28:46.293482+00:00",
+      "validation": {
+        "status": "passed",
+        "device": "cpu",
+        "inputShape": [
+          1,
+          3,
+          64,
+          64
+        ],
+        "classCount": 80,
+        "parameters": 2624080
+      }
+    },
+    "yolo11l.pt": {
+      "task": "detect",
+      "url": "https://github.com/ultralytics/assets/releases/download/v8.4.0/yolo11l.pt",
+      "sha256": "9ebd0e09d59811db4b1d61e2bc6730649608b1ac47f8dd01e2da6bca7c20023f",
+      "sizeBytes": 51387343,
+      "dataset": "COCO",
+      "downloadedAt": "2026-11-11T11:28:50.622971+00:00",
+      "validation": {
+        "status": "passed",
+        "device": "cpu",
+        "inputShape": [
+          1,
+          3,
+          64,
+          64
+        ],
+        "classCount": 80,
+        "parameters": 25372160
+      }
+    },
+    "yolo11s.pt": {
+      "task": "detect",
+      "url": "https://github.com/ultralytics/assets/releases/download/v8.4.0/yolo11s.pt",
+      "sha256": "85a76fe86dd8afe384648546b56a7a78580c7cb7b404fc595f97969322d502d5",
+      "sizeBytes": 19313732,
+      "dataset": "COCO",
+      "downloadedAt": "2026-11-11T11:28:53.249161+00:00",
+      "validation": {
+        "status": "passed",
+        "device": "cpu",
+        "inputShape": [
+          1,
+          3,
+          64,
+          64
+        ],
+        "classCount": 80,
+        "parameters": 9458752
+      }
+    },
+    "yolo11n-seg.pt": {
+      "task": "segment",
+      "url": "https://github.com/ultralytics/assets/releases/download/v8.4.0/yolo11n-seg.pt",
+      "sha256": "55ed65c56c91713d23e8402371c6c49a6fd84f257f7dce452e8d70e41dcbe152",
+      "sizeBytes": 6182636,
+      "dataset": "COCO",
+      "downloadedAt": "2026-11-11T11:28:56.711952+00:00",
+      "validation": {
+        "status": "passed",
+        "device": "cpu",
+        "inputShape": [
+          1,
+          3,
+          64,
+          64
+        ],
+        "classCount": 80,
+        "parameters": 2876848
+      }
+    },
+    "yolo11s-seg.pt": {
+      "task": "segment",
+      "url": "https://github.com/ultralytics/assets/releases/download/v8.4.0/yolo11s-seg.pt",
+      "sha256": "1caa81c0195412efa411b632bcfb8c184939dddb6ae41f6a80c41b211ff257c3",
+      "sizeBytes": 20669228,
+      "dataset": "COCO",
+      "downloadedAt": "2026-11-11T11:29:00.071312+00:00",
+      "validation": {
+        "status": "passed",
+        "device": "cpu",
+        "inputShape": [
+          1,
+          3,
+          64,
+          64
+        ],
+        "classCount": 80,
+        "parameters": 10113248
+      }
+    },
+    "yolo11x.pt": {
+      "task": "detect",
+      "url": "https://github.com/ultralytics/assets/releases/download/v8.4.0/yolo11x.pt",
+      "sha256": "7bc158aa95c0ebfdd87f70f01653c1131b93e92522dbe15c228bcd742e773a24",
+      "sizeBytes": 114636239,
+      "dataset": "COCO",
+      "downloadedAt": "2026-11-11T11:29:01.889320+00:00",
+      "validation": {
+        "status": "passed",
+        "device": "cpu",
+        "inputShape": [
+          1,
+          3,
+          64,
+          64
+        ],
+        "classCount": 80,
+        "parameters": 56966176
+      }
+    },
+    "yolo11m-seg.pt": {
+      "task": "segment",
+      "url": "https://github.com/ultralytics/assets/releases/download/v8.4.0/yolo11m-seg.pt",
+      "sha256": "eb9a06f63e2206c35d68d839b08c362429ebecf933ad54c1ad68b2fd001c17cf",
+      "sizeBytes": 45400152,
+      "dataset": "COCO",
+      "downloadedAt": "2026-11-11T11:29:04.020451+00:00",
+      "validation": {
+        "status": "passed",
+        "device": "cpu",
+        "inputShape": [
+          1,
+          3,
+          64,
+          64
+        ],
+        "classCount": 80,
+        "parameters": 22420896
+      }
+    },
+    "yolo11l-seg.pt": {
+      "task": "segment",
+      "url": "https://github.com/ultralytics/assets/releases/download/v8.4.0/yolo11l-seg.pt",
+      "sha256": "cabe90049795dfc9a370b7934d6dec7f6b9e44a20e573b0ff81b7e205512c872",
+      "sizeBytes": 56096965,
+      "dataset": "COCO",
+      "downloadedAt": "2026-11-11T11:29:10.927124+00:00",
+      "validation": {
+        "status": "passed",
+        "device": "cpu",
+        "inputShape": [
+          1,
+          3,
+          64,
+          64
+        ],
+        "classCount": 80,
+        "parameters": 27678368
+      }
+    },
+    "yolo11n-obb.pt": {
+      "task": "obb",
+      "url": "https://github.com/ultralytics/assets/releases/download/v8.4.0/yolo11n-obb.pt",
+      "sha256": "b62898ebf38940ca4df323863e45ee9d84a1a46d5d11ebdde529fb33aa9f3a32",
+      "sizeBytes": 5795654,
+      "dataset": "DOTAv1",
+      "downloadedAt": "2026-11-11T11:29:13.200980+00:00",
+      "validation": {
+        "status": "passed",
+        "device": "cpu",
+        "inputShape": [
+          1,
+          3,
+          64,
+          64
+        ],
+        "classCount": 15,
+        "parameters": 2664432
+      }
+    },
+    "yolo11m.pt": {
+      "task": "detect",
+      "url": "https://github.com/ultralytics/assets/releases/download/v8.4.0/yolo11m.pt",
+      "sha256": "d5ffc1a674953a08e11a8d21e022781b1b23a19b730afc309290bd9fb5305b95",
+      "sizeBytes": 40684120,
+      "dataset": "COCO",
+      "downloadedAt": "2026-11-11T11:29:42.992278+00:00",
+      "validation": {
+        "status": "passed",
+        "device": "cpu",
+        "inputShape": [
+          1,
+          3,
+          64,
+          64
+        ],
+        "classCount": 80,
+        "parameters": 20114688
+      }
+    },
+    "yolo11m-obb.pt": {
+      "task": "obb",
+      "url": "https://github.com/ultralytics/assets/releases/download/v8.4.0/yolo11m-obb.pt",
+      "sha256": "41832a4349c08190335bbc11a8e64726750702eb49cf09abb262bc394a13498c",
+      "sizeBytes": 42415346,
+      "dataset": "DOTAv1",
+      "downloadedAt": "2026-11-11T11:30:21.164839+00:00",
+      "validation": {
+        "status": "passed",
+        "device": "cpu",
+        "inputShape": [
+          1,
+          3,
+          64,
+          64
+        ],
+        "classCount": 15,
+        "parameters": 20913408
+      }
+    },
+    "yolo11x-seg.pt": {
+      "task": "segment",
+      "url": "https://github.com/ultralytics/assets/releases/download/v8.4.0/yolo11x-seg.pt",
+      "sha256": "4e53a5f5fd3ee2ae3361c62169c6bb3ed4ae251dd0e57606e230955aa52d919c",
+      "sizeBytes": 125090821,
+      "dataset": "COCO",
+      "downloadedAt": "2026-11-11T11:30:23.146749+00:00",
+      "validation": {
+        "status": "passed",
+        "device": "cpu",
+        "inputShape": [
+          1,
+          3,
+          64,
+          64
+        ],
+        "classCount": 80,
+        "parameters": 62142656
+      }
+    },
+    "yolo11l-obb.pt": {
+      "task": "obb",
+      "url": "https://github.com/ultralytics/assets/releases/download/v8.4.0/yolo11l-obb.pt",
+      "sha256": "92dcf9face59a821cd4ee93828f4c19b51f6dee9b842b23c1dacab7aa89039fc",
+      "sizeBytes": 53120908,
+      "dataset": "DOTAv1",
+      "downloadedAt": "2026-11-11T11:30:26.366785+00:00",
+      "validation": {
+        "status": "passed",
+        "device": "cpu",
+        "inputShape": [
+          1,
+          3,
+          64,
+          64
+        ],
+        "classCount": 15,
+        "parameters": 26170880
+      }
+    },
+    "yolo11s-obb.pt": {
+      "task": "obb",
+      "url": "https://github.com/ultralytics/assets/releases/download/v8.4.0/yolo11s-obb.pt",
+      "sha256": "43fa63102922e0701501241b307420d24fc55e080816888b18bf8c6f96b1a45a",
+      "sizeBytes": 19934534,
+      "dataset": "DOTAv1",
+      "downloadedAt": "2026-11-11T11:30:27.964186+00:00",
+      "validation": {
+        "status": "passed",
+        "device": "cpu",
+        "inputShape": [
+          1,
+          3,
+          64,
+          64
+        ],
+        "classCount": 15,
+        "parameters": 9719776
+      }
+    },
+    "yolo11n-cls.pt": {
+      "task": "classify",
+      "url": "https://github.com/ultralytics/assets/releases/download/v8.4.0/yolo11n-cls.pt",
+      "sha256": "c62d41bf9625777760018bf914d2e6cd472420ccd01706d97a61cb6c82502bd7",
+      "sizeBytes": 5790624,
+      "dataset": "ImageNet",
+      "downloadedAt": "2026-11-11T11:30:28.722469+00:00",
+      "validation": {
+        "status": "passed",
+        "device": "cpu",
+        "inputShape": [
+          1,
+          3,
+          64,
+          64
+        ],
+        "classCount": 1000,
+        "parameters": 2812104
+      }
+    },
+    "yolo11s-cls.pt": {
+      "task": "classify",
+      "url": "https://github.com/ultralytics/assets/releases/download/v8.4.0/yolo11s-cls.pt",
+      "sha256": "e2b605d1c8c212b434a75a32759a6f7adf1d2b29c35f76bdccd4c794cb653cf2",
+      "sizeBytes": 13630112,
+      "dataset": "ImageNet",
+      "downloadedAt": "2026-11-11T11:30:30.085615+00:00",
+      "validation": {
+        "status": "passed",
+        "device": "cpu",
+        "inputShape": [
+          1,
+          3,
+          64,
+          64
+        ],
+        "classCount": 1000,
+        "parameters": 6724008
+      }
+    },
+    "yolo11x-obb.pt": {
+      "task": "obb",
+      "url": "https://github.com/ultralytics/assets/releases/download/v8.4.0/yolo11x-obb.pt",
+      "sha256": "1461342db1ce0f35c755278303febd1174604ccc375110076fa0ac155231b6a0",
+      "sizeBytes": 118438668,
+      "dataset": "DOTAv1",
+      "downloadedAt": "2026-11-11T11:30:30.682565+00:00",
+      "validation": {
+        "status": "passed",
+        "device": "cpu",
+        "inputShape": [
+          1,
+          3,
+          64,
+          64
+        ],
+        "classCount": 15,
+        "parameters": 58800256
+      }
+    },
+    "yolo11l-cls.pt": {
+      "task": "classify",
+      "url": "https://github.com/ultralytics/assets/releases/download/v8.4.0/yolo11l-cls.pt",
+      "sha256": "6b56513a5d8bdae6b8f0a36dacaf01b26d5a522ba1b34197c3bac9fa6463366c",
+      "sizeBytes": 28553700,
+      "dataset": "ImageNet",
+      "downloadedAt": "2026-11-11T11:30:33.496455+00:00",
+      "validation": {
+        "status": "passed",
+        "device": "cpu",
+        "inputShape": [
+          1,
+          3,
+          64,
+          64
+        ],
+        "classCount": 1000,
+        "parameters": 14115624
+      }
+    },
+    "yolo11x-cls.pt": {
+      "task": "classify",
+      "url": "https://github.com/ultralytics/assets/releases/download/v8.4.0/yolo11x-cls.pt",
+      "sha256": "5b99af0f075efcd88349746fad4ff0a88cd591712b578a887286790544bd449c",
+      "sizeBytes": 59624868,
+      "dataset": "ImageNet",
+      "downloadedAt": "2026-11-11T11:30:35.118514+00:00",
+      "validation": {
+        "status": "passed",
+        "device": "cpu",
+        "inputShape": [
+          1,
+          3,
+          64,
+          64
+        ],
+        "classCount": 1000,
+        "parameters": 29637064
+      }
+    },
+    "yolo11m-cls.pt": {
+      "task": "classify",
+      "url": "https://github.com/ultralytics/assets/releases/download/v8.4.0/yolo11m-cls.pt",
+      "sha256": "80583b974e44292d56fc5ba4d26cd0bb04e77edc8bbf4317f7ce678147156dd5",
+      "sizeBytes": 23487128,
+      "dataset": "ImageNet",
+      "downloadedAt": "2026-11-11T11:30:53.291819+00:00",
+      "validation": {
+        "status": "passed",
+        "device": "cpu",
+        "inputShape": [
+          1,
+          3,
+          64,
+          64
+        ],
+        "classCount": 1000,
+        "parameters": 11634216
+      }
+    }
+  }
+}

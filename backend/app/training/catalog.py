@@ -1,4 +1,5 @@
 import os
+import json
 from dataclasses import dataclass
 from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
@@ -20,11 +21,14 @@ class ModelOption:
     pretrained: bool
     source_type: str = "architecture"
     sha256: str | None = None
+    source_url: str | None = None
+    pretraining_dataset: str | None = None
 
     def public(self) -> dict:
         return {
             "id": self.id, "name": self.name, "architecture": self.architecture,
             "task": self.task, "pretrained": self.pretrained, "sourceType": self.source_type,
+            "sourceUrl": self.source_url, "pretrainingDataset": self.pretraining_dataset,
         }
 
 
@@ -32,14 +36,27 @@ def available_models() -> list[ModelOption]:
     models = []
     directory = os.environ.get("WORKBENCH_TRAINING_WEIGHTS_DIR")
     root = Path(directory).expanduser().resolve() if directory else None
+    try:
+        official = json.loads((root / "official-yolo11.json").read_text())["models"] if root else {}
+    except (OSError, ValueError, KeyError):
+        official = {}
     for task in TASK_TYPES:
         base = "yolo11n" + _SUFFIX[task]
         models.append(ModelOption(base, f"{base} · 从零训练", "YOLO11", task, base + ".yaml", False))
         if root is not None:
-            checkpoint = (root / (base + ".pt")).resolve()
-            if checkpoint.is_relative_to(root) and checkpoint.is_file():
-                models.append(ModelOption(checkpoint.name, f"{base} · 本地预训练", "YOLO11",
-                                          task, str(checkpoint), True, "local_weights"))
+            for scale in "nsmlx":
+                name = "yolo11" + scale + _SUFFIX[task]
+                checkpoint = (root / (name + ".pt")).resolve()
+                if not checkpoint.is_relative_to(root) or not checkpoint.is_file():
+                    continue
+                metadata = official.get(checkpoint.name, {})
+                if metadata and (metadata.get("task") != task or metadata.get("sizeBytes") != checkpoint.stat().st_size):
+                    continue
+                models.append(ModelOption(checkpoint.name,
+                    f"{name} · 官方预训练（{metadata['dataset']}）" if metadata else f"{name} · 本地预训练",
+                    "YOLO11", task, str(checkpoint), True,
+                    "official_weights" if metadata else "local_weights", metadata.get("sha256"),
+                    metadata.get("url"), metadata.get("dataset")))
     return models
 
 
@@ -80,4 +97,3 @@ def engine_name() -> str:
         return f"Ultralytics {version('ultralytics')}"
     except PackageNotFoundError:
         return "Ultralytics 未安装"
-

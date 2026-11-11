@@ -1,0 +1,42 @@
+[
+  {
+    "task": "detect",
+    "taskId": "fe3864ef-29f5-4134-80e3-712fa3de756a",
+    "status": "succeeded",
+    "modelId": "yolo11n.pt",
+    "sourceSha256": "0ebbc80d4a7680d14987a577cd21342b65ecfd94632bd9a8da63ae6417644ee1",
+    "pretrained": true,
+    "epoch": 1,
+    "purpose": "one epoch execution smoke, no accuracy conclusion"
+  },
+  {
+    "task": "segment",
+    "taskId": "2c5f75c0-c709-4070-ba99-7b2c3f7200ef",
+    "status": "succeeded",
+    "modelId": "yolo11n-seg.pt",
+    "sourceSha256": "55ed65c56c91713d23e8402371c6c49a6fd84f257f7dce452e8d70e41dcbe152",
+    "pretrained": true,
+    "epoch": 1,
+    "purpose": "one epoch execution smoke, no accuracy conclusion"
+  },
+  {
+    "task": "obb",
+    "taskId": "5c4a4590-165e-421e-8665-369fe6551da9",
+    "status": "succeeded",
+    "modelId": "yolo11n-obb.pt",
+    "sourceSha256": "b62898ebf38940ca4df323863e45ee9d84a1a46d5d11ebdde529fb33aa9f3a32",
+    "pretrained": true,
+    "epoch": 1,
+    "purpose": "one epoch execution smoke, no accuracy conclusion"
+  },
+  {
+    "task": "classify",
+    "taskId": "39651e56-ef05-4da6-8452-716196c35fb7",
+    "status": "succeeded",
+    "modelId": "yolo11n-cls.pt",
+    "sourceSha256": "c62d41bf9625777760018bf914d2e6cd472420ccd01706d97a61cb6c82502bd7",
+    "pretrained": true,
+    "epoch": 1,
+    "purpose": "one epoch execution smoke, no accuracy conclusion"
+  }
+]

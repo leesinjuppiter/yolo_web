@@ -263,6 +263,7 @@ async function submit() {
                   <option v-for="model in models" :key="model.id" :value="model.id">{{ model.name }} · {{ model.architecture }}</option>
                 </select>
                 <small v-if="selectedModel?.sourceType === 'model_version'">来源：已登记模型版本 · {{ selectedModel.versionId }}</small>
+                <small v-else-if="selectedModel?.sourceType === 'official_weights'">来源：Ultralytics 官方 YOLO11 · {{ selectedModel.pretrainingDataset }} 预训练 · 已下载至服务器</small>
                 <small v-else-if="initialization === 'pretrained' && !models.length">暂无匹配权重。请准备本地预训练权重或登记一个训练模型版本。</small>
               </label>
             </div>
