@@ -337,7 +337,7 @@ names: [coal, gangue]</pre>
           </p>
           <button class="button primary" type="submit"
             :disabled="!dataset || Boolean(preview.unassigned || preview.missingSplits.length) || busy">
-            {{ busy ? '正在打包…' : '下载 YOLO ZIP' }}
+            {{ busy ? '正在打包…' : '下载 ZIP' }}
           </button>
         </form>
 
