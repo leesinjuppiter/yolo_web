@@ -17,7 +17,7 @@ from app.training.models import TrainingTask
 def _rows(db: Session):
     return db.execute(select(ModelVersion, TrainingTask).join(
         TrainingTask, TrainingTask.id == ModelVersion.task_id,
-    ).order_by(ModelVersion.number.desc())).all()
+    ).where(ModelVersion.lifecycle != "archived").order_by(ModelVersion.number.desc())).all()
 
 
 def model_options(db: Session) -> list[dict]:
@@ -52,6 +52,8 @@ def registered_asset(db: Session, model_id: str) -> tuple[ModelVersion, Training
 
 def resolve_version_model(db: Session, model_id: str) -> ModelOption:
     version, task, _, path = registered_asset(db, model_id)
+    if version.lifecycle == "archived":
+        raise Conflict("归档模型不能用于新的微调训练，请先恢复模型")
     return ModelOption(
         model_id, f"{task.config['name']} · v{version.number}", task.architecture,
         task.config["task"], str(path), True, source_type="model_version", sha256=version.sha256,

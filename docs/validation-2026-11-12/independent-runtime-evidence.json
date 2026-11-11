@@ -1,0 +1,81 @@
+{
+  "pythonExecutable": "/hy-tmp/codex-yolo-20261112/runtime-env/bin/python",
+  "sysPrefix": "/hy-tmp/codex-yolo-20261112/runtime-env",
+  "pythonVersion": "3.12.16",
+  "environmentMethod": "offline Conda clone of existing vision-platform; no fresh dependency install",
+  "versions": {
+    "torch": "2.8.0+cu128",
+    "torchvision": "0.23.0+cu128",
+    "ultralytics": "8.4.115",
+    "onnxruntime": "1.31.1",
+    "numpy": "2.5.4"
+  },
+  "tests": [
+    {
+      "packageId": "fdaaccbc-ec06-4885-8b02-5bd1c40f6821",
+      "taskType": "detect",
+      "archiveSha256": "be276169cdf2323f8f9dbc68cc952ef8ded1855db1866adb4b826b9ab22e4926",
+      "verifyReturnCode": 0,
+      "verifyOutput": "Verified 10 files",
+      "inferReturnCode": 0,
+      "imageSha256": "85a64959f996355594900877b81d174f4689ef557dba00edb81cbe8c524a3afc",
+      "outputJsonIsList": true,
+      "imageResultCount": 1,
+      "predictionCount": 0,
+      "pycacheCreated": false,
+      "tamperVerifyReturnCode": 1,
+      "tamperRejected": true,
+      "restoredVerifyReturnCode": 0
+    },
+    {
+      "packageId": "4cfc8783-3db5-41e7-a23f-401a49895a86",
+      "taskType": "obb",
+      "archiveSha256": "04db6f2adf205cb59915efd44ada9a2d526c05522f6b43db417d1af1f8f9c8f3",
+      "verifyReturnCode": 0,
+      "verifyOutput": "Verified 10 files",
+      "inferReturnCode": 0,
+      "imageSha256": "c8454fa80fb9482f66931b85396d9447f2ce225c54d66dad9f1ae01bb255b211",
+      "outputJsonIsList": true,
+      "imageResultCount": 1,
+      "predictionCount": 0,
+      "pycacheCreated": false,
+      "tamperVerifyReturnCode": 1,
+      "tamperRejected": true,
+      "restoredVerifyReturnCode": 0
+    }
+  ],
+  "modulePaths": {
+    "torch": "/hy-tmp/codex-yolo-20261112/runtime-env/lib/python3.12/site-packages/torch/__init__.py",
+    "torchvision": "/hy-tmp/codex-yolo-20261112/runtime-env/lib/python3.12/site-packages/torchvision/__init__.py",
+    "ultralytics": "/hy-tmp/codex-yolo-20261112/runtime-env/lib/python3.12/site-packages/ultralytics/__init__.py",
+    "onnxruntime": "/hy-tmp/codex-yolo-20261112/runtime-env/lib/python3.12/site-packages/onnxruntime/__init__.py"
+  },
+  "finalPackageTests": [
+    {
+      "packageId": "d49e25cd-1340-48a5-9ffc-6865f4911c16",
+      "exportId": "2b554fae-e4a6-4a4a-8a69-192cfbb9c418",
+      "taskType": "detect",
+      "archiveSha256": "4167662fa4ff30f5e15d022e52b5d01003ea18253de0eed4cdd472371cdd49ef",
+      "verifyReturnCode": 0,
+      "verifyOutput": "Verified 10 files",
+      "inferReturnCode": 0,
+      "outputJsonIsList": true,
+      "imageResultCount": 1,
+      "predictionCount": 0,
+      "pycacheCreated": false
+    },
+    {
+      "packageId": "4e7557d4-0c59-4582-a2c4-1cb00580e3fe",
+      "exportId": "f164a4e5-c589-4838-970a-c6cf2d9767bd",
+      "taskType": "obb",
+      "archiveSha256": "7bb6ef196ee011cc72f9d0315279cc3d513ca0c8becd96ba7dafa83161fbff69",
+      "verifyReturnCode": 0,
+      "verifyOutput": "Verified 10 files",
+      "inferReturnCode": 0,
+      "outputJsonIsList": true,
+      "imageResultCount": 1,
+      "predictionCount": 0,
+      "pycacheCreated": false
+    }
+  ]
+}

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, defineAsyncComponent, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import AnnotationView from './AnnotationView.vue'
 import DatasetDialogs from './DatasetDialogs.vue'
@@ -10,14 +10,22 @@ import CreateTrainingDialog from './components/training/CreateTrainingDialog.vue
 import DatasetsView from './DatasetsView.vue'
 import TrainingView from './pages/TrainingView.vue'
 import TrainingDetailView from './pages/TrainingDetailView.vue'
+import { getTraining } from './api/training'
+import type { ModelVersion } from './types/models'
 import { createDataset, deleteDataset, deleteDatasetImage, getDataset, listDatasets, readReportSnapshot, refreshReportSnapshot, saveSimilarityReview, saveSplits, updateAnnotations, updateDatasetClass, uploadImages } from './api/datasets'
 import type { Annotation, AnnotationStatus, Dataset, DatasetAction, DatasetClass, DatasetImage, DatasetReport, DialogKind, ReportIssue, ReportKind, ReportSnapshot, SelectableDatasetTask, SimilarityDecision, Split } from './domain'
 import type { TrainingConfig } from './types/training'
 
+const ModelRegistryView = defineAsyncComponent(() => import('./pages/ModelRegistryView.vue'))
+const ModelCompareView = defineAsyncComponent(() => import('./pages/ModelCompareView.vue'))
+const DeploymentCenterView = defineAsyncComponent(() => import('./pages/DeploymentCenterView.vue'))
+
 const route = useRoute()
 const router = useRouter()
 const inTraining = computed(() => route.name === 'training' || route.name === 'training-detail')
-const activeSection = computed(() => inTraining.value ? 'training' : 'datasets')
+const inDatasets = computed(() => route.name === 'datasets' || route.name === 'annotation')
+const activeSection = computed(() => inTraining.value ? 'training' : route.name === 'model-compare' ? 'models' : String(route.name))
+const sectionTitle = computed(() => activeSection.value === 'training' ? '模型训练' : activeSection.value === 'models' ? '模型仓库' : activeSection.value === 'deployments' ? '部署中心' : '数据集管理')
 const trainingDraft = ref<{ datasetId?: string; config?: TrainingConfig }>()
 const trainingDatasetsRevision = ref(0)
 watch(inTraining, visible => { if (!visible) trainingDraft.value = undefined })
@@ -68,14 +76,15 @@ let reportController: AbortController | undefined
 const sections = [
   { label: '数据集', route: 'datasets', icon: 'M4 10h16v10H4z M4 10l2-4h12l2 4M8 14h8' },
   { label: '模型训练', route: 'training', icon: 'M4 20V9m5 11V4m6 16v-7m5 7V7' },
-  { label: '模型仓库', icon: 'M12 2l9 5v10l-9 5-9-5V7z M3 7l9 5 9-5 M12 12v10' },
+  { label: '模型仓库', route: 'models', icon: 'M12 2l9 5v10l-9 5-9-5V7z M3 7l9 5 9-5 M12 12v10' },
+  { label: '部署中心', route: 'deployments', icon: 'M4 4h16v5H4z M4 15h16v5H4z M8 9v6m8-6v6' },
   { label: '智能体', icon: 'M5 8h14v11H5z M12 8V4 M8 13h2m4 0h2' },
   { label: '审计日志', icon: 'M5 3h14v18H5z M8 8h8m-8 4h8m-8 4h5' },
   { label: '系统设置', icon: 'M4 6h16m-16 6h16m-16 6h16 M8 4v4m8 2v4m-6 2v4' },
 ]
 const navigation = [
-  { label: '工作空间', sections: sections.slice(0, 4) },
-  { label: '治理与运维', sections: sections.slice(4) },
+  { label: '工作空间', sections: sections.slice(0, 5) },
+  { label: '治理与运维', sections: sections.slice(5) },
 ]
 
 function message(error: unknown) {
@@ -100,8 +109,8 @@ async function initialize() {
   }
 }
 
-onMounted(async () => { await router.isReady(); if (!inTraining.value) void initialize() })
-watch(inTraining, visible => { if (!visible && !loaded.value) void initialize() })
+onMounted(async () => { await router.isReady(); if (inDatasets.value) void initialize() })
+watch(inDatasets, visible => { if (visible && !loaded.value) void initialize() })
 onUnmounted(() => clearTimeout(noticeTimer))
 onUnmounted(stopReportSync)
 
@@ -127,6 +136,16 @@ async function openTrainingDraft(datasetId?: string) {
 
 function retrain(config: TrainingConfig) {
   trainingDraft.value = { datasetId: config.datasetId, config: { ...config, name: '' } }
+}
+
+async function finetuneRegisteredModel(model: ModelVersion) {
+  try {
+    const task = await getTraining(model.taskId)
+    await router.push({ name: 'training' })
+    trainingDraft.value = { datasetId: task.config.datasetId, config: { ...task.config, name: '', modelId: `version:${model.id}` } }
+  } catch (error) {
+    showNotice(message(error))
+  }
 }
 
 async function adjustTrainingSplits(datasetId: string) {
@@ -499,17 +518,17 @@ async function deleteImage(imageId: string) {
         </div>
       </nav>
       <div class="workbench-status">
-        <strong><span v-if="!inTraining" :class="{ ready: loaded && !loadingError }" aria-hidden="true"></span>{{ inTraining ? '训练工作空间' : '本地工作台' }}</strong>
-        <small>{{ inTraining ? '执行设备与状态以任务页面为准' : !loaded ? '正在连接本地标注服务' : loadingError ? '本地标注服务连接异常' : '数据与标注保存在本地设备' }}</small>
+        <strong><span v-if="inDatasets" :class="{ ready: loaded && !loadingError }" aria-hidden="true"></span>{{ sectionTitle }}</strong>
+        <small>{{ !inDatasets ? '执行与验证状态以任务报告为准' : !loaded ? '正在连接本地标注服务' : loadingError ? '本地标注服务连接异常' : '数据与标注保存在本地设备' }}</small>
       </div>
     </aside>
     <div class="workbench-body">
       <header class="workbench-top">
         <div class="workbench-location">
           <span class="workbench-parent">检测工作台</span><span class="workbench-parent" aria-hidden="true">/</span>
-          <strong>{{ inTraining ? '模型训练' : '数据集管理' }}</strong>
+          <strong>{{ sectionTitle }}</strong>
           <span class="workbench-local" :class="{ 'workbench-training-mode': inTraining }">
-            {{ inTraining ? '训练配置与监控' : '本地标注服务' }}
+            {{ inTraining ? '训练配置与监控' : inDatasets ? '本地标注服务' : activeSection === 'models' ? '版本与验证' : 'ONNX FP32 部署包' }}
           </span>
         </div>
         <div v-if="inTraining" class="workbench-actions">
@@ -518,7 +537,7 @@ async function deleteImage(imageId: string) {
             新建训练任务
           </button>
         </div>
-        <div v-else-if="loaded && !loadingError" class="workbench-actions">
+        <div v-else-if="inDatasets && loaded && !loadingError" class="workbench-actions">
           <button class="button" type="button" @click="openDialog('import')">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V4m-4 4 4-4 4 4M4 15v5h16v-5"/></svg>
             导入数据集
@@ -533,6 +552,9 @@ async function deleteImage(imageId: string) {
         <KeepAlive>
           <TrainingView v-if="route.name === 'training'" @open="openTrainingTask" @retrain="retrain" @create="openTrainingDraft()" />
         </KeepAlive>
+        <KeepAlive><ModelRegistryView v-if="route.name === 'models'" @finetune="finetuneRegisteredModel" /></KeepAlive>
+        <KeepAlive><ModelCompareView v-if="route.name === 'model-compare'" /></KeepAlive>
+        <KeepAlive><DeploymentCenterView v-if="route.name === 'deployments'" /></KeepAlive>
         <TrainingDetailView
           v-if="route.name === 'training-detail'"
           :task-id="String(route.params.taskId)"
@@ -541,7 +563,7 @@ async function deleteImage(imageId: string) {
           @retrain="retrain"
           @open-task="openTrainingTask"
         />
-        <div v-show="!inTraining">
+        <div v-show="inDatasets">
           <div v-if="!loaded" class="page-state" role="status">正在读取数据集…</div>
           <div v-else-if="loadingError" class="page-state" role="alert">
             <p>{{ loadingError }}</p><button class="button" @click="initialize">重试</button>

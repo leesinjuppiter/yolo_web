@@ -7,6 +7,9 @@ from app.core.database import Base
 from app.dataset import models  # noqa: F401 - register schema metadata
 from app.dataset.analysis import models as analysis_models  # noqa: F401
 from app.models import training_versions  # noqa: F401
+from app.evaluation import models as evaluation_models  # noqa: F401
+from app.model_exports import models as export_models  # noqa: F401
+from app.deployment import models as deployment_models  # noqa: F401
 from app.quality import models as quality_models  # noqa: F401
 from app.quality import review_models  # noqa: F401
 from app.training import models as training_models  # noqa: F401

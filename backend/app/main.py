@@ -12,6 +12,10 @@ from sqlalchemy.exc import IntegrityError, OperationalError
 from app.api.datasets import router as dataset_router
 from app.api.exchange import router as exchange_router
 from app.api.training import router as training_router
+from app.api.models import router as model_router
+from app.api.evaluation import router as evaluation_router
+from app.api.exports import router as export_router
+from app.api.deployment import router as deployment_router
 from app.core.database import engine
 from app.dataset.analysis.reporting import compute_report
 from app.dataset.analysis.worker import run_worker
@@ -37,6 +41,10 @@ app = FastAPI(title="检测系统工作台", lifespan=lifespan)
 app.include_router(dataset_router)
 app.include_router(exchange_router)
 app.include_router(training_router)
+app.include_router(model_router)
+app.include_router(evaluation_router)
+app.include_router(export_router)
+app.include_router(deployment_router)
 log = logging.getLogger(__name__)
 
 

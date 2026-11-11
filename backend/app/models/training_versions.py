@@ -16,5 +16,8 @@ class ModelVersion(Base):
     task_id: Mapped[str] = mapped_column(UUID(as_uuid=False), ForeignKey("training_tasks.id"), unique=True)
     artifact_id: Mapped[str] = mapped_column(String(80))
     sha256: Mapped[str] = mapped_column(String(64))
+    display_name: Mapped[str | None] = mapped_column(String(120))
+    description: Mapped[str] = mapped_column(String(2000), default="", server_default="")
+    lifecycle: Mapped[str] = mapped_column(String(12), default="candidate", server_default="candidate")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 

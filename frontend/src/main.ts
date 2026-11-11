@@ -13,6 +13,9 @@ const router = createRouter({
     { path: '/datasets/:id/annotate', name: 'annotation', component: RouteTarget },
     { path: '/training', name: 'training', component: RouteTarget },
     { path: '/training/:taskId', name: 'training-detail', component: RouteTarget },
+    { path: '/models', name: 'models', component: RouteTarget },
+    { path: '/models/compare', name: 'model-compare', component: RouteTarget },
+    { path: '/deployments', name: 'deployments', component: RouteTarget },
     { path: '/:pathMatch(.*)*', redirect: '/datasets' },
   ],
 })

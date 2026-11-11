@@ -1,0 +1,366 @@
+[
+  {
+    "versionId": "67969243-1a89-4c73-a563-735dff84d12e",
+    "exportId": "2b554fae-e4a6-4a4a-8a69-192cfbb9c418",
+    "packageId": "d49e25cd-1340-48a5-9ffc-6865f4911c16",
+    "report": {
+      "input": {
+        "dtype": "float32",
+        "shape": [
+          1,
+          3,
+          64,
+          64
+        ],
+        "dynamic": false
+      },
+      "format": "onnx",
+      "artifact": {
+        "sha256": "06c2406f63ed6298081c19cb5c9b78e5ec2dd46fce571aa85e19f1a4dd37dac8",
+        "sizeBytes": 10398452
+      },
+      "pipeline": {
+        "iou": 0.7,
+        "conf": 0.25,
+        "color": "RGB",
+        "maxDet": 300,
+        "resize": "letterbox",
+        "nmsEmbedded": false,
+        "normalization": "divide_255"
+      },
+      "taskType": "detect",
+      "benchmark": {
+        "device": "cpu",
+        "warmup": 3,
+        "provider": "CPUExecutionProvider",
+        "batchSize": 1,
+        "inputSize": [
+          1,
+          3,
+          64,
+          64
+        ],
+        "precision": "fp32",
+        "samplesMs": [
+          205.00441640615463,
+          201.06372237205505,
+          388.6394053697586,
+          201.6255483031273,
+          200.91494917869568,
+          201.05966925621033,
+          201.32260769605637,
+          200.36765187978745,
+          201.19810104370117,
+          200.8131518959999,
+          201.37719064950943,
+          200.55323839187622,
+          201.29896700382233,
+          390.04669338464737,
+          201.27130299806595,
+          200.14652609825134,
+          200.67079365253448,
+          200.542651116848,
+          114.21612650156021,
+          89.08465504646301
+        ],
+        "iterations": 20,
+        "concurrency": 1,
+        "limitations": "Shared server CPU test; other host processes and GPU training host load are not controlled",
+        "timingScope": "in-memory BGR image → preprocess → CPU runtime → postprocess; excludes disk/network",
+        "latencyAvgMs": 210.06086841225624,
+        "latencyP50Ms": 201.0616958141327,
+        "latencyP95Ms": 388.70976977050304,
+        "inputSampleSha256": "85a64959f996355594900877b81d174f4689ef557dba00edb81cbe8c524a3afc",
+        "memoryMeasurement": null,
+        "throughputImagesPerSecond": 4.760524925744113
+      },
+      "loadCheck": {
+        "status": "passed",
+        "providers": [
+          "CPUExecutionProvider"
+        ],
+        "outputShapes": [
+          [
+            1,
+            5,
+            84
+          ]
+        ]
+      },
+      "precision": "fp32",
+      "classNames": [
+        "object"
+      ],
+      "validation": {
+        "delta": {
+          "map50": 0.0,
+          "recall": 0.0,
+          "fitness": 0.0,
+          "map50_95": 0.0,
+          "precision": 0.0,
+          "metrics/mAP50(B)": 0.0,
+          "metrics/recall(B)": 0.0,
+          "metrics/mAP50-95(B)": 0.0,
+          "metrics/precision(B)": 0.0
+        },
+        "split": "test",
+        "status": "completed",
+        "baseline": {
+          "metrics": {
+            "map50": 0.0,
+            "recall": 0.0,
+            "fitness": 0.0,
+            "map50_95": 0.0,
+            "precision": 0.0,
+            "metrics/mAP50(B)": 0.0,
+            "metrics/recall(B)": 0.0,
+            "metrics/mAP50-95(B)": 0.0,
+            "metrics/precision(B)": 0.0
+          },
+          "taskType": "detect",
+          "metricScope": "bounding_box"
+        },
+        "protocol": {
+          "iou": 0.7,
+          "rect": false,
+          "device": "cpu",
+          "maxDet": 300,
+          "batchSize": 1,
+          "confidence": 0.001
+        },
+        "candidate": {
+          "metrics": {
+            "map50": 0.0,
+            "recall": 0.0,
+            "fitness": 0.0,
+            "map50_95": 0.0,
+            "precision": 0.0,
+            "metrics/mAP50(B)": 0.0,
+            "metrics/recall(B)": 0.0,
+            "metrics/mAP50-95(B)": 0.0,
+            "metrics/precision(B)": 0.0
+          },
+          "taskType": "detect",
+          "metricScope": "bounding_box"
+        },
+        "deltaUnit": "absolute fraction (multiply by 100 for percentage points)",
+        "limitations": "Test-set metrics alone do not establish numeric equivalence or production accuracy",
+        "sampleCount": 2,
+        "snapshotDigest": "66fd8c695fe71881885b756a0d32310b9e8f8a6d1b2953491e1e8a5a96654bf9",
+        "qualityDecision": "threshold_not_configured"
+      },
+      "environment": {
+        "python": "3.12.16",
+        "system": "Linux",
+        "machine": "x86_64",
+        "versions": {
+          "onnx": "1.23.2",
+          "numpy": "2.5.4",
+          "torch": "2.8.0+cu128",
+          "onnxruntime": "1.31.1",
+          "torchvision": "0.23.0+cu128",
+          "ultralytics": "8.4.115"
+        },
+        "processor": "x86_64"
+      },
+      "numericCheck": {
+        "atol": 0.001,
+        "rtol": 0.001,
+        "scope": "one fixed preprocessed image raw output; does not establish dataset accuracy",
+        "status": "passed",
+        "maxAbsoluteError": 9.1552734375e-05,
+        "inputSampleSha256": "85a64959f996355594900877b81d174f4689ef557dba00edb81cbe8c524a3afc"
+      },
+      "sourceSha256": "6e3537229b68ced76a4c4a7f128cffcaefaac7719dfacb6ce8de93956df34134",
+      "schemaVersion": 1,
+      "productionReady": false
+    },
+    "packageInferencePassed": true,
+    "tamperRejected": true
+  },
+  {
+    "versionId": "51a22f65-584d-4858-8f0b-6eb8298789ce",
+    "exportId": "f164a4e5-c589-4838-970a-c6cf2d9767bd",
+    "packageId": "4e7557d4-0c59-4582-a2c4-1cb00580e3fe",
+    "report": {
+      "input": {
+        "dtype": "float32",
+        "shape": [
+          1,
+          3,
+          320,
+          320
+        ],
+        "dynamic": false
+      },
+      "format": "onnx",
+      "artifact": {
+        "sha256": "439d6675d5aea2f5319b7afe48692ad1352ab0639bbc16c6a9eb0a635e83d8b0",
+        "sizeBytes": 10718931
+      },
+      "pipeline": {
+        "iou": 0.7,
+        "conf": 0.25,
+        "color": "RGB",
+        "maxDet": 300,
+        "resize": "letterbox",
+        "nmsEmbedded": false,
+        "normalization": "divide_255"
+      },
+      "taskType": "obb",
+      "benchmark": {
+        "device": "cpu",
+        "warmup": 3,
+        "provider": "CPUExecutionProvider",
+        "batchSize": 1,
+        "inputSize": [
+          1,
+          3,
+          320,
+          320
+        ],
+        "precision": "fp32",
+        "samplesMs": [
+          398.0483338236809,
+          894.4603949785233,
+          599.317729473114,
+          215.6047224998474,
+          283.3758816123009,
+          308.5532858967781,
+          298.80908131599426,
+          399.3728309869766,
+          1900.0230729579926,
+          1098.7265333533287,
+          399.06852692365646,
+          405.8322161436081,
+          394.52696591615677,
+          300.90540647506714,
+          297.8735789656639,
+          299.16419833898544,
+          207.0862054824829,
+          389.10508900880814,
+          210.43667942285538,
+          298.6775264143944
+        ],
+        "iterations": 20,
+        "concurrency": 1,
+        "limitations": "Shared server CPU test; other host processes and GPU training host load are not controlled",
+        "timingScope": "in-memory BGR image → preprocess → CPU runtime → postprocess; excludes disk/network",
+        "latencyAvgMs": 479.94841299951077,
+        "latencyP50Ms": 348.8291874527931,
+        "latencyP95Ms": 1138.7913603335624,
+        "inputSampleSha256": "c8454fa80fb9482f66931b85396d9447f2ce225c54d66dad9f1ae01bb255b211",
+        "memoryMeasurement": null,
+        "throughputImagesPerSecond": 2.0835572593111573
+      },
+      "loadCheck": {
+        "status": "passed",
+        "providers": [
+          "CPUExecutionProvider"
+        ],
+        "outputShapes": [
+          [
+            1,
+            12,
+            2100
+          ]
+        ]
+      },
+      "precision": "fp32",
+      "classNames": [
+        "coal",
+        "rockbolt",
+        "mesh",
+        "stick",
+        "board",
+        "cap",
+        "bottle"
+      ],
+      "validation": {
+        "delta": {
+          "map50": 0.0,
+          "recall": 0.0,
+          "fitness": 0.0,
+          "map50_95": 0.0,
+          "precision": 0.0,
+          "metrics/mAP50(B)": 0.0,
+          "metrics/recall(B)": 0.0,
+          "metrics/mAP50-95(B)": 0.0,
+          "metrics/precision(B)": 0.0
+        },
+        "split": "test",
+        "status": "completed",
+        "baseline": {
+          "metrics": {
+            "map50": 0.0,
+            "recall": 0.0,
+            "fitness": 0.0,
+            "map50_95": 0.0,
+            "precision": 0.0,
+            "metrics/mAP50(B)": 0.0,
+            "metrics/recall(B)": 0.0,
+            "metrics/mAP50-95(B)": 0.0,
+            "metrics/precision(B)": 0.0
+          },
+          "taskType": "obb",
+          "metricScope": "rotated_box"
+        },
+        "protocol": {
+          "iou": 0.7,
+          "rect": false,
+          "device": "cpu",
+          "maxDet": 300,
+          "batchSize": 1,
+          "confidence": 0.001
+        },
+        "candidate": {
+          "metrics": {
+            "map50": 0.0,
+            "recall": 0.0,
+            "fitness": 0.0,
+            "map50_95": 0.0,
+            "precision": 0.0,
+            "metrics/mAP50(B)": 0.0,
+            "metrics/recall(B)": 0.0,
+            "metrics/mAP50-95(B)": 0.0,
+            "metrics/precision(B)": 0.0
+          },
+          "taskType": "obb",
+          "metricScope": "rotated_box"
+        },
+        "deltaUnit": "absolute fraction (multiply by 100 for percentage points)",
+        "limitations": "Test-set metrics alone do not establish numeric equivalence or production accuracy",
+        "sampleCount": 10,
+        "snapshotDigest": "acc6d56fcfd5ab54edd6c0928bc23bb7f2ecd97211840bd24815a65e8a44a26a",
+        "qualityDecision": "threshold_not_configured"
+      },
+      "environment": {
+        "python": "3.12.16",
+        "system": "Linux",
+        "machine": "x86_64",
+        "versions": {
+          "onnx": "1.23.2",
+          "numpy": "2.5.4",
+          "torch": "2.8.0+cu128",
+          "onnxruntime": "1.31.1",
+          "torchvision": "0.23.0+cu128",
+          "ultralytics": "8.4.115"
+        },
+        "processor": "x86_64"
+      },
+      "numericCheck": {
+        "atol": 0.001,
+        "rtol": 0.001,
+        "scope": "one fixed preprocessed image raw output; does not establish dataset accuracy",
+        "status": "passed",
+        "maxAbsoluteError": 9.1552734375e-05,
+        "inputSampleSha256": "c8454fa80fb9482f66931b85396d9447f2ce225c54d66dad9f1ae01bb255b211"
+      },
+      "sourceSha256": "654b1e710d12757c6b8f5968d78c6d66cff9feabf6f74cbd4c669b87f8b1622f",
+      "schemaVersion": 1,
+      "productionReady": false
+    },
+    "packageInferencePassed": true,
+    "tamperRejected": true
+  }
+]

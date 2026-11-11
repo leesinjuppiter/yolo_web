@@ -1,0 +1,3 @@
+# Install only in the project Conda environment. CPU export validation, tested versions.
+onnx==1.23.2
+onnxruntime==1.31.1
