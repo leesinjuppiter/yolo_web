@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onUnmounted, ref, watch } from 'vue'
+import { computed, onActivated, onDeactivated, onUnmounted, ref, watch } from 'vue'
 import { listTraining } from '../api/training'
 import DeleteTrainingButton from '../components/training/DeleteTrainingButton.vue'
 import { selectableDatasetTasks, taskLabels } from '../domain'
@@ -65,8 +65,16 @@ watch(view, value => {
 
 let request: AbortController | undefined
 let refreshTimer: ReturnType<typeof setTimeout> | undefined
+let active = false
+
+function stopRefresh() {
+  clearTimeout(refreshTimer)
+  request?.abort()
+  loading.value = false
+}
 
 async function refresh() {
+  if (!active) return
   clearTimeout(refreshTimer)
   request?.abort()
   request = new AbortController()
@@ -84,7 +92,7 @@ async function refresh() {
   } catch (reason) {
     if (!signal.aborted) error.value = reason instanceof Error ? reason.message : '读取训练任务失败。'
   } finally {
-    if (!signal.aborted) {
+    if (!signal.aborted && active) {
       loading.value = false
       refreshTimer = setTimeout(refresh, 5000)
     }
@@ -92,14 +100,19 @@ async function refresh() {
 }
 
 watch([search, status, taskType, architecture, sort, page], () => {
-  request?.abort()
-  clearTimeout(refreshTimer)
+  if (!active) return
+  stopRefresh()
   refreshTimer = setTimeout(refresh, 200)
-}, { immediate: true })
-onUnmounted(() => {
-  request?.abort()
-  clearTimeout(refreshTimer)
 })
+onActivated(() => {
+  active = true
+  void refresh()
+})
+onDeactivated(() => {
+  active = false
+  stopRefresh()
+})
+onUnmounted(stopRefresh)
 
 function clearFilters() {
   search.value = ''

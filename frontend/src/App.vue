@@ -530,9 +530,11 @@ async function deleteImage(imageId: string) {
         </div>
       </header>
       <main class="workbench-main">
-        <TrainingView v-if="route.name === 'training'" @open="openTrainingTask" @retrain="retrain" @create="openTrainingDraft()" />
+        <KeepAlive>
+          <TrainingView v-if="route.name === 'training'" @open="openTrainingTask" @retrain="retrain" @create="openTrainingDraft()" />
+        </KeepAlive>
         <TrainingDetailView
-          v-else-if="route.name === 'training-detail'"
+          v-if="route.name === 'training-detail'"
           :task-id="String(route.params.taskId)"
           :initial-tab="route.query.tab === 'logs' ? 'logs' : undefined"
           @back="router.push({ name: 'training' })"
