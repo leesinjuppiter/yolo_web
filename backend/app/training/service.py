@@ -9,6 +9,7 @@ from app.dataset.repository import Conflict, NotFound
 from app.models.training_versions import ModelVersion
 from app.models.sources import model_options, resolve_version_model
 from app.training import catalog, dataset_options, repository, resume as resume_service
+from app.training.artifact_archive import build_archive
 from app.training.devices import available_devices, device_description, validate_device
 from app.training.errors import PreflightError
 from app.training.models import TrainingMetric, TrainingTask
@@ -239,6 +240,10 @@ def register_version(db: Session, task_id: str) -> dict:
 
 def download(db: Session, task_id: str, artifact_id: str):
     return repository.artifact_file(repository.get_task(db, task_id), artifact_id)
+
+
+def download_archive(db: Session, task_id: str):
+    return build_archive(repository.get_task(db, task_id))
 
 
 def datasets(db: Session) -> list[dict]:

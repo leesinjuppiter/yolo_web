@@ -4,11 +4,13 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Header, Query, Response
 from fastapi.responses import FileResponse, StreamingResponse
 from sqlalchemy.orm import Session
+from starlette.background import BackgroundTask
 
 from app.core.database import get_db
 from app.training.schemas import Sort, Status, TrainingConfig, TrainingType
 from app.training.resume_schemas import ResumeRequest
 from app.training.tools import TOOLS
+from app.training.artifact_archive import stream_archive
 
 router = APIRouter(prefix="/api/training", tags=["training"])
 Database = Annotated[Session, Depends(get_db)]
@@ -104,6 +106,15 @@ def failure(task_id: UUID, db: Database):
 @router.post("/{task_id}/model-version")
 def register_version(task_id: UUID, db: Database):
     return TOOLS["model.register_training_version"](db, str(task_id))
+
+
+@router.get("/{task_id}/artifacts/download.zip", response_class=StreamingResponse)
+def download_artifacts(task_id: UUID, db: Database):
+    output = TOOLS["training.download_artifacts_zip"](db, str(task_id))
+    return StreamingResponse(stream_archive(output), media_type="application/zip",
+                             background=BackgroundTask(output.close),
+                             headers={"Content-Disposition": f'attachment; filename="training-{task_id}-artifacts.zip"',
+                                      "Cache-Control": "no-store"})
 
 
 @router.get("/{task_id}/artifacts/{artifact_id}")

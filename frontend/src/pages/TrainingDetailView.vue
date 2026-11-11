@@ -8,7 +8,7 @@ import TrainingPreview from '../components/training/TrainingPreview.vue'
 import TrainingSystemPanel from '../components/training/TrainingSystemPanel.vue'
 import ResumeTrainingDialog from '../components/training/ResumeTrainingDialog.vue'
 import { useTrainingMonitor } from '../composables/useTrainingMonitor'
-import { registerTrainingModel, trainingLogDownloadUrl } from '../api/training'
+import { registerTrainingModel, trainingArtifactsDownloadUrl, trainingLogDownloadUrl } from '../api/training'
 import { taskLabels } from '../domain'
 import { terminalTrainingStates, trainingPhaseLabels, trainingStatusLabels } from '../types/training'
 import type { TrainingConfig } from '../types/training'
@@ -219,15 +219,18 @@ watch([logPanel, () => props.initialTab], ([panel, tab]) => {
         <TrainingConfigPanel v-show="activeTab === 'config'" :task="task" @retrain="emit('retrain', $event)"/>
         <div v-show="activeTab === 'files'" class="files-panel">
           <section class="artifacts">
-            <h2>训练产物</h2>
+            <div class="artifact-heading">
+              <h2>训练产物</h2>
+              <a v-if="finished && task.artifacts.length" class="button" :href="trainingArtifactsDownloadUrl(task.id)"
+                :download="`training-${task.id}-artifacts.zip`">下载训练产物 ZIP</a>
+            </div>
             <p v-if="!task.artifacts.length" class="empty">任务尚未归档训练产物。</p>
             <div v-else class="artifact-table">
               <table>
-                <thead><tr><th>文件</th><th>大小</th><th>SHA-256</th><th>操作</th></tr></thead>
+                <thead><tr><th>文件</th><th>大小</th><th>SHA-256</th></tr></thead>
                 <tbody><tr v-for="artifact in task.artifacts" :key="artifact.id">
                   <th scope="row">{{ artifact.name }}</th><td>{{ fileSize(artifact.sizeBytes) }}</td>
                   <td class="artifact-digest" :title="artifact.sha256">{{ artifact.sha256 ?? '—' }}</td>
-                  <td><a class="button" :href="artifact.url" :download="artifact.name" :aria-label="`下载 ${artifact.name}`">下载</a></td>
                 </tr></tbody>
               </table>
             </div>
@@ -315,6 +318,8 @@ progress { display: block; width: 100%; height: 8px; margin: 6px 0 8px; accent-c
 .notice.error { color: var(--danger); background: #fff6f6; border-color: #e8b9bd; }
 .task-header .notice { margin-top: 12px; }
 .files-panel { display: grid; gap: 10px; }
+.artifact-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+.artifact-heading h2 { margin: 0; }
 .artifact-table { overflow: auto; }
 .artifacts table { width: 100%; border-collapse: collapse; font-size: 12px; text-align: left; }
 .artifacts th, .artifacts td { padding: 8px 10px; border-bottom: 1px solid var(--line); }

@@ -17,6 +17,7 @@ TOOLS = {
     "training.latest_result": service.latest_result,
     "training.diagnose_failure": service.diagnose_failure,
     "training.download_artifact": service.download,
+    "training.download_artifacts_zip": service.download_archive,
     "model.register_training_version": service.register_version,
 }
 

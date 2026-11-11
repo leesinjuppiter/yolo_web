@@ -59,6 +59,7 @@ export const getTraining = (id: string, signal?: AbortSignal) => request<Trainin
 export const getTrainingResources = (id: string, signal?: AbortSignal) =>
   request<TrainingResources>(`${at(id)}/resources`, { signal })
 export const trainingLogDownloadUrl = (id: string) => `${at(id)}/logs/download`
+export const trainingArtifactsDownloadUrl = (id: string) => `${at(id)}/artifacts/download.zip`
 export const cancelTraining = (id: string) => request<TrainingTask>(`${at(id)}/cancel`, post({}))
 export const deleteTraining = (id: string) => request<void>(at(id), { method: 'DELETE' })
 export const registerTrainingModel = (id: string) => request<TrainingTask['modelVersion']>(`${at(id)}/model-version`, post({}))
