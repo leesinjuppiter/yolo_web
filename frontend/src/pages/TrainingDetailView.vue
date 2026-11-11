@@ -34,6 +34,7 @@ const tabs = [
 const activeTab = ref<(typeof tabs)[number]['id']>(props.initialTab ?? 'overview')
 const metricNumber = new Intl.NumberFormat('zh-CN', { maximumSignificantDigits: 4 })
 const startTime = new Intl.DateTimeFormat('zh-CN', { dateStyle: 'short', timeStyle: 'medium' })
+const startClock = new Intl.DateTimeFormat('zh-CN', { timeStyle: 'medium' })
 const evaluationKeys = computed<[string, string][]>(() => {
   if (task.value?.config.task === 'classify') return [['top1', 'Top-1'], ['top5', 'Top-5']]
   const keys: [string, string][] = [['map50', 'mAP@50'], ['map50_95', 'mAP@50–95'], ['precision', 'Precision'], ['recall', 'Recall']]
@@ -46,6 +47,10 @@ const lossKeys = computed<[string, string][]>(() => {
   if (task.value?.config.task === 'segment') keys.splice(3, 0, ['segLoss', '掩膜损失'])
   return keys
 })
+const primaryLossKeys = computed<[string, string][]>(() => task.value?.config.task === 'classify'
+  ? [['clsLoss', '分类损失 · train'], ['valLoss', '验证损失 · val']]
+  : [['boxLoss', '定位损失 · train'], ['valBoxLoss', '定位损失 · val']])
+const secondaryLossKeys = computed(() => task.value?.config.task === 'classify' ? [] : lossKeys.value.slice(1))
 
 function metric(key: string) {
   const value = task.value?.metrics[key]
@@ -166,39 +171,83 @@ watch([logPanel, () => props.initialTab], ([panel, tab]) => {
 
       <div class="telemetry" aria-label="训练任务摘要">
         <article class="task-info">
-          <h2>任务信息</h2>
-          <p class="task-id" :title="task.id">ID {{ task.id }}</p>
+          <div class="summary-heading">
+            <h2><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="1"/><path d="M4 10h16M10 4v16M15 10v10M10 15h10"/></svg>任务信息</h2>
+            <span class="summary-status" :data-status="task.status">{{ trainingStatusLabels[task.status] }}</span>
+          </div>
+          <div class="summary-body">
+          <strong class="summary-task-name" :title="task.config.name">{{ task.config.name }}</strong>
+          <p class="task-id" :title="task.id"><span>UUID</span><span>{{ task.id }}</span></p>
           <dl class="stat-grid">
             <div><dt>任务类型</dt><dd>{{ taskLabels[task.config.task] }}</dd></div>
-            <div><dt>训练数据集</dt><dd>{{ task.datasetName }}</dd></div>
-            <div><dt>基础模型</dt><dd>{{ task.modelName }}</dd></div>
+            <div><dt>训练数据集</dt><dd :title="task.datasetName">{{ task.datasetName }}<span v-if="task.datasetImageCount != null">（{{ task.datasetImageCount.toLocaleString('zh-CN') }} 张）</span></dd></div>
+            <div><dt>基础模型</dt><dd :title="task.modelName">{{ task.modelName }}</dd></div>
             <div v-if="task.resumeFromTaskId"><dt>恢复自任务</dt><dd><button type="button" class="button" @click="emit('open-task', task.resumeFromTaskId)">查看原任务</button></dd></div>
-            <div><dt>开始时间</dt><dd>{{ task.startedAt ? startTime.format(new Date(task.startedAt)) : '—' }}</dd></div>
           </dl>
+          </div>
+          <footer class="summary-footer"><span :title="task.startedAt ? startTime.format(new Date(task.startedAt)) : undefined">启动 {{ task.startedAt ? startClock.format(new Date(task.startedAt)) : '—' }}</span><strong>耗时 {{ duration(task.elapsedSeconds) }}</strong></footer>
         </article>
-        <article>
-          <h2>Epoch 进度</h2>
-          <div class="progress-caption"><strong>{{ task.epoch }} / {{ task.config.epochs }}</strong><span>{{ percent.toFixed(1) }}%</span></div>
+        <article class="epoch-card">
+          <div class="summary-heading">
+            <h2><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6a8 8 0 0 0-13 6M6 18a8 8 0 0 0 13-6M18 2v4h-4M6 22v-4h4"/><circle cx="12" cy="12" r="3"/></svg>Epoch 进度</h2>
+          </div>
+          <div class="summary-body">
+          <div class="progress-caption"><div><strong>{{ task.epoch }}</strong><span> / {{ task.config.epochs }}</span></div><b>{{ percent.toFixed(1) }}<small>%</small></b></div>
           <progress :value="percent" max="100" aria-label="训练进度"/>
-          <div class="run-times"><span>耗时 {{ duration(task.elapsedSeconds) }}</span><span v-if="!finished">预计剩余 {{ duration(task.etaSeconds) }}</span></div>
-        </article>
-        <article>
-          <h2>损失</h2>
-          <dl class="stat-grid">
-            <div v-for="[key, label] in lossKeys" :key="key"><dt>{{ label }}</dt><dd class="number">{{ metric(key) }}</dd></div>
+          <div class="progress-ticks" aria-hidden="true"><span v-for="tick in [0, 25, 50, 75, 100]" :key="tick">{{ tick }}%</span></div>
+          <dl class="summary-tiles epoch-details">
+            <div><dt>目标轮数</dt><dd>{{ task.config.epochs }} <small>epoch</small></dd></div>
+            <div><dt>{{ finished ? '已完成轮数' : '预计剩余' }}</dt><dd>{{ finished ? task.epoch : duration(task.etaSeconds) }}</dd></div>
           </dl>
+          </div>
+          <footer class="summary-footer"><span>总耗时 {{ duration(task.elapsedSeconds) }}</span><strong>{{ trainingStatusLabels[task.status] }}</strong></footer>
         </article>
-        <article>
-          <h2>最新评估指标</h2>
-          <dl class="stat-grid">
-            <div v-for="[key, label] in evaluationKeys" :key="key"><dt>{{ label }}</dt><dd class="number">{{ metric(key) }}</dd></div>
+        <article class="loss-card">
+          <div class="summary-heading">
+            <h2><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16M8 3v6M16 9v6M10 15v6"/></svg>损失</h2>
+            <span class="summary-tag">Epoch {{ task.epoch }}</span>
+          </div>
+          <div class="summary-body">
+          <dl class="primary-losses">
+            <div v-for="[key, label] in primaryLossKeys" :key="key"><dt>{{ label }}</dt><dd>{{ metric(key) }}</dd></div>
           </dl>
+          <dl v-if="secondaryLossKeys.length" class="stat-grid loss-details">
+            <div v-for="[key, label] in secondaryLossKeys" :key="key"><dt>{{ label }}</dt><dd class="number">{{ metric(key) }}</dd></div>
+          </dl>
+          </div>
+          <footer class="summary-footer"><span>损失来源</span><strong>最新训练轮次</strong></footer>
         </article>
-        <article>
-          <h2>设备信息</h2>
-          <dl class="stat-grid">
-            <div><dt>设备</dt><dd>{{ task.device?.name ?? task.config.deviceId }}</dd></div>
+        <article class="evaluation-card">
+          <div class="summary-heading">
+            <h2><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 4H5v17h14V4h-3M9 3h6v4H9zM8 11h8M8 15h8M8 18h5"/></svg>最新评估指标</h2>
+          </div>
+          <div class="summary-body">
+          <dl class="summary-tiles metric-tiles">
+            <div v-for="[key, label] in evaluationKeys.slice(0, 2)" :key="key"><dt>{{ label }}</dt><dd>{{ metric(key) }}</dd></div>
           </dl>
+          <dl v-if="evaluationKeys.length > 2" class="stat-grid evaluation-details">
+            <div v-for="[key, label] in evaluationKeys.slice(2)" :key="key"><dt>{{ label }}</dt><dd class="number">{{ metric(key) }}</dd></div>
+          </dl>
+          </div>
+          <footer class="summary-footer"><span>训练验证集</span><strong>Epoch {{ task.epoch }}</strong></footer>
+        </article>
+        <article class="device-card">
+          <div class="summary-heading">
+            <h2><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="5" width="14" height="14" rx="2"/><path d="M9 9h6v6H9zM9 2v3M15 2v3M9 19v3M15 19v3M2 9h3M2 15h3M19 9h3M19 15h3"/></svg>设备信息</h2>
+            <span class="summary-tag">{{ task.config.deviceId }}</span>
+          </div>
+          <div class="summary-body">
+          <strong class="device-name">{{ task.device?.name ?? task.config.deviceId }}</strong>
+          <dl class="summary-tiles device-versions">
+            <div><dt>PyTorch</dt><dd>{{ task.runtime?.versions?.torch ?? '—' }}</dd></div>
+            <div><dt>Python</dt><dd>{{ task.runtime?.versions?.python ?? '—' }}</dd></div>
+          </dl>
+          <dl class="stat-grid">
+            <div><dt>{{ task.device?.kind === 'cuda' ? '设备总显存' : '设备内存' }}</dt><dd>{{ task.device?.memoryBytes ? (task.device.memoryBytes / 1024 ** 3).toFixed(1) + ' GiB' : '—' }}</dd></div>
+            <div><dt>混合精度设置</dt><dd>{{ task.config.amp ? 'AMP 开启' : 'AMP 关闭' }}</dd></div>
+          </dl>
+          </div>
+          <footer class="summary-footer"><span>Ultralytics</span><strong>{{ task.runtime?.versions?.ultralytics ?? '—' }}</strong></footer>
         </article>
       </div>
 
@@ -275,7 +324,7 @@ watch([logPanel, () => props.initialTab], ([panel, tab]) => {
 
 <style scoped>
 .training-detail { display: grid; gap: 10px; min-width: 0; }
-.detail-navigation, .header-line, .actions, .task-heading, .progress-caption, .run-times {
+.detail-navigation, .header-line, .actions, .task-heading, .progress-caption {
   display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px;
 }
 .detail-navigation { font-size: 13px; color: var(--muted); }
@@ -294,19 +343,60 @@ h2 { margin: 0 0 8px; font-size: 14px; }
 .task-status[data-status="created"], .task-status[data-status="queued"] { color: #83530e; background: #fff3df; }
 .artifact-digest { overflow-wrap: anywhere; }
 dl { margin: 0; }
-.stat-grid { display: grid; gap: 6px 10px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
-dt { font-size: 12px; color: var(--muted); }
-dd { margin: 2px 0 0; font-weight: 600; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
-.task-info dd { font-weight: 400; }
-.progress-caption { font: 12px/1.4 Consolas, monospace; }
-.progress-caption strong { font-size: 21px; }
-.run-times { color: var(--muted); font-size: 11px; }
-progress { display: block; width: 100%; height: 8px; margin: 6px 0 8px; accent-color: var(--primary); }
-.telemetry { display: grid; grid-template-columns: minmax(0, 1.45fr) repeat(4, minmax(0, 1fr)); gap: 8px; }
-.telemetry article { min-width: 0; }
-.telemetry > article:not(.task-info) .stat-grid { align-items: center; }
-.task-id { margin: 0 0 6px; overflow-wrap: anywhere; color: var(--muted); font: 11px/1.4 Consolas, monospace; }
-.number { font: 600 14px/1.25 Consolas, monospace; }
+.telemetry { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; }
+.telemetry article { display: flex; flex-direction: column; min-width: 0; min-height: 256px; padding: 0; border-color: #cbd2dc; border-radius: 3px; box-shadow: 0 1px 3px #3641520a; }
+.summary-heading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 7px; min-height: 48px; margin: 0 12px; padding: 11px 0; border-bottom: 1px solid var(--line); }
+.summary-heading h2 { display: flex; align-items: center; gap: 7px; margin: 0; font-size: 13px; }
+.summary-heading svg { width: 17px; height: 17px; flex-shrink: 0; fill: none; stroke: #37506c; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.summary-status, .summary-tag { padding: 2px 5px; border: 1px solid var(--line); border-radius: 2px; color: #37506c; background: #f0f4fc; font: 11px/1.4 Consolas, monospace; }
+.summary-status { display: inline-flex; align-items: center; gap: 5px; font-family: inherit; white-space: nowrap; }
+.summary-status::before { content: ''; width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
+.summary-status[data-status="succeeded"], .summary-status[data-status="running"] { color: #25752b; background: #eaf7ec; border-color: #badcbe; }
+.summary-status[data-status="failed"] { color: var(--danger); background: #fff0f1; border-color: #e8b9bd; }
+.summary-status[data-status="queued"], .summary-status[data-status="created"] { color: #83530e; background: #fff3df; border-color: #ead3b1; }
+.summary-body { display: grid; align-content: start; gap: 12px; padding: 12px; }
+.summary-task-name { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; }
+.task-id { display: flex; align-items: center; gap: 5px; min-width: 0; margin: -7px 0 0; color: var(--muted); font: 10px/1.5 Consolas, monospace; }
+.task-id span:first-child { padding: 0 4px; border: 1px solid var(--line); background: var(--soft); }
+.task-id span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.stat-grid { display: grid; gap: 8px; }
+.stat-grid > div { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; min-width: 0; }
+dt { color: var(--muted); font-size: 11px; }
+.stat-grid dt { flex-shrink: 0; }
+dd { min-width: 0; margin: 0; font-size: 12px; font-weight: 600; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+.stat-grid dd { text-align: right; }
+.task-info .stat-grid { padding-top: 10px; border-top: 1px solid var(--line); }
+.task-info .stat-grid dd { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; }
+.summary-footer { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 5px 8px; margin-top: auto; padding: 9px 12px; border-top: 1px solid var(--line); background: #f7f8fc; color: var(--muted); font-size: 10px; }
+.summary-footer strong { color: #37506c; font-weight: 500; font-variant-numeric: tabular-nums; }
+.progress-caption { justify-content: space-between; flex-wrap: nowrap; gap: 8px; font: 12px/1.3 Consolas, monospace; }
+.progress-caption strong { font-size: clamp(23px, 1.7vw, 30px); color: var(--text); }
+.progress-caption span { color: var(--muted); }
+.progress-caption b { color: #37506c; font-size: clamp(19px, 1.4vw, 24px); }
+.progress-caption small { font-size: .75em; }
+.epoch-card progress { display: block; width: 100%; height: 8px; margin: 3px 0 0; overflow: hidden; border: 0; border-radius: 4px; background: #e1e7f0; accent-color: #4f6885; }
+.epoch-card progress::-webkit-progress-bar { background: #e1e7f0; border-radius: 4px; }
+.epoch-card progress::-webkit-progress-value { background: #4f6885; border-radius: 4px; }
+.epoch-card progress::-moz-progress-bar { background: #4f6885; border-radius: 4px; }
+.progress-ticks { display: flex; justify-content: space-between; margin-top: -6px; color: var(--muted); font: 9px/1.4 Consolas, monospace; }
+.summary-tiles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.summary-tiles > div { min-width: 0; padding: 9px; background: #f6f8fd; }
+.summary-tiles dd { margin-top: 6px; font-family: Consolas, monospace; }
+.epoch-details { padding-top: 10px; border-top: 1px solid var(--line); }
+.epoch-details dd { font-size: 13px; }
+.epoch-details small { font-size: 10px; font-weight: 400; color: var(--muted); }
+.primary-losses { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.primary-losses > div + div { border-left: 1px solid var(--line); padding-left: 10px; }
+.primary-losses dd, .metric-tiles dd { margin-top: 7px; font: 700 clamp(22px, 1.7vw, 28px)/1.2 Consolas, monospace; }
+.primary-losses > div + div dd { color: #37506c; }
+.metric-tiles > div { border: 1px solid #e2e6ef; }
+.metric-tiles > div + div dd { color: #25752b; }
+.loss-details, .evaluation-details { padding-top: 12px; border-top: 1px solid var(--line); }
+.number { font: 600 12px/1.4 Consolas, monospace; }
+.device-name { font-size: 14px; line-height: 1.5; overflow-wrap: anywhere; }
+.device-versions > div { padding: 0; background: transparent; }
+.device-versions dd { font-size: 11px; font-weight: 500; }
+.device-card .stat-grid { padding-top: 10px; border-top: 1px solid var(--line); }
 .monitor-tabs { display: flex; flex-wrap: wrap; gap: 4px; padding: 4px 5px 0; border: 1px solid var(--line); background: var(--surface); border-radius: 5px; }
 .monitor-tabs button { padding: 7px 13px; border: 0; border-bottom: 2px solid transparent; background: transparent; color: var(--muted); font-size: 13px; }
 .monitor-tabs button:hover { background: var(--soft); }
@@ -332,8 +422,12 @@ progress { display: block; width: 100%; height: 8px; margin: 6px 0 8px; accent-c
 .confirm-dialog::backdrop { background: #1f2b415c; }
 .confirm-dialog p { color: var(--muted); }
 .confirm-dialog .actions { justify-content: flex-end; }
-@media (max-width: 1240px) {
-  .telemetry { grid-template-columns: repeat(auto-fit, minmax(min(100%, 170px), 1fr)); }
+@media (max-width: 1380px) {
+  .telemetry { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+  .telemetry article { grid-column: span 2; }
+  .telemetry .evaluation-card, .telemetry .device-card { grid-column: span 3; }
 }
+@media (max-width: 1000px) { .telemetry { grid-template-columns: repeat(2, minmax(0, 1fr)); } .telemetry article, .telemetry .evaluation-card, .telemetry .device-card { grid-column: auto; } }
+@media (max-width: 640px) { .telemetry { grid-template-columns: minmax(0, 1fr); } }
 @media (max-width: 960px) { .monitor-grid.with-preview { grid-template-columns: minmax(0, 1fr); } }
 </style>
