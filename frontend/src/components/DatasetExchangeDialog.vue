@@ -305,7 +305,7 @@ names: [coal, gangue]</pre>
       <section class="exchange-controls" aria-label="数据集交换配置">
         <div class="exchange-switch" role="group" aria-label="交换方式">
           <button type="button" aria-pressed="true" :disabled="busy">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M4 15v5h16v-5"/></svg>导出
+            导出
           </button>
         </div>
 
@@ -441,7 +441,6 @@ names: [coal, gangue]</pre>
   color: var(--muted);
 }
 .exchange-switch button[aria-pressed="true"] { background: #294866; color: white; font-weight: 650; }
-.exchange-switch svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 1.75; }
 .exchange-form { display: grid; gap: 14px; margin-bottom: 16px; }
 .exchange-form > label { display: block; font-weight: 600; }
 .exchange-form small, .result-grid small { color: var(--muted); font-size: 12px; font-weight: normal; }
