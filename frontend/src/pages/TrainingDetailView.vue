@@ -6,6 +6,7 @@ import DeleteTrainingButton from '../components/training/DeleteTrainingButton.vu
 import TrainingLogPanel from '../components/training/TrainingLogPanel.vue'
 import TrainingPreview from '../components/training/TrainingPreview.vue'
 import TrainingSystemPanel from '../components/training/TrainingSystemPanel.vue'
+import ResumeTrainingDialog from '../components/training/ResumeTrainingDialog.vue'
 import { useTrainingMonitor } from '../composables/useTrainingMonitor'
 import { registerTrainingModel, trainingLogDownloadUrl } from '../api/training'
 import { taskLabels } from '../domain'
@@ -13,7 +14,7 @@ import { terminalTrainingStates, trainingPhaseLabels, trainingStatusLabels } fro
 import type { TrainingConfig } from '../types/training'
 
 const props = defineProps<{ taskId: string; initialTab?: 'logs' }>()
-const emit = defineEmits<{ back: []; retrain: [config: TrainingConfig] }>()
+const emit = defineEmits<{ back: []; retrain: [config: TrainingConfig]; 'open-task': [id: string] }>()
 const { task, metrics, logs, refreshing, refreshError, action, actionError, refresh, runAction } = useTrainingMonitor(() => props.taskId)
 const logPanel = ref<InstanceType<typeof TrainingLogPanel>>()
 const confirmDialog = ref<HTMLDialogElement>()
@@ -23,6 +24,7 @@ const percent = computed(() => task.value?.status === 'succeeded' ? 100
 const finished = computed(() => task.value && terminalTrainingStates.has(task.value.status))
 const registering = ref(false)
 const registrationError = ref('')
+const resumeOpen = ref(false)
 const tabs = [
   { id: 'overview', label: '概览' }, { id: 'logs', label: '日志流' },
   { id: 'metrics', label: '指标曲线' }, { id: 'system', label: '系统监控' },
@@ -89,6 +91,7 @@ watch(() => props.taskId, () => {
   confirmDialog.value?.close()
   registrationError.value = ''
   registering.value = false
+  resumeOpen.value = false
 })
 watch([() => props.taskId, () => props.initialTab], ([, tab]) => {
   activeTab.value = tab ?? 'overview'
@@ -125,10 +128,14 @@ watch([logPanel, () => props.initialTab], ([panel, tab]) => {
               :disabled="!!action || task.cancelRequested" @click="requestAction">
               {{ action || task.cancelRequested ? '处理中…' : actionLabel }}
             </button>
-            <button v-if="finished" type="button" class="button primary" @click="emit('retrain', task.config)">再次训练</button>
+            <button v-if="task.resume?.available" type="button" class="button primary" @click="resumeOpen = true">恢复中断训练</button>
+            <button v-if="task.modelVersion" type="button" class="button primary"
+              @click="emit('retrain', { ...task.config, modelId: 'version:' + task.modelVersion.id, freeze: 0 })">使用此模型微调</button>
+            <button v-if="finished" type="button" class="button" @click="emit('retrain', task.config)">复制配置新建</button>
             <DeleteTrainingButton :task="task" @deleted="emit('back')" />
           </div>
         </div>
+        <p v-if="['failed', 'canceled'].includes(task.status) && task.resume?.reason" class="monitor-mode">恢复检查：{{ task.resume.reason }}</p>
         <div v-if="actionError || task.failure || task.error" class="notice error" role="alert">
           <strong>{{ actionError || task.failure?.summary || task.error }}</strong>
           <p v-if="task.failure">
@@ -147,6 +154,7 @@ watch([logPanel, () => props.initialTab], ([panel, tab]) => {
             <div><dt>任务类型</dt><dd>{{ taskLabels[task.config.task] }}</dd></div>
             <div><dt>训练数据集</dt><dd>{{ task.datasetName }}</dd></div>
             <div><dt>基础模型</dt><dd>{{ task.modelName }}</dd></div>
+            <div v-if="task.resumeFromTaskId"><dt>恢复自任务</dt><dd><button type="button" class="button" @click="emit('open-task', task.resumeFromTaskId)">查看原任务</button></dd></div>
             <div><dt>开始时间</dt><dd>{{ task.startedAt ? startTime.format(new Date(task.startedAt)) : '—' }}</dd></div>
           </dl>
         </article>
@@ -171,7 +179,7 @@ watch([logPanel, () => props.initialTab], ([panel, tab]) => {
         <article>
           <h2>设备与学习率</h2>
           <dl class="stat-grid">
-            <div><dt>设备</dt><dd>{{ task.device?.name ?? '本机 CPU' }}</dd></div>
+            <div><dt>设备</dt><dd>{{ task.device?.name ?? task.config.deviceId }}</dd></div>
             <div><dt>当前学习率</dt><dd class="number">{{ metric('learningRate') }}</dd></div>
             <div v-if="task.runtime?.processId"><dt>{{ finished ? '训练 PID' : 'PID' }}</dt><dd class="number">{{ task.runtime.processId }}</dd></div>
           </dl>
@@ -221,6 +229,8 @@ watch([logPanel, () => props.initialTab], ([panel, tab]) => {
           </section>
         </div>
       </div>
+      <ResumeTrainingDialog v-if="resumeOpen" :task="task" @close="resumeOpen = false"
+        @created="resumeOpen = false; emit('open-task', $event)" />
     </template>
 
     <dialog ref="confirmDialog" class="confirm-dialog" aria-labelledby="confirm-training-action">

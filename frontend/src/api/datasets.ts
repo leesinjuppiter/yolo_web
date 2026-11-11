@@ -56,6 +56,10 @@ export async function listDatasets() {
   return ((await (await request(root)).json()) as DatasetResponse[]).map(adapt)
 }
 
+export async function getDataset(id: string) {
+  return adapt(await (await request(at(id))).json() as DatasetResponse)
+}
+
 export function createDataset(name: string, task: SelectableDatasetTask) {
   return dataset(root, json('POST', { name, task_type: task }))
 }

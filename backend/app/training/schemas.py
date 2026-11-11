@@ -1,7 +1,7 @@
 from typing import Annotated, Literal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, StringConstraints, field_validator
+from pydantic import BaseModel, ConfigDict, Field, StringConstraints, field_validator, model_validator
 
 from app.dataset.schemas import Name, TASK_ANNOTATION
 
@@ -21,7 +21,7 @@ class TrainingConfig(BaseModel):
     datasetId: UUID
     task: TrainingType
     modelId: Annotated[str, StringConstraints(min_length=1, max_length=100)]
-    deviceId: Literal["cpu"]
+    deviceId: Annotated[str, StringConstraints(pattern=r"^(cpu|cuda:(0|[1-9][0-9]*))$")]
     epochs: Annotated[int, Field(strict=True, ge=1, le=10000)]
     batchSize: Annotated[int, Field(strict=True, ge=1, le=1024)]
     imageSize: Annotated[int, Field(strict=True, ge=32, le=4096)]
@@ -30,8 +30,16 @@ class TrainingConfig(BaseModel):
     finalLearningRate: Annotated[float, Field(gt=0, le=1)]
     seed: Annotated[int, Field(strict=True, ge=0, le=2147483647)]
     patience: Annotated[int, Field(strict=True, ge=0, le=10000)]
-    amp: Literal[False] = False
+    amp: bool = False
+    freeze: Annotated[int, Field(strict=True, ge=0, le=1000)] = 0
+    workers: Annotated[int, Field(strict=True, ge=0, le=32)] = 0
     augmentation: Literal["standard"]
+
+    @model_validator(mode="after")
+    def check_device_parameters(self):
+        if self.deviceId == "cpu" and self.amp:
+            raise ValueError("CPU 训练不支持启用 AMP，请关闭 AMP 或选择 CUDA 设备")
+        return self
 
     @field_validator("imageSize")
     @classmethod

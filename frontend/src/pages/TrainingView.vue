@@ -37,7 +37,7 @@ try {
 const architectures = computed(() => overview.value?.architectures ?? [])
 const statusCounts = computed(() => overview.value?.statusCounts ?? {})
 const taskCount = computed(() => Object.values(statusCounts.value).reduce((sum, count) => sum + count, 0))
-const cpu = computed(() => overview.value?.devices[0])
+const devices = computed(() => overview.value?.devices.map(device => device.name).join('、'))
 
 const qualityMetrics = {
   detect: ['map50_95', 'mAP@50–95'],
@@ -171,7 +171,7 @@ function canRetrain(task: TrainingTask) {
     <div v-if="overview" class="training-overview" aria-label="训练统计">
       <div class="summary-card">
         <p>计算设备</p>
-        <strong>{{ cpu?.name ?? '本机 CPU' }}</strong>
+        <strong>{{ devices || '暂无设备信息' }}</strong>
         <small>{{ overview.workerAvailable === false ? '训练执行器未启动' : '单任务执行' }}</small>
       </div>
       <div class="summary-card">
@@ -181,9 +181,10 @@ function canRetrain(task: TrainingTask) {
         <small>任务总数 {{ taskCount }} · {{ statusCounts.created ?? 0 }} 准备中</small>
       </div>
       <div class="summary-card">
-        <p>平均 {{ selectedMetric?.[1] ?? '训练精度' }}</p>
-        <strong>{{ formatScore(overview.averageScore) }}</strong>
-        <small>{{ taskType === 'all' ? '选择任务类型查看' : `${taskLabels[taskType]} · 已完成任务` }}</small>
+        <p>评估比较口径</p>
+        <strong>同条件比较</strong>
+        <small>比较前需核对验证数据、类别映射与评估参数。</small>
+        <small>任务列表不汇总跨数据集平均精度。</small>
       </div>
       <div class="summary-card">
         <p>累计训练耗时</p>
@@ -279,7 +280,7 @@ function canRetrain(task: TrainingTask) {
           <footer class="card-actions">
             <button class="button primary" type="button" @click="emit('open', task.id)">{{ detailsLabel(task) }}</button>
             <button v-if="task.status !== 'queued'" class="button" type="button" @click="emit('open', task.id, 'logs')">查看日志</button>
-            <button v-if="canRetrain(task)" class="button" type="button" @click="emit('retrain', task.config)">再次训练</button>
+            <button v-if="canRetrain(task)" class="button" type="button" @click="emit('retrain', task.config)">复制配置新建</button>
             <DeleteTrainingButton :task="task" @deleted="refresh" />
           </footer>
         </article>
@@ -307,7 +308,7 @@ function canRetrain(task: TrainingTask) {
                 <div class="table-actions">
                   <button class="button" type="button" @click="emit('open', task.id)">{{ detailsLabel(task) }}</button>
                   <button v-if="task.status !== 'queued'" class="button" type="button" @click="emit('open', task.id, 'logs')">查看日志</button>
-                  <button v-if="canRetrain(task)" class="button" type="button" @click="emit('retrain', task.config)">再次训练</button>
+                  <button v-if="canRetrain(task)" class="button" type="button" @click="emit('retrain', task.config)">复制配置新建</button>
                   <DeleteTrainingButton :task="task" @deleted="refresh" />
                 </div>
               </td>

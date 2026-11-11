@@ -10,7 +10,7 @@ import CreateTrainingDialog from './components/training/CreateTrainingDialog.vue
 import DatasetsView from './DatasetsView.vue'
 import TrainingView from './pages/TrainingView.vue'
 import TrainingDetailView from './pages/TrainingDetailView.vue'
-import { createDataset, deleteDataset, deleteDatasetImage, listDatasets, readReportSnapshot, refreshReportSnapshot, saveSimilarityReview, saveSplits, updateAnnotations, updateDatasetClass, uploadImages } from './api/datasets'
+import { createDataset, deleteDataset, deleteDatasetImage, getDataset, listDatasets, readReportSnapshot, refreshReportSnapshot, saveSimilarityReview, saveSplits, updateAnnotations, updateDatasetClass, uploadImages } from './api/datasets'
 import type { Annotation, AnnotationStatus, Dataset, DatasetAction, DatasetClass, DatasetImage, DatasetReport, DialogKind, ReportIssue, ReportKind, ReportSnapshot, SelectableDatasetTask, SimilarityDecision, Split } from './domain'
 import type { TrainingConfig } from './types/training'
 
@@ -19,6 +19,7 @@ const router = useRouter()
 const inTraining = computed(() => route.name === 'training' || route.name === 'training-detail')
 const activeSection = computed(() => inTraining.value ? 'training' : 'datasets')
 const trainingDraft = ref<{ datasetId?: string; config?: TrainingConfig }>()
+const trainingDatasetsRevision = ref(0)
 watch(inTraining, visible => { if (!visible) trainingDraft.value = undefined })
 const datasets = ref<Dataset[]>([])
 const loaded = ref(false)
@@ -99,7 +100,8 @@ async function initialize() {
   }
 }
 
-onMounted(initialize)
+onMounted(async () => { await router.isReady(); if (!inTraining.value) void initialize() })
+watch(inTraining, visible => { if (!visible && !loaded.value) void initialize() })
 onUnmounted(() => clearTimeout(noticeTimer))
 onUnmounted(stopReportSync)
 
@@ -125,6 +127,17 @@ async function openTrainingDraft(datasetId?: string) {
 
 function retrain(config: TrainingConfig) {
   trainingDraft.value = { datasetId: config.datasetId, config: { ...config, name: '' } }
+}
+
+async function adjustTrainingSplits(datasetId: string) {
+  try {
+    const dataset = await getDataset(datasetId)
+    if (!datasets.value.some(item => item.id === dataset.id)) datasets.value = [...datasets.value, dataset]
+    else replaceDataset(dataset)
+    openDialog('splits', dataset)
+  } catch (error) {
+    showNotice(message(error))
+  }
 }
 
 function openTrainingTask(id: string, tab?: 'logs') {
@@ -335,6 +348,7 @@ function datasetAction(action: DatasetAction, dataset: Dataset) {
 
 function replaceDataset(record: Dataset, reportAction: 'open' | 'poll' = 'open') {
   datasets.value = datasets.value.map(item => item.id === record.id ? record : item)
+  trainingDatasetsRevision.value += 1
   if (report.value?.datasetId !== record.id) return
   if (route.name === 'datasets') syncReport(false, reportAction)
   else closeReport()
@@ -485,8 +499,8 @@ async function deleteImage(imageId: string) {
         </div>
       </nav>
       <div class="workbench-status">
-        <strong><span :class="{ ready: loaded && !loadingError }" aria-hidden="true"></span>本地工作台</strong>
-        <small>{{ !loaded ? '正在连接本地标注服务' : loadingError ? '本地标注服务连接异常' : '数据与标注保存在本地设备' }}</small>
+        <strong><span v-if="!inTraining" :class="{ ready: loaded && !loadingError }" aria-hidden="true"></span>{{ inTraining ? '训练工作空间' : '本地工作台' }}</strong>
+        <small>{{ inTraining ? '执行设备与状态以任务页面为准' : !loaded ? '正在连接本地标注服务' : loadingError ? '本地标注服务连接异常' : '数据与标注保存在本地设备' }}</small>
       </div>
     </aside>
     <div class="workbench-body">
@@ -495,7 +509,7 @@ async function deleteImage(imageId: string) {
           <span class="workbench-parent">检测工作台</span><span class="workbench-parent" aria-hidden="true">/</span>
           <strong>{{ inTraining ? '模型训练' : '数据集管理' }}</strong>
           <span class="workbench-local" :class="{ 'workbench-training-mode': inTraining }">
-            {{ inTraining ? '本机 CPU 训练' : '本地标注服务' }}
+            {{ inTraining ? '训练配置与监控' : '本地标注服务' }}
           </span>
         </div>
         <div v-if="inTraining" class="workbench-actions">
@@ -523,6 +537,7 @@ async function deleteImage(imageId: string) {
           :initial-tab="route.query.tab === 'logs' ? 'logs' : undefined"
           @back="router.push({ name: 'training' })"
           @retrain="retrain"
+          @open-task="openTrainingTask"
         />
         <div v-show="!inTraining">
           <div v-if="!loaded" class="page-state" role="status">正在读取数据集…</div>
@@ -565,15 +580,12 @@ async function deleteImage(imageId: string) {
   </template>
   <CreateTrainingDialog
     v-if="inTraining && trainingDraft"
-    :datasets="datasets"
-    :datasets-loading="!loaded"
-    :datasets-error="loadingError"
+    :datasets-revision="trainingDatasetsRevision"
     :dataset-id="trainingDraft.datasetId"
     :initial-config="trainingDraft.config"
     @close="trainingDraft = undefined"
     @created="openTrainingTask"
-    @adjust-splits="openDialog('splits', $event)"
-    @retry-datasets="initialize"
+    @adjust-splits="adjustTrainingSplits"
   />
   <DatasetExchangeDialog
     v-if="dialog === 'import' || dialog === 'export'"

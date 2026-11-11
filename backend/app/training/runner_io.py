@@ -123,7 +123,13 @@ def failure_for(stage: str, exit_code: int, capture: OutputCapture) -> dict:
     elif capture.last_error:
         summary = capture.last_error
         error = summary.lower()
-        if "out of memory" in error or "can't allocate memory" in error:
+        if "cuda" in error and "out of memory" in error:
+            code, suggestion = "CUDA_OUT_OF_MEMORY", "减小 Batch Size 或图像尺寸，并检查 GPU 显存占用。"
+        elif "no kernel image" in error or "not compatible with the current pytorch" in error:
+            code, suggestion = "CUDA_ARCH_UNSUPPORTED", "使用支持当前 GPU 计算能力的 PyTorch CUDA 构建。"
+        elif "cuda" in error and any(item in error for item in ("unavailable", "invalid device", "driver", "no cuda")):
+            code, suggestion = "CUDA_UNAVAILABLE", "检查训练执行器的 GPU、驱动和 CUDA 环境。"
+        elif "out of memory" in error or "can't allocate memory" in error:
             code, suggestion = "CPU_MEMORY_EXHAUSTED", "尝试减小 Batch Size 或图像尺寸。"
         elif "modulenotfounderror" in error or "dll load failed" in error or "winerror 193" in error:
             code, suggestion = "DEPENDENCY_ERROR", "检查指定 Conda 环境中的训练依赖。"

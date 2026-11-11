@@ -25,6 +25,13 @@ class TrainingTask(Base):
     dataset_image_count: Mapped[int] = mapped_column(Integer, default=0)
     dataset_class_count: Mapped[int] = mapped_column(Integer, default=0)
     dataset_revision: Mapped[str | None] = mapped_column(String(128))
+    parent_model_version_id: Mapped[str | None] = mapped_column(
+        UUID(as_uuid=False), ForeignKey("model_versions.id"),
+    )
+    resume_from_task_id: Mapped[str | None] = mapped_column(
+        UUID(as_uuid=False), ForeignKey("training_tasks.id"),
+    )
+    resume_checkpoint: Mapped[dict | None] = mapped_column(JSONB)
     config: Mapped[dict] = mapped_column(JSONB)
     model_name: Mapped[str] = mapped_column(String(120))
     architecture: Mapped[str] = mapped_column(String(32))

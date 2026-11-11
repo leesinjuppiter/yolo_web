@@ -39,7 +39,13 @@ def _callbacks(model, emit):
     last_epoch = 0
 
     def setup(trainer):
-        emit("environment", arguments=vars(trainer.args))
+        parameters = list(trainer.model.parameters())
+        trainable = sum(parameter.numel() for parameter in parameters if parameter.requires_grad)
+        if not trainable:
+            raise ValueError("冻结配置未留下可训练参数")
+        emit("environment", arguments={**vars(trainer.args), "amp": bool(trainer.amp)}, actualDevice=str(trainer.device),
+             trainableParameters=trainable,
+             frozenParameters=sum(parameter.numel() for parameter in parameters if not parameter.requires_grad))
         emit("phase", phase="training")
 
     def batch(_trainer):
@@ -84,9 +90,27 @@ def _run(config: dict, emit) -> None:
     if model.task != config["task"]:
         emit("failure", code="WEIGHT_TASK_MISMATCH", summary=f"模型类型为 {model.task}，任务为 {config['task']}。")
         raise ValueError("训练任务与模型类型不匹配")
-    model_args = {**config["arguments"], "device": "cpu", "amp": False, "workers": 0, "save": True,
+    freeze = config["arguments"].get("freeze", 0)
+    if freeze:
+        modules = getattr(model.model, "model", None)
+        if modules is None or freeze >= len(modules):
+            emit("failure", code="FREEZE_INVALID", summary="冻结层数必须小于当前模型的模块数量")
+            raise ValueError("冻结层数超出模型范围")
+        if not config["arguments"].get("pretrained"):
+            raise ValueError("不能冻结从零训练的随机初始化层")
+    device = config["arguments"].get("device", "cpu")
+    if device != "cpu":
+        import torch
+
+        index = int(device.split(":")[1])
+        if not torch.cuda.is_available() or index >= torch.cuda.device_count():
+            emit("failure", code="CUDA_UNAVAILABLE", summary="所选 CUDA 设备在训练启动时不可用")
+            raise RuntimeError("所选 CUDA 设备不可用")
+    model_args = {**config["arguments"], "device": device, "save": True,
                   "project": config["directory"], "name": "output", "exist_ok": True,
                   "data": config["data"], "plots": False}
+    if config.get("resume"):
+        model_args.update(resume=config["model"], save_dir=str(Path(config["directory"]) / "output"))
     _callbacks(model, emit)
     result = model.train(**model_args)
     for thread in threads():
@@ -98,7 +122,7 @@ def _run(config: dict, emit) -> None:
 
 def _watch_parent() -> None:
     # Non-Windows hosts use the parent pipe and a separate process group.
-    sys.stdin.buffer.read(1)
+    os.read(sys.stdin.fileno(), 1)
     os.killpg(os.getpgrp(), signal.SIGKILL)
 
 

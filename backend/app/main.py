@@ -70,4 +70,5 @@ def database_unavailable(_request: Request, _error: OperationalError):
 
 @app.exception_handler(ValueError)
 def invalid_request(_request: Request, error: ValueError):
-    return JSONResponse({"detail": str(error)}, status_code=422)
+    detail = {"message": str(error), "issues": error.issues} if hasattr(error, "issues") else str(error)
+    return JSONResponse({"detail": detail}, status_code=422)

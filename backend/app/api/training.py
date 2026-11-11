@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.training.schemas import Sort, Status, TrainingConfig, TrainingType
+from app.training.resume_schemas import ResumeRequest
 from app.training.tools import TOOLS
 
 router = APIRouter(prefix="/api/training", tags=["training"])
@@ -16,8 +17,13 @@ Limit = Annotated[int, Query(ge=1, le=1000)]
 
 
 @router.get("/options")
-def options():
-    return TOOLS["training.options"]()
+def options(db: Database):
+    return TOOLS["training.options"](db)
+
+
+@router.get("/datasets")
+def datasets(db: Database):
+    return TOOLS["training.datasets"](db)
 
 
 @router.post("/preflight")
@@ -48,6 +54,12 @@ def status(task_id: UUID, db: Database):
 @router.post("/{task_id}/cancel")
 def cancel(task_id: UUID, db: Database):
     return TOOLS["training.cancel"](db, str(task_id))
+
+
+@router.post("/{task_id}/resume", status_code=202)
+def resume(task_id: UUID, config: ResumeRequest, db: Database,
+           key: Annotated[str | None, Header(alias="Idempotency-Key", min_length=1, max_length=120)] = None):
+    return TOOLS["training.resume"](db, str(task_id), config, key)
 
 
 @router.delete("/{task_id}", status_code=204)

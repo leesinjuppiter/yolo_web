@@ -1,4 +1,4 @@
-"""Single-machine CPU training worker, independent of the API lifecycle."""
+"""Single-machine training worker, independent of the API lifecycle."""
 
 import json
 import logging
@@ -19,6 +19,7 @@ from sqlalchemy.orm import Session
 from app.core.config import data_dir
 from app.core.database import engine
 from app.training.catalog import expand_arguments, resolve_model
+from app.training.devices import DeviceUnavailableError, publish_capabilities, validate_device
 from app.training.models import TrainingLog, TrainingMetric, TrainingTask
 from app.training.repository import task_dir, WORKER_LOCK
 from app.training.resources import ResourceSampler
@@ -108,6 +109,7 @@ def _edit(task: TrainingTask):
 def _check(task: TrainingTask, stop: Event) -> None:
     if stop.is_set():
         raise WorkerStopping("训练执行器正在停止")
+    publish_capabilities()
     with _edit(task) as (_, row):
         canceled = row.cancel_requested
     if canceled:
@@ -115,11 +117,17 @@ def _check(task: TrainingTask, stop: Event) -> None:
 
 
 def _prepare(task: TrainingTask, directory: Path, check) -> dict:
-    with Session(engine()) as db:
-        snapshot = prepare_snapshot(db, task.dataset_id, task.config["task"], directory / "input",
-                                    expected_revision=task.dataset_revision, check_cancel=check)
+    if getattr(task, "resume_from_task_id", None):
+        from app.training.resume import prepare_resume
+
+        snapshot = prepare_resume(task, directory, check)
+    else:
+        with Session(engine()) as db:
+            snapshot = prepare_snapshot(db, task.dataset_id, task.config["task"], directory / "input",
+                                        expected_revision=task.dataset_revision, check_cancel=check)
     for key in ("data_path", "manifest_path"):
-        snapshot[key] = Path(snapshot[key]).relative_to(directory).as_posix()
+        if Path(snapshot[key]).is_absolute():
+            snapshot[key] = Path(snapshot[key]).relative_to(directory).as_posix()
     check()
     with _edit(task) as (_, row):
         if row.cancel_requested:
@@ -133,7 +141,15 @@ def _prepare(task: TrainingTask, directory: Path, check) -> dict:
 
 
 def _copy_model(task: TrainingTask, directory: Path, check) -> tuple[Path, str, bool]:
-    option = resolve_model(task.config["modelId"])
+    if (task.snapshot or {}).get("resume_model"):
+        return directory / task.snapshot["resume_model"], task.snapshot["resume_sha256"], True
+    if task.config["modelId"].startswith("version:"):
+        from app.models.sources import resolve_version_model
+
+        with Session(engine()) as db:
+            option = resolve_version_model(db, task.config["modelId"])
+    else:
+        option = resolve_model(task.config["modelId"])
     source = Path(option.source)
     if not option.pretrained:
         package = find_spec("ultralytics")
@@ -149,19 +165,24 @@ def _copy_model(task: TrainingTask, directory: Path, check) -> tuple[Path, str, 
             check()
             digest.update(chunk)
             output.write(chunk)
+    if option.sha256 and digest.hexdigest() != option.sha256:
+        raise ValueError("模型权重校验值与登记版本不一致")
     return model, digest.hexdigest(), option.pretrained
 
 
 def _invoke(task: TrainingTask, directory: Path, check) -> OutputCapture:
+    device = validate_device(task.config["deviceId"], execution=True)
     model, model_hash, pretrained = _copy_model(task, directory, check)
     invocation = {"model": str(model), "task": task.config["task"], "directory": str(directory),
                   "data": str(directory / task.snapshot["data_path"]),
-                  "arguments": {**expand_arguments(task.config), "pretrained": pretrained}}
+                  "arguments": {**expand_arguments(task.config), "pretrained": pretrained},
+                  "resume": bool(getattr(task, "resume_from_task_id", None))}
     (directory / "invocation.json").write_text(json.dumps(invocation, ensure_ascii=False), encoding="utf-8")
     with _edit(task) as (_, row):
-        row.environment = {"python": sys.version, "command": command(directory), "device": "cpu",
+        row.environment = {**(row.environment or {}), "python": sys.version, "command": command(directory), "device": device,
                            "modelSource": model.relative_to(directory).as_posix(), "modelSha256": model_hash,
                            "arguments": invocation["arguments"]}
+    task.environment = {**(task.environment or {}), "device": device}
     check()
     return OutputCapture(directory)
 
@@ -192,8 +213,8 @@ def _capture(task: TrainingTask, capture: OutputCapture, *, finished: bool = Fal
 def _train(task: TrainingTask, directory: Path, stop: Event, check) -> None:
     capture = _invoke(task, directory, check)
     try:
-        with run_child(directory) as child:
-            sampler = ResourceSampler(child.pid)
+        with run_child(directory, task.config["deviceId"]) as child:
+            sampler = ResourceSampler(child.pid, device=(task.environment or {}).get("device"))
             with _edit(task) as (_, row):
                 row.environment = {**row.environment, "processId": child.pid}
             while child.poll() is None:
@@ -245,7 +266,7 @@ def _process(task: TrainingTask, stop: Event, verify_lock) -> None:
         if task.snapshot is None:
             task.snapshot = _prepare(task, directory, check)
         _train(task, directory, stop, check)
-    except (Canceled, SnapshotError, WorkerStopping) as exc:
+    except (Canceled, SnapshotError, WorkerStopping, DeviceUnavailableError, ValueError) as exc:
         artifacts = _retained_artifacts(directory)
         with _edit(task) as (_, row):
             row.artifacts = artifacts
@@ -254,6 +275,10 @@ def _process(task: TrainingTask, stop: Event, verify_lock) -> None:
             elif isinstance(exc, SnapshotError):
                 _finish(row, "failed", {"code": exc.code, "stage": row.phase, "summary": str(exc),
                                         "details": exc.details})
+            elif isinstance(exc, DeviceUnavailableError):
+                _finish(row, "failed", {"code": "CUDA_UNAVAILABLE", "stage": row.phase, "summary": str(exc)})
+            elif isinstance(exc, ValueError):
+                _finish(row, "failed", {"code": "TRAINING_INPUT_INVALID", "stage": row.phase, "summary": str(exc)})
             else:
                 _finish(row, "failed", {"code": "WORKER_STOPPED", "stage": row.phase, "summary": str(exc)})
     except Exception:
@@ -282,8 +307,10 @@ def _run_queue(stop: Event) -> None:
         if not connection.scalar(text("select pg_try_advisory_lock(:key)"), {"key": WORKER_LOCK}):
             return
         try:
+            publish_capabilities(force=True)
             _recover()
             while not stop.is_set():
+                publish_capabilities()
                 connection.execute(text("select 1"))
                 task = _claim()
                 if task is None:

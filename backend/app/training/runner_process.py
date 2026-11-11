@@ -81,16 +81,25 @@ def worker_file_lock(directory: Path):
             yield True  # closing the file releases the lock on both platforms
 
 
-@contextmanager
-def run_child(directory: Path):
+def child_environment(directory: Path, device_id: str) -> dict[str, str]:
     config_dir = directory / "engine_config"
     config_dir.mkdir(exist_ok=True)
-    environment = {**os.environ, "CUDA_VISIBLE_DEVICES": "-1", "YOLO_OFFLINE": "true",
+    environment = {**os.environ, "YOLO_OFFLINE": "true",
                    "YOLO_AUTOINSTALL": "false", "PYTHONUTF8": "1", "PYTHONIOENCODING": "utf-8",
                    "YOLO_CONFIG_DIR": str(config_dir), "MPLCONFIGDIR": str(config_dir / "matplotlib")}
     environment.pop("WORKBENCH_DATABASE_URL", None)
+    environment.pop("WORKBENCH_TEST_DATABASE_URL", None)
+    if device_id == "cpu":
+        environment["CUDA_VISIBLE_DEVICES"] = "-1"
     environment.pop("RANK", None)
     environment.pop("LOCAL_RANK", None)
+    environment.pop("WORLD_SIZE", None)
+    return environment
+
+
+@contextmanager
+def run_child(directory: Path, device_id: str = "cpu"):
+    environment = child_environment(directory, device_id)
     with (directory / "training.log").open("ab", buffering=0) as output:
         process = subprocess.Popen(
             command(directory), cwd=Path(__file__).resolve().parents[2], env=environment,

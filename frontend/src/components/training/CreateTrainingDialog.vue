@@ -1,22 +1,19 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
-import { checkTraining, createTraining, DuplicateTrainingNameError, getTrainingOptions, trainingDatasetError } from '../../api/training'
+import { checkTraining, createTraining, DuplicateTrainingNameError, getTrainingOptions, listTrainingDatasets } from '../../api/training'
 import { selectableDatasetTasks, taskLabels } from '../../domain'
-import type { Dataset, SelectableDatasetTask, Split } from '../../domain'
-import type { TrainingConfig, TrainingOptions } from '../../types/training'
+import type { SelectableDatasetTask, Split } from '../../domain'
+import type { TrainingConfig, TrainingDatasetSummary, TrainingOptions } from '../../types/training'
 
 const props = defineProps<{
-  datasets: Dataset[]
-  datasetsLoading?: boolean
-  datasetsError?: string
+  datasetsRevision?: number
   datasetId?: string
   initialConfig?: TrainingConfig
 }>()
 const emit = defineEmits<{
   close: []
   created: [id: string]
-  'adjust-splits': [dataset: Dataset]
-  'retry-datasets': []
+  'adjust-splits': [datasetId: string]
 }>()
 
 const dialog = ref<HTMLDialogElement>()
@@ -25,16 +22,19 @@ const nameInput = ref<HTMLInputElement>()
 const options = ref<TrainingOptions>()
 const optionsLoading = ref(true)
 const optionsError = ref('')
+const deviceWarning = ref('')
+const datasets = ref<TrainingDatasetSummary[]>([])
+const datasetsLoading = ref(true)
+const datasetsError = ref('')
 const submitError = ref('')
 const warnings = ref<string[]>([])
 const busy = ref(false)
 let submission: { payload: string; key: string } | undefined
+let datasetRequest = 0
 const optionsRequest = new AbortController()
-const initialDataset = props.datasets.find(dataset => dataset.id === props.datasetId)
-const initialTask = selectableDatasetTasks.find(task => task === initialDataset?.task)
 const draft = reactive<TrainingConfig>(props.initialConfig ? { ...props.initialConfig } : {
   name: '',
-  task: initialTask ?? 'detect',
+  task: 'detect',
   datasetId: props.datasetId ?? '',
   modelId: '',
   deviceId: '',
@@ -45,11 +45,16 @@ const draft = reactive<TrainingConfig>(props.initialConfig ? { ...props.initialC
   learningRate: 0.01,
   finalLearningRate: 0.01,
   seed: 42,
-  patience: 50,
+  patience: 10,
   amp: false,
+  freeze: 0,
+  workers: 0,
   augmentation: '',
 })
+draft.freeze ??= 0
+draft.workers ??= 0
 const earlyStopping = ref(draft.patience > 0)
+const initialization = ref<'scratch' | 'pretrained'>(draft.modelId.endsWith('.pt') || draft.modelId.startsWith('version:') ? 'pretrained' : 'scratch')
 watch(draft, () => { warnings.value = [] })
 const splits: { key: Split | 'unassigned'; label: string }[] = [
   { key: 'train', label: '训练集' },
@@ -58,39 +63,35 @@ const splits: { key: Split | 'unassigned'; label: string }[] = [
   { key: 'unassigned', label: '未分集' },
 ]
 
-const compatibleDatasets = computed(() => props.datasets.filter(dataset => dataset.task === draft.task))
+const compatibleDatasets = computed(() => datasets.value.filter(dataset => dataset.task === draft.task))
 const dataset = computed(() => compatibleDatasets.value.find(item => item.id === draft.datasetId))
-const models = computed(() => options.value?.models.filter(model => model.task === draft.task) ?? [])
-const datasetError = computed(() => dataset.value ? trainingDatasetError(dataset.value) : '')
+const models = computed(() => options.value?.models.filter(model => model.task === draft.task
+  && Boolean(model.pretrained) === (initialization.value === 'pretrained')) ?? [])
+const selectedModel = computed(() => models.value.find(model => model.id === draft.modelId))
+const selectedDevice = computed(() => options.value?.devices.find(device => device.id === draft.deviceId))
+const isCuda = computed(() => selectedDevice.value?.kind === 'cuda')
+const datasetError = computed(() => dataset.value?.errors.map(issue => issue.message).join('；') ?? '')
 const splitSummary = computed(() => {
-  const counts = { train: 0, val: 0, test: 0, unassigned: 0 }
-  const images = dataset.value?.images ?? []
-  let annotated = 0
-  for (const image of images) {
-    counts[image.split ?? 'unassigned'] += 1
-    if (image.status === 'annotated') annotated += 1
-  }
+  const counts = { train: 0, val: 0, test: 0, ...dataset.value?.splitCounts, unassigned: dataset.value?.unassignedCount ?? 0 }
+  const total = Object.values(counts).reduce((sum, count) => sum + count, 0)
   return {
-    annotated,
-    total: images.length,
+    total,
     splits: splits.map(split => ({
       ...split,
       count: counts[split.key],
-      percent: images.length ? counts[split.key] / images.length * 100 : 0,
+      percent: total ? counts[split.key] / total * 100 : 0,
     })),
   }
 })
 const canSubmit = computed(() => Boolean(
   options.value && !optionsLoading.value && !optionsError.value && draft.name.trim()
     && dataset.value && !datasetError.value && draft.modelId && draft.deviceId && draft.optimizer && draft.augmentation
-    && !busy.value && !props.datasetsLoading && !props.datasetsError
+    && !busy.value && !datasetsLoading.value && !datasetsError.value
 ))
 
-watch(() => props.datasets, datasets => {
-  const preselected = datasets.find(item => item.id === draft.datasetId)
-  const task = selectableDatasetTasks.find(item => item === preselected?.task)
-  if (task) draft.task = task
-})
+watch(() => props.datasetsRevision, () => { void loadDatasets() })
+watch(isCuda, enabled => { if (!enabled) draft.amp = false })
+watch(initialization, mode => { if (mode === 'scratch') draft.freeze = 0 })
 
 watch(models, choices => {
   if (!choices.some(model => model.id === draft.modelId)) draft.modelId = choices[0]?.id ?? ''
@@ -108,9 +109,12 @@ async function loadOptions() {
   optionsError.value = ''
   try {
     const result = await getTrainingOptions(optionsRequest.signal)
+    const initialModel = result.models.find(model => model.id === draft.modelId)
+    if (initialModel) initialization.value = initialModel.pretrained ? 'pretrained' : 'scratch'
     options.value = result
     if (!result.devices.some(device => device.id === draft.deviceId)) {
-      draft.deviceId = result.devices[0]?.id ?? ''
+      deviceWarning.value = draft.deviceId ? '原配置的设备当前不可用，请重新选择设备。' : ''
+      draft.deviceId = props.initialConfig?.deviceId ? '' : result.devices[0]?.id ?? ''
     }
     if (!result.optimizers.includes(draft.optimizer)) draft.optimizer = result.optimizers[0] ?? ''
     if (!result.augmentations.some(item => item.id === draft.augmentation)) {
@@ -123,9 +127,27 @@ async function loadOptions() {
   }
 }
 
+async function loadDatasets() {
+  const requestId = ++datasetRequest
+  datasetsLoading.value = true
+  datasetsError.value = ''
+  try {
+    const result = await listTrainingDatasets(optionsRequest.signal)
+    if (optionsRequest.signal.aborted || requestId !== datasetRequest) return
+    datasets.value = result
+    const preselected = result.find(item => item.id === draft.datasetId)
+    if (preselected) draft.task = preselected.task
+  } catch (error) {
+    if (!optionsRequest.signal.aborted && requestId === datasetRequest) datasetsError.value = error instanceof Error ? error.message : '读取数据集摘要失败'
+  } finally {
+    if (requestId === datasetRequest) datasetsLoading.value = false
+  }
+}
+
 onMounted(() => {
   dialog.value?.showModal()
   void loadOptions()
+  void loadDatasets()
 })
 onBeforeUnmount(() => optionsRequest.abort())
 
@@ -134,7 +156,7 @@ function close() {
 }
 
 function updateEarlyStopping() {
-  if (earlyStopping.value && !draft.patience) draft.patience = 50
+  if (earlyStopping.value && !draft.patience) draft.patience = 10
 }
 
 function focusNameInput() {
@@ -155,7 +177,9 @@ async function submit() {
       ...draft,
       name: draft.name.trim(),
       patience: earlyStopping.value ? draft.patience : 0,
-      amp: false,
+      amp: isCuda.value && draft.amp,
+      freeze: selectedModel.value?.pretrained ? draft.freeze ?? 0 : 0,
+      workers: draft.workers ?? 0,
     }
     const payload = JSON.stringify(config)
     if (submission?.payload !== payload) {
@@ -194,9 +218,9 @@ async function submit() {
         <div>
           <div class="title-row">
             <h2 id="training-dialog-title">新建训练任务</h2>
-            <span class="compute-badge">本机 CPU</span>
+            <span class="compute-badge">{{ selectedDevice?.name ?? '选择执行设备' }}</span>
           </div>
-          <p>配置模型、数据集和训练参数，将任务提交到本机队列。</p>
+          <p>选择训练数据、初始化模型与执行设备，将任务提交到训练队列。</p>
         </div>
         <button type="button" class="button close-button" aria-label="关闭新建训练任务" :disabled="busy" @click="close">×</button>
       </header>
@@ -222,12 +246,23 @@ async function submit() {
                     :aria-pressed="draft.task === task" @click="selectTask(task)">{{ taskLabels[task] }}</button>
                 </div>
               </div>
+              <div class="field full-width">
+                <span>模型初始化</span>
+                <div class="task-options" role="group" aria-label="模型初始化方式">
+                  <button type="button" class="button choice" :aria-pressed="initialization === 'scratch'"
+                    @click="initialization = 'scratch'">从零训练</button>
+                  <button type="button" class="button choice" :aria-pressed="initialization === 'pretrained'"
+                    @click="initialization = 'pretrained'">使用已有权重微调</button>
+                </div>
+              </div>
               <label class="field full-width">
                 <span>基底模型 <b>*</b></span>
                 <select v-model="draft.modelId" :disabled="!models.length" required>
                   <option value="" disabled>{{ optionsLoading ? '正在读取模型…' : '暂无匹配模型' }}</option>
                   <option v-for="model in models" :key="model.id" :value="model.id">{{ model.name }} · {{ model.architecture }}</option>
                 </select>
+                <small v-if="selectedModel?.sourceType === 'model_version'">来源：已登记模型版本 · {{ selectedModel.versionId }}</small>
+                <small v-else-if="initialization === 'pretrained' && !models.length">暂无匹配权重。请准备本地预训练权重或登记一个训练模型版本。</small>
               </label>
             </div>
           </section>
@@ -236,7 +271,7 @@ async function submit() {
             <h3 id="training-dataset"><span>02</span> 数据集与分集</h3>
             <div v-if="datasetsError" class="message error-row" role="alert">
               {{ datasetsError }}
-              <button type="button" class="button" @click="emit('retry-datasets')">重试</button>
+              <button type="button" class="button" @click="loadDatasets">重试</button>
             </div>
             <label class="field">
               <span>训练数据集 <b>*</b></span>
@@ -250,8 +285,8 @@ async function submit() {
             </label>
             <template v-if="dataset">
               <div class="dataset-summary">
-                <span>{{ splitSummary.total }} 张图片 · {{ dataset.classes.length }} 个类别 · {{ splitSummary.annotated }} 张已标注</span>
-                <button type="button" class="button" @click="emit('adjust-splits', dataset)">调整分集</button>
+                <span>{{ splitSummary.total }} 张可用图片 · {{ dataset.classCount }} 个类别</span>
+                <button type="button" class="button" @click="emit('adjust-splits', dataset.id)">调整分集</button>
               </div>
               <p v-if="datasetError" class="dataset-error" role="status">{{ datasetError }}</p>
             </template>
@@ -269,10 +304,6 @@ async function submit() {
                   </span>
                 </div>
               </div>
-              <label class="field">
-                <span>随机种子（Seed）</span>
-                <input v-model.number="draft.seed" type="number" min="0" max="2147483647" required>
-              </label>
             </div>
             <div class="field">
               <span>数据增强预设</span>
@@ -290,11 +321,14 @@ async function submit() {
             <h3 id="training-hardware"><span>03</span> 算力与输入配置</h3>
             <div class="field">
               <span>计算设备 <b>*</b></span>
+              <small v-if="deviceWarning">{{ deviceWarning }}</small>
+              <small v-if="options?.workerStatus?.reason">{{ options.workerStatus.reason }}</small>
               <div v-if="options?.devices.length" class="field-grid" role="group" aria-label="计算设备">
                 <button v-for="device in options.devices" :key="device.id" type="button" class="button choice option-card"
                   :aria-pressed="draft.deviceId === device.id" @click="draft.deviceId = device.id">
                   <strong>{{ device.name }}</strong>
                   <small>单任务运行，其余任务排队</small>
+                  <small v-if="device.memoryBytes">显存 {{ (device.memoryBytes / 1024 ** 3).toFixed(1) }} GiB</small>
                 </button>
               </div>
               <small v-else>暂无可选设备。</small>
@@ -313,19 +347,15 @@ async function submit() {
                 </div>
               </div>
             </div>
+            <label class="field">
+              <span>训练轮数（Epochs）</span>
+              <input v-model.number="draft.epochs" type="number" min="1" max="10000" required>
+            </label>
           </section>
 
-          <section class="form-section parameters" aria-labelledby="training-parameters">
-            <h3 id="training-parameters"><span>04</span> 训练策略与核心超参数</h3>
+          <details class="form-section parameters">
+            <summary>高级参数 · 优化器、冻结策略与复现</summary>
             <div class="field-grid parameter-grid">
-              <div class="field">
-                <label for="training-epochs">训练轮数（Epochs）</label>
-                <input id="training-epochs" v-model.number="draft.epochs" type="number" min="1" max="10000" required>
-                <div class="quick-options" aria-label="训练轮数常用值" role="group">
-                  <button v-for="epoch in [5, 20, 50]" :key="epoch" type="button" class="button choice"
-                    :aria-pressed="draft.epochs === epoch" @click="draft.epochs = epoch">{{ epoch }}</button>
-                </div>
-              </div>
               <label class="field">
                 <span>优化器（Optimizer）</span>
                 <select v-model="draft.optimizer" :disabled="!options?.optimizers.length" required>
@@ -341,15 +371,30 @@ async function submit() {
                 <span>最终学习率比例（lrf）</span>
                 <input v-model.number="draft.finalLearningRate" type="number" min="0" max="1" step="any" required>
               </label>
+              <label class="field">
+                <span>冻结前 N 个模块（0 为不冻结）</span>
+                <input v-model.number="draft.freeze" type="number" min="0" :disabled="!selectedModel?.pretrained" required>
+                <small>仅对已有权重微调开放，模块范围由模型校验。</small>
+              </label>
+              <label class="field">
+                <span>数据加载进程数（workers）</span>
+                <input v-model.number="draft.workers" type="number" min="0" max="32" required>
+              </label>
+              <label class="field">
+                <span>随机种子（Seed）</span>
+                <input v-model.number="draft.seed" type="number" min="0" max="2147483647" required>
+              </label>
             </div>
             <div class="switches">
+              <label><input v-model="draft.amp" type="checkbox" :disabled="!isCuda"> 混合精度（AMP，仅 CUDA）</label>
               <label><input v-model="earlyStopping" type="checkbox" @change="updateEarlyStopping"> 启用早停</label>
               <label v-if="earlyStopping" class="patience">
                 耐心轮数（Patience）
                 <input v-model.number="draft.patience" type="number" min="1" max="10000" required>
               </label>
             </div>
-          </section>
+            <small v-if="earlyStopping && draft.patience >= draft.epochs">耐心轮数不小于训练轮数，早停通常不会提前结束本次训练。</small>
+          </details>
         </fieldset>
       </div>
 
@@ -446,6 +491,9 @@ input:not([type='checkbox']), select {
 .quick-options, .switches { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
 .quick-options .button { min-height: 25px; padding: 3px 8px; font-size: 12px; }
 .parameters { background: var(--soft); border: 1px solid var(--line); border-radius: 6px; padding: 10px 12px; }
+.parameters summary { cursor: pointer; font-size: 14px; font-weight: 600; }
+.parameters[open] > .field-grid { margin-top: 12px; }
+.parameters .switches { margin-top: 10px; }
 .switches { column-gap: 16px; font-size: 13px; }
 .switches label { display: inline-flex; align-items: center; gap: 4px; }
 .patience input { width: 75px; }

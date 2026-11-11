@@ -131,14 +131,15 @@ def training_overview(db: Session, *, status: str | None, task_type: str | None,
     rows = db.execute(select(TrainingTask, ModelVersion)
                       .outerjoin(ModelVersion, ModelVersion.task_id == TrainingTask.id)
                       .where(*clauses).order_by(*order).offset((page - 1) * page_size).limit(page_size)).all()
-    average = db.scalar(select(func.avg(_score(task_type))).where(
-        task_kind == task_type, TrainingTask.status == "succeeded")) if task_type else None
+    # Runs can use different validation inputs; their arithmetic mean is not a model score.
+    average = None
     summary = {
         "total": total, "page": page, "pageSize": page_size, "averageScore": average,
         "architectures": list(db.scalars(select(TrainingTask.architecture).distinct().order_by(TrainingTask.architecture))),
         "statusCounts": dict(db.execute(select(TrainingTask.status, func.count())
                                         .group_by(TrainingTask.status)).all()),
         "elapsedTotal": float(db.scalar(select(func.sum(_elapsed()))) or 0),
+        "scoreComparability": "Metrics may use different validation inputs; compare only matched evaluations.",
     }
     return rows, summary
 

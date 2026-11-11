@@ -7,12 +7,16 @@ from sqlalchemy.orm import Session
 
 from app.dataset.repository import Conflict, NotFound
 from app.models.training_versions import ModelVersion
-from app.training import catalog, repository
+from app.models.sources import model_options, resolve_version_model
+from app.training import catalog, dataset_options, repository, resume as resume_service
+from app.training.devices import available_devices, device_description, validate_device
+from app.training.errors import PreflightError
 from app.training.models import TrainingMetric, TrainingTask
 from app.training.resources import resource_status
 from app.training.runtime import public_runtime
 from app.training.schemas import ACTIVE, TERMINAL, TrainingConfig
 from app.training.snapshot import inspect_dataset
+from app.training.resume_schemas import ResumeRequest
 
 
 def _digest(task: TrainingTask) -> str | None:
@@ -58,24 +62,34 @@ def task_response(task: TrainingTask, version: ModelVersion | None = None) -> di
              "groundTruthUrl": _artifact_url(task, item["groundTruthArtifactId"])}
             for item in task.previews
         ],
-        "device": catalog.CPU, "snapshotDigest": _digest(task),
+        "device": task.environment.get("device")
+        if isinstance((task.environment or {}).get("device"), dict) else device_description(task.config["deviceId"]),
+        "snapshotDigest": _digest(task),
         "modelVersion": _model_version(task, version) if version else None,
+        "parentModelVersionId": task.parent_model_version_id,
+        "resumeFromTaskId": task.resume_from_task_id,
+        "resume": resume_service.availability(task),
     }
 
 
-def options() -> dict:
-    return catalog.options()
+def options(db: Session) -> dict:
+    result = catalog.options()
+    result["models"].extend(model_options(db))
+    return result
 
 
-def _model_for(config: TrainingConfig) -> catalog.ModelOption:
-    model = catalog.resolve_model(config.modelId)
+def _model_for(db: Session, config: TrainingConfig) -> catalog.ModelOption:
+    model = (resolve_version_model(db, config.modelId) if config.modelId.startswith("version:")
+             else catalog.resolve_model(config.modelId))
     if model.task != config.task:
         raise ValueError("所选模型与训练任务类型不匹配")
+    catalog.validate_model_config(config, model)
+    validate_device(config.deviceId)
     return model
 
 
 def preflight(db: Session, config: TrainingConfig) -> dict:
-    _model_for(config)
+    _model_for(db, config)
     return inspect_dataset(db, str(config.datasetId), config.task)
 
 
@@ -90,15 +104,19 @@ def create(db: Session, config: TrainingConfig, key: str | None) -> dict:
                     raise Conflict("该请求已提交，请重新填写任务后再提交")
                 return task_response(previous, repository.get_model_version(db, previous.id))
         repository.reserve_task_name(db, config.name)
-        model = _model_for(config)
+        model = _model_for(db, config)
         report = inspect_dataset(db, str(config.datasetId), config.task)
         if not report.get("datasetName"):
             raise NotFound("未找到数据集")
+        if report["errors"]:
+            raise PreflightError(report["errors"])
         task = TrainingTask(
             idempotency_key=key, dataset_id=str(config.datasetId), dataset_name=report["datasetName"],
             dataset_image_count=report["imageCount"], dataset_class_count=report["classCount"],
             dataset_revision=report.get("revision"), config=config_json, model_name=model.name,
             architecture=model.architecture, status="queued", phase="queued",
+            parent_model_version_id=config.modelId.removeprefix("version:")
+            if config.modelId.startswith("version:") else None,
         )
         db.add(task)
         db.flush()
@@ -108,7 +126,7 @@ def create(db: Session, config: TrainingConfig, key: str | None) -> dict:
 def overview(db: Session, **filters) -> dict:
     rows, summary = repository.training_overview(db, **filters)
     return {**summary, "tasks": [task_response(task, version) for task, version in rows],
-            "devices": [catalog.CPU], "engine": catalog.engine_name(),
+            "devices": available_devices(), "engine": catalog.engine_name(),
             "workerAvailable": repository.worker_available(db)}
 
 
@@ -165,6 +183,8 @@ def delete(db: Session, task_id: str) -> None:
             raise Conflict("请先取消或结束训练任务，再删除记录")
         if repository.get_model_version(db, task_id) is not None:
             raise Conflict("该训练任务已注册模型版本，需保留来源记录")
+        if db.scalar(select(TrainingTask.id).where(TrainingTask.resume_from_task_id == task_id).limit(1)):
+            raise Conflict("该任务是恢复训练的来源，需保留来源记录")
         db.delete(task)
 
 
@@ -219,4 +239,42 @@ def register_version(db: Session, task_id: str) -> dict:
 
 def download(db: Session, task_id: str, artifact_id: str):
     return repository.artifact_file(repository.get_task(db, task_id), artifact_id)
+
+
+def datasets(db: Session) -> list[dict]:
+    return dataset_options.list_datasets(db)
+
+
+def resume(db: Session, task_id: str, request: ResumeRequest, key: str | None) -> dict:
+    with db.begin():
+        source = repository.get_task(db, task_id, lock=True)
+        config_json = {**source.config, **request.model_dump(exclude_none=True)}
+        config = TrainingConfig.model_validate(config_json)
+        config_json = config.model_dump(mode="json")
+        if key:
+            db.execute(select(func.pg_advisory_xact_lock(func.hashtextextended(f"training:{key}", 0))))
+            previous = db.scalar(select(TrainingTask).where(TrainingTask.idempotency_key == key))
+            if previous is not None:
+                if previous.config != config_json or previous.resume_from_task_id != task_id:
+                    raise Conflict("该请求已提交，请重新填写任务后再提交")
+                return task_response(previous, repository.get_model_version(db, previous.id))
+        active_resume = db.scalar(select(TrainingTask.id).where(
+            TrainingTask.resume_from_task_id == task_id, TrainingTask.status.in_(ACTIVE),
+        ).limit(1))
+        if active_resume:
+            raise Conflict("该任务已有正在排队或运行的恢复训练")
+        validate_device(config.deviceId)
+        artifact, _, epoch = resume_service.validate_source(source)
+        repository.reserve_task_name(db, config.name)
+        task = TrainingTask(
+            idempotency_key=key, dataset_id=source.dataset_id, dataset_name=source.dataset_name,
+            dataset_image_count=source.dataset_image_count, dataset_class_count=source.dataset_class_count,
+            dataset_revision=source.dataset_revision, config=config_json, model_name=source.model_name,
+            architecture=source.architecture, status="queued", phase="queued",
+            parent_model_version_id=source.parent_model_version_id, resume_from_task_id=source.id,
+            resume_checkpoint={"artifactId": artifact["id"], "sha256": artifact["sha256"], "epoch": epoch + 1},
+        )
+        db.add(task)
+        db.flush()
+        return task_response(task)
 

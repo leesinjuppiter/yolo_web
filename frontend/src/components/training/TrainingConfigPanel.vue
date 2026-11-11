@@ -12,7 +12,8 @@ const groups: { title: string; rows: Row[] }[] = [
   ] },
   { title: '训练规模与设备', rows: [
     ['训练轮次', 'epochs', 'epochs'], ['批次大小', 'batchSize', 'batch'], ['输入尺寸', 'imageSize', 'imgsz'],
-    ['设备', 'deviceId', 'device'], ['AMP', 'amp', 'amp'], ['DataLoader 进程数', null, 'workers'],
+    ['设备', 'deviceId', 'device'], ['AMP', 'amp', 'amp'], ['DataLoader 进程数', 'workers', 'workers'],
+    ['冻结前 N 个模块', 'freeze', 'freeze'],
   ] },
   { title: '复现与数据增强', rows: [
     ['随机种子', 'seed', 'seed'], ['早停耐心值', 'patience', 'patience'], ['确定性训练', null, 'deterministic'],
@@ -52,6 +53,8 @@ const format = (value?: string | number | boolean) =>
           <div><dt>数据集</dt><dd>{{ task.datasetName }}</dd></div>
           <div><dt>数据增强策略</dt><dd>{{ task.config.augmentation === 'standard' ? '标准增强' : task.config.augmentation }}</dd></div>
           <div><dt>数据快照</dt><dd>{{ task.snapshotDigest ?? '—' }}</dd></div>
+          <div v-if="task.parentModelVersionId"><dt>来源模型版本</dt><dd>{{ task.parentModelVersionId }}</dd></div>
+          <div v-if="task.resumeFromTaskId"><dt>恢复自任务</dt><dd>{{ task.resumeFromTaskId }}</dd></div>
           <div v-for="[name, version] in versions" :key="name"><dt>{{ name }}</dt><dd>{{ version }}</dd></div>
         </dl>
         <p v-if="!task.runtime?.arguments">该任务暂无训练器实际参数记录。</p>

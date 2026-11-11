@@ -1,7 +1,6 @@
-import type { Dataset } from '../domain'
 import type {
-  TrainingConfig, TrainingFilters, TrainingLogEntry, TrainingMetricPoint,
-  TrainingOptions, TrainingOverview, TrainingPreflight, TrainingResources, TrainingTask,
+  TrainingConfig, TrainingDatasetSummary, TrainingFilters, TrainingLogEntry, TrainingMetricPoint,
+  TrainingOptions, TrainingOverview, TrainingPreflight, TrainingResources, TrainingResumeConfig, TrainingTask,
 } from '../types/training'
 
 const root = '/api/training'
@@ -24,8 +23,10 @@ async function request<T>(url: string, init?: RequestInit): Promise<T> {
     if (response.status === 409 && detail === '训练任务名称已存在，请使用其他名称') {
       throw new DuplicateTrainingNameError(detail)
     }
+    const issues = detail?.issues ?? detail?.errors
     const reason = typeof detail === 'string' ? detail
-      : Array.isArray(detail) ? detail.map(item => item.msg).join('；') : detail?.message
+      : Array.isArray(detail) ? detail.map(item => `${item.loc?.slice(1).join('.') || '配置'}：${item.msg}`).join('；')
+      : Array.isArray(issues) ? issues.map(item => item.message ?? item.msg).join('；') : detail?.message
     throw new Error(reason || `训练请求失败（HTTP ${response.status}）`)
   }
   if (response.status === 204) return undefined as T
@@ -37,17 +38,9 @@ const post = (value: unknown, key?: string): RequestInit => ({
   headers: { 'Content-Type': 'application/json', ...(key ? { 'Idempotency-Key': key } : {}) },
 })
 
-export function trainingDatasetError(dataset: Dataset) {
-  if (!dataset.classes.length) return '数据集尚未定义类别。'
-  const exported = dataset.images.filter(image =>
-    image.status === 'annotated' || (dataset.task !== 'classify' && image.status === 'negative'))
-  if (exported.some(image => !image.split)) return '有可用样本尚未分集，请先调整分集。'
-  const annotatedSplits = new Set(exported.filter(image => image.status === 'annotated').map(image => image.split))
-  if (!annotatedSplits.has('train') || !annotatedSplits.has('val')) return '训练集和验证集均至少需要一张已标注图片。'
-  return ''
-}
-
 export const getTrainingOptions = (signal?: AbortSignal) => request<TrainingOptions>(`${root}/options`, { signal })
+export const listTrainingDatasets = (signal?: AbortSignal) =>
+  request<TrainingDatasetSummary[]>(`${root}/datasets`, { signal })
 
 export function listTraining(filters: TrainingFilters, signal?: AbortSignal) {
   const params = new URLSearchParams({
@@ -69,6 +62,8 @@ export const trainingLogDownloadUrl = (id: string) => `${at(id)}/logs/download`
 export const cancelTraining = (id: string) => request<TrainingTask>(`${at(id)}/cancel`, post({}))
 export const deleteTraining = (id: string) => request<void>(at(id), { method: 'DELETE' })
 export const registerTrainingModel = (id: string) => request<TrainingTask['modelVersion']>(`${at(id)}/model-version`, post({}))
+export const resumeTraining = (id: string, config: TrainingResumeConfig, key: string) =>
+  request<TrainingTask>(`${at(id)}/resume`, post(config, key))
 
 export function getTrainingMetrics(id: string, after: number, signal?: AbortSignal) {
   return request<TrainingMetricPoint[]>(`${at(id)}/metrics?after_sequence=${after}&limit=${trainingPageLimit}`, { signal })

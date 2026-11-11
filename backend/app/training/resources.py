@@ -1,11 +1,15 @@
 """Low-frequency measurements owned by the training worker."""
 
 from datetime import datetime, timezone
+import csv
+import os
+import subprocess
 from time import monotonic
 
 import psutil
 
 from app.training.models import TrainingTask
+from app.training.devices import normalize_gpu_uuid
 from app.training.schemas import TERMINAL
 
 
@@ -13,8 +17,47 @@ _SAMPLE_INTERVAL = 2.0
 _STALE_AFTER = 10.0
 
 
+def _nvidia_query(arguments: list[str]) -> list[list[str]]:
+    try:
+        result = subprocess.run(
+            ["nvidia-smi", *arguments, "--format=csv,noheader,nounits"],
+            capture_output=True, text=True, timeout=2,
+            creationflags=subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0,
+        )
+        return list(csv.reader(result.stdout.splitlines(), skipinitialspace=True)) if result.returncode == 0 else []
+    except (OSError, subprocess.TimeoutExpired):
+        return []
+
+
+def gpu_sample(device: dict, process_id: int) -> dict | None:
+    uuid = normalize_gpu_uuid(device.get("uuid"))
+    if device.get("kind") != "cuda" or not uuid:
+        return None
+    rows = _nvidia_query([f"--id={uuid}", "--query-gpu=uuid,utilization.gpu,memory.used,memory.total"])
+    if not rows:
+        return None
+    row = rows[0]
+    sample = {"deviceId": device["id"], "name": device["name"], "uuid": uuid}
+    for position, key, multiplier in ((1, "utilizationPercent", 1), (2, "memoryUsedBytes", 1024**2),
+                                      (3, "memoryTotalBytes", 1024**2)):
+        try:
+            sample[key] = float(row[position]) * multiplier
+        except (ValueError, IndexError):
+            pass
+    processes = _nvidia_query(["--query-compute-apps=pid,gpu_uuid,used_gpu_memory"])
+    for process in processes:
+        try:
+            if int(process[0]) == process_id and normalize_gpu_uuid(process[1]) == uuid:
+                sample["processMemoryBytes"] = float(process[2]) * 1024**2
+        except (ValueError, IndexError):
+            continue
+    return sample
+
+
 class ResourceSampler:
-    def __init__(self, process_id: int) -> None:
+    def __init__(self, process_id: int, *, device: dict | None = None) -> None:
+        self._device = device or {}
+        self._process_id = process_id
         self._process = None
         self._logical_cpus = psutil.cpu_count() or 1
         self._last_sample = monotonic()
@@ -55,6 +98,8 @@ class ResourceSampler:
                                   processMemoryBytes=process_memory)
             except (OSError, psutil.Error):
                 pass
+        if gpu := gpu_sample(self._device, self._process_id):
+            values["gpu"] = gpu
         return {"sampledAt": datetime.now(timezone.utc).isoformat(), **values} if values else None
 
 

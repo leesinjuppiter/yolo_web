@@ -15,7 +15,7 @@ export const trainingStatusLabels: Record<TrainingStatus, string> = {
 export const terminalTrainingStates = new Set<TrainingStatus>(['succeeded', 'failed', 'canceled'])
 
 export const trainingPhaseLabels: Record<string, string> = {
-  created: '等待准备', validating: '校验数据', preparing: '生成训练快照', queued: '等待 CPU',
+  created: '等待准备', validating: '校验数据', preparing: '生成训练快照', queued: '等待执行资源',
   starting: '启动训练进程', training: '训练模型', validating_model: '验证模型',
   checking: '校验数据', snapshot: '生成训练快照', loading: '加载模型',
   validation: '验证模型', archiving: '归档产物', finished: '已结束',
@@ -36,6 +36,8 @@ export interface TrainingConfig {
   seed: number
   patience: number
   amp: boolean
+  freeze?: number
+  workers?: number
   augmentation: string
 }
 
@@ -44,12 +46,26 @@ export interface TrainingModel {
   name: string
   architecture: string
   task: SelectableDatasetTask
+  pretrained: boolean
+  sourceType?: 'architecture' | 'local_weights' | 'model_version'
+  versionId?: string
+  sourceTaskId?: string
 }
 
 export interface TrainingDevice {
   id: string
   name: string
-  kind: 'cpu'
+  kind: 'cpu' | 'cuda'
+  memoryBytes?: number
+  uuid?: string
+  logicalIndex?: number
+}
+
+export interface TrainingWorkerStatus {
+  state: 'live' | 'stale' | 'unavailable'
+  reason?: string
+  sampledAt?: string
+  versions?: Record<string, string>
 }
 
 export interface TrainingOptions {
@@ -57,6 +73,29 @@ export interface TrainingOptions {
   devices: TrainingDevice[]
   optimizers: string[]
   augmentations: { id: string; name: string; description: string }[]
+  workerStatus?: TrainingWorkerStatus
+}
+
+export interface TrainingDatasetSummary {
+  id: string
+  name: string
+  task: SelectableDatasetTask
+  imageCount: number
+  classCount: number
+  splitCounts: Record<'train' | 'val' | 'test', number>
+  annotatedSplitCounts: Record<'train' | 'val' | 'test', number>
+  unassignedCount: number
+  revision: string
+  errors: { code: string; message: string }[]
+  warnings: { code: string; message: string }[]
+}
+
+export interface TrainingResumeConfig {
+  name: string
+  deviceId?: string
+  batchSize?: number
+  workers?: number
+  amp?: boolean
 }
 
 export interface TrainingArtifact {
@@ -108,6 +147,15 @@ export interface TrainingResources {
     processCpuPercent?: number
     processMemoryBytes?: number
     processId?: number
+    gpu?: {
+      deviceId: string
+      name: string
+      uuid?: string
+      utilizationPercent?: number
+      memoryUsedBytes?: number
+      memoryTotalBytes?: number
+      processMemoryBytes?: number
+    }
   }
 }
 
@@ -132,6 +180,9 @@ export interface TrainingTask {
   failure?: { code: string; stage: string; summary: string; exitCode?: number; suggestion?: string }
   snapshotDigest?: string
   modelVersion?: { id: string; version: string | number; sha256: string; validationStatus: string }
+  parentModelVersionId?: string
+  resumeFromTaskId?: string
+  resume?: { available: boolean; reason?: string }
   actions: TrainingAction[]
   artifacts: TrainingArtifact[]
   device?: TrainingDevice
@@ -151,6 +202,7 @@ export interface TrainingOverview {
   elapsedTotal?: number
   averageScore?: number
   workerAvailable?: boolean
+  workerStatus?: TrainingWorkerStatus
 }
 
 export interface TrainingFilters {

@@ -6,7 +6,7 @@ from math import isfinite
 _ARGUMENTS = {
     "epochs", "batch", "imgsz", "device", "optimizer", "lr0", "lrf", "momentum", "weight_decay",
     "warmup_epochs", "seed", "patience", "amp", "workers", "deterministic", "cos_lr",
-    "box", "cls", "dfl", "mosaic", "mixup", "degrees", "hsv_s", "close_mosaic",
+    "box", "cls", "dfl", "mosaic", "mixup", "degrees", "hsv_s", "close_mosaic", "freeze", "resume",
 }
 _VERSIONS = {"torch", "torchvision", "ultralytics"}
 
@@ -22,6 +22,13 @@ def public_runtime(environment: dict | None) -> dict:
         runtime["versions"] = versions
     if type(env.get("processId")) is int and env["processId"] > 0:
         runtime["processId"] = env["processId"]
+    if isinstance(env.get("device"), dict):
+        runtime["device"] = env["device"]
+    if isinstance(env.get("actualDevice"), str):
+        runtime["actualDevice"] = env["actualDevice"]
+    if isinstance(env.get("trainableParameters"), int):
+        runtime["trainableParameters"] = env["trainableParameters"]
+        runtime["frozenParameters"] = env.get("frozenParameters", 0)
     arguments = env.get("arguments") or {}
     # The invocation stores planned arguments first. The runner later emits trainer.args, including task.
     if "task" in arguments:

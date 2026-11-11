@@ -4,8 +4,8 @@ from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
 
 from app.training.schemas import TASK_TYPES, TrainingConfig
+from app.training.devices import CPU, capabilities
 
-CPU = {"id": "cpu", "name": "本机 CPU", "kind": "cpu"}
 _OPTIMIZERS = ["AdamW", "SGD", "Adam"]
 _SUFFIX = {"detect": "", "segment": "-seg", "obb": "-obb", "classify": "-cls"}
 
@@ -18,11 +18,13 @@ class ModelOption:
     task: str
     source: str
     pretrained: bool
+    source_type: str = "architecture"
+    sha256: str | None = None
 
     def public(self) -> dict:
         return {
             "id": self.id, "name": self.name, "architecture": self.architecture,
-            "task": self.task, "pretrained": self.pretrained,
+            "task": self.task, "pretrained": self.pretrained, "sourceType": self.source_type,
         }
 
 
@@ -37,7 +39,7 @@ def available_models() -> list[ModelOption]:
             checkpoint = (root / (base + ".pt")).resolve()
             if checkpoint.is_relative_to(root) and checkpoint.is_file():
                 models.append(ModelOption(checkpoint.name, f"{base} · 本地预训练", "YOLO11",
-                                          task, str(checkpoint), True))
+                                          task, str(checkpoint), True, "local_weights"))
     return models
 
 
@@ -48,18 +50,26 @@ def resolve_model(model_id: str) -> ModelOption:
     raise ValueError("模型不可用，请选择已列出的本机模型")
 
 
+def validate_model_config(config: TrainingConfig, model: ModelOption) -> None:
+    if model.task != config.task:
+        raise ValueError("所选模型与训练任务类型不匹配")
+    if config.freeze and not model.pretrained:
+        raise ValueError("从零训练不能冻结随机初始化层，请选择预训练模型或将冻结层数设为 0")
+
+
 def expand_arguments(config: dict) -> dict:
     parsed = TrainingConfig.model_validate(config)
     return {
         "epochs": parsed.epochs, "batch": parsed.batchSize, "imgsz": parsed.imageSize,
         "optimizer": parsed.optimizer, "lr0": parsed.learningRate, "lrf": parsed.finalLearningRate,
-        "seed": parsed.seed, "patience": parsed.patience, "amp": False, "workers": 0,
+        "seed": parsed.seed, "patience": parsed.patience, "amp": parsed.amp, "workers": parsed.workers,
+        "freeze": parsed.freeze, "device": parsed.deviceId,
         "deterministic": True, "save": True, "plots": False,
     }
 
 
 def options() -> dict:
-    return {"models": [model.public() for model in available_models()], "devices": [CPU],
+    return {"models": [model.public() for model in available_models()], **capabilities(),
             "optimizers": _OPTIMIZERS,
             "augmentations": [{"id": "standard", "name": "标准增强",
                                "description": "使用当前 Ultralytics 版本的任务默认增强参数"}]}
@@ -67,7 +77,7 @@ def options() -> dict:
 
 def engine_name() -> str:
     try:
-        return f"Ultralytics {version('ultralytics')} · CPU"
+        return f"Ultralytics {version('ultralytics')}"
     except PackageNotFoundError:
-        return "Ultralytics 未安装 · CPU"
+        return "Ultralytics 未安装"
 

@@ -9,6 +9,8 @@ const resources = shallowRef<TrainingResources>()
 const error = shallowRef('')
 const history = shallowRef<NonNullable<TrainingResources['sample']>[]>([])
 const sample = computed(() => resources.value?.sample)
+const gpu = computed(() => sample.value?.gpu)
+const usesGpu = computed(() => props.task.config.deviceId.startsWith('cuda:'))
 const live = computed(() => resources.value?.state === 'live' && !error.value)
 const statusText = {
   waiting: '等待训练进程', live: '实时采样', stale: '采样已过期',
@@ -54,13 +56,20 @@ watch([() => props.active, () => props.task.id, () => terminalTrainingStates.has
 <template>
   <section class="system-panel" aria-labelledby="training-system-title">
     <header class="system-header">
-      <div><h2 id="training-system-title">本机 CPU 监控</h2><p>{{ task.device?.name ?? '本机 CPU' }} · 单任务运行</p></div>
+      <div><h2 id="training-system-title">执行资源监控</h2><p>{{ task.device?.name ?? task.config.deviceId }} · 单任务运行</p></div>
       <div class="sample-state" :data-live="live">
         {{ error ? '刷新失败' : resources ? statusText[resources.state] : '正在读取采样' }}
         <time v-if="sample" :datetime="sample.sampledAt">{{ live ? '' : '最后采样 ' }}{{ time.format(new Date(sample.sampledAt)) }}</time>
       </div>
     </header>
     <p v-if="error" class="resource-notice" role="alert">{{ error }}</p>
+    <p v-if="usesGpu && !gpu" class="resource-notice">当前没有可用的 GPU 采样，未采集到的数值显示为未知。</p>
+    <div v-if="usesGpu" class="resource-cards">
+      <article><h3>整卡 GPU 使用率</h3><strong>{{ percent(gpu?.utilizationPercent) }}</strong>
+        <progress v-if="gpu?.utilizationPercent != null" :value="gpu.utilizationPercent" max="100" aria-label="整卡 GPU 使用率"/></article>
+      <article><h3>整卡显存</h3><strong>{{ memory(gpu?.memoryUsedBytes) }}</strong><span> / {{ memory(gpu?.memoryTotalBytes) }}</span></article>
+      <article><h3>训练进程显存</h3><strong>{{ memory(gpu?.processMemoryBytes) }}</strong><span>仅本次训练进程</span></article>
+    </div>
     <div class="resource-cards">
       <article><h3>主机 CPU 使用率</h3><strong>{{ percent(sample?.hostCpuPercent) }}</strong>
         <progress v-if="sample?.hostCpuPercent != null" :value="sample.hostCpuPercent" max="100" aria-label="主机 CPU 使用率"/></article>
@@ -71,9 +80,9 @@ watch([() => props.active, () => props.task.id, () => terminalTrainingStates.has
     </div>
     <div class="system-grid">
       <article class="system-box">
-        <h3>本机运行关系</h3>
+        <h3>执行关系</h3>
         <div class="topology">
-          <div><strong>本机 CPU</strong><small>计算设备</small></div><span aria-hidden="true">→</span>
+          <div><strong>{{ task.device?.name ?? task.config.deviceId }}</strong><small>计算设备</small></div><span aria-hidden="true">→</span>
           <div><strong>训练 Worker</strong><small>任务调度与采集</small></div><span aria-hidden="true">→</span>
           <div><strong>训练进程</strong><small>{{ live && sample?.processId ? `PID ${sample.processId}` : trainingStatusLabels[task.status] }}</small></div>
         </div>
@@ -82,10 +91,11 @@ watch([() => props.active, () => props.task.id, () => terminalTrainingStates.has
         <h3>最近资源采样</h3>
         <div v-if="history.length" class="sample-table">
           <table>
-            <thead><tr><th>采样时间</th><th>主机 CPU</th><th>训练 CPU</th><th>训练内存</th></tr></thead>
+            <thead><tr><th>采样时间</th><th>主机 CPU</th><th>训练 CPU</th><th>训练内存</th><th v-if="usesGpu">整卡 GPU</th><th v-if="usesGpu">训练显存</th></tr></thead>
             <tbody><tr v-for="item in [...history].reverse()" :key="item.sampledAt">
               <td>{{ time.format(new Date(item.sampledAt)) }}</td><td>{{ percent(item.hostCpuPercent) }}</td>
               <td>{{ percent(item.processCpuPercent) }}</td><td>{{ memory(item.processMemoryBytes) }}</td>
+              <td v-if="usesGpu">{{ percent(item.gpu?.utilizationPercent) }}</td><td v-if="usesGpu">{{ memory(item.gpu?.processMemoryBytes) }}</td>
             </tr></tbody>
           </table>
         </div>
