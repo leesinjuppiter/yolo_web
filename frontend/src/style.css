@@ -181,6 +181,9 @@ button:disabled { cursor: not-allowed; }
 .workbench-status span.ready { background: #148264; }
 .workbench-body { min-width: 0; }
 .workbench-top {
+  position: sticky;
+  top: 0;
+  z-index: 10;
   min-height: 64px;
   display: flex;
   align-items: center;
