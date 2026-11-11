@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed,onActivated,onDeactivated,onUnmounted,ref,watch } from 'vue'
 import { useRoute,useRouter } from 'vue-router'
+import { refreshOnChanges } from '../api/changes'
 import { compareModels } from '../api/models'
 import { formatValue } from '../types/models'
 import type { Comparison } from '../types/models'
@@ -8,7 +9,7 @@ const route=useRoute(),router=useRouter(),result=ref<Comparison>(),error=ref('')
 const ids=computed(()=>String(route.query.ids??'').split(',').filter(Boolean))
 const rows=computed(()=>result.value?.rows.filter(row=>!diffOnly.value||new Set(Object.values(row.values)).size>1)??[])
 const deltaLabel=(value:number|null|undefined,unit:string)=>value==null?'—':formatValue(unit==='ratio'?value*100:value)+(unit==='ratio'?' pp':' '+unit)
-let active=false,controller:AbortController|undefined
+let active=false,controller:AbortController|undefined,unsubscribe:(()=>void)|undefined
 async function load(){
  if(!active)return
  controller?.abort();controller=new AbortController();const signal=controller.signal
@@ -19,8 +20,8 @@ async function load(){
 }
 watch(baseline,(value,old)=>{if(old&&value!==old)void load()})
 watch(()=>route.query.ids,()=>{baseline.value='';void load()})
-onActivated(()=>{active=true;void load()})
-function stop(){active=false;controller?.abort()}
+onActivated(()=>{active=true;unsubscribe=refreshOnChanges(['models','evaluations'],load);void load()})
+function stop(){active=false;unsubscribe?.();controller?.abort()}
 onDeactivated(stop);onUnmounted(stop)
 function download(kind:'json'|'csv'){
  if(!result.value)return
@@ -32,7 +33,7 @@ function download(kind:'json'|'csv'){
 </script>
 <template>
  <section class="model-workspace">
-  <div class="model-page-heading"><div><h1>多模型对比</h1><p>依据固定数据与协议比较，原始指标保留来源</p></div><button class="button" @click="router.push({name:'models'})">返回模型仓库</button></div>
+  <div class="model-page-heading"><div><h1>多模型对比</h1><p>依据固定数据与协议比较，原始指标保留来源</p></div><div class="model-toolbar"><button class="button" :disabled="loading" @click="load">刷新</button><button class="button" @click="router.push({name:'models'})">返回模型仓库</button></div></div>
   <p v-if="error" class="model-error" role="alert">{{error}} <button class="button" @click="load">重试</button></p>
   <div v-if="loading&&!result" class="page-state">正在核对模型与评估条件…</div>
   <template v-if="result">

@@ -16,6 +16,8 @@ from app.api.models import router as model_router
 from app.api.evaluation import router as evaluation_router
 from app.api.exports import router as export_router
 from app.api.deployment import router as deployment_router
+from app.api.changes import router as changes_router
+from app.notifications.service import ChangeFeed
 from app.core.database import engine
 from app.dataset.analysis.reporting import compute_report
 from app.dataset.analysis.worker import run_worker
@@ -24,17 +26,20 @@ from app.dataset.repository import Conflict, NotFound
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
-    if os.environ.get("WORKBENCH_ANALYSIS_WORKER", "1") == "0":
-        yield
-        return
+    feed = ChangeFeed()
+    _app.state.change_feed = feed
+    feed.start()
     stop = Event()
     worker = Thread(target=run_worker, args=(stop, compute_report), name="dataset-analysis", daemon=True)
-    worker.start()
+    if os.environ.get("WORKBENCH_ANALYSIS_WORKER", "1") != "0":
+        worker.start()
     try:
         yield
     finally:
         stop.set()
-        await to_thread(worker.join, 5)
+        if worker.is_alive():
+            await to_thread(worker.join, 5)
+        await feed.close()
 
 
 app = FastAPI(title="检测系统工作台", lifespan=lifespan)
@@ -45,6 +50,7 @@ app.include_router(model_router)
 app.include_router(evaluation_router)
 app.include_router(export_router)
 app.include_router(deployment_router)
+app.include_router(changes_router)
 log = logging.getLogger(__name__)
 
 

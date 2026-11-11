@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onActivated, onDeactivated, onUnmounted, ref, watch } from 'vue'
+import { refreshOnChanges } from '../api/changes'
 import { listTraining } from '../api/training'
 import DeleteTrainingButton from '../components/training/DeleteTrainingButton.vue'
 import CpuBrandIcon from '../components/training/CpuBrandIcon.vue'
@@ -81,6 +82,7 @@ watch(view, value => {
 let request: AbortController | undefined
 let refreshTimer: ReturnType<typeof setTimeout> | undefined
 let active = false
+let unsubscribe: (() => void) | undefined
 
 function stopRefresh() {
   clearTimeout(refreshTimer)
@@ -88,13 +90,13 @@ function stopRefresh() {
   loading.value = false
 }
 
-async function refresh() {
+async function refresh(quiet = false) {
   if (!active) return
   clearTimeout(refreshTimer)
   request?.abort()
   request = new AbortController()
   const signal = request.signal
-  loading.value = true
+  loading.value = !quiet || !overview.value
   error.value = ''
   try {
     const result = await listTraining({
@@ -109,7 +111,6 @@ async function refresh() {
   } finally {
     if (!signal.aborted && active) {
       loading.value = false
-      refreshTimer = setTimeout(refresh, 5000)
     }
   }
 }
@@ -121,13 +122,15 @@ watch([search, status, taskType, architecture, sort, page], () => {
 })
 onActivated(() => {
   active = true
+  unsubscribe = refreshOnChanges(['training', 'models', 'worker'], () => refresh(true), change => change.table !== 'training_logs' && change.table !== 'training_metrics')
   void refresh()
 })
 onDeactivated(() => {
   active = false
+  unsubscribe?.()
   stopRefresh()
 })
-onUnmounted(stopRefresh)
+onUnmounted(() => { unsubscribe?.(); stopRefresh() })
 
 function clearFilters() {
   search.value = ''
@@ -193,7 +196,7 @@ function canRetrain(task: TrainingTask) {
         <h1 id="training-list-title">训练任务</h1>
         <p>管理训练队列，查看模型指标与运行进度。</p>
       </div>
-      <button class="button" type="button" :disabled="loading" @click="refresh">刷新任务</button>
+      <button class="button" type="button" :disabled="loading" @click="refresh()">刷新任务</button>
     </header>
 
     <div v-if="overview" class="training-overview" aria-label="训练统计">

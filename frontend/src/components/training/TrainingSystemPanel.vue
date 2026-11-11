@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, shallowRef, watch } from 'vue'
+import { refreshOnChanges } from '../../api/changes'
 import { getTrainingResources } from '../../api/training'
 import { terminalTrainingStates, trainingStatusLabels } from '../../types/training'
 import type { TrainingResources, TrainingTask } from '../../types/training'
@@ -8,6 +9,7 @@ const props = defineProps<{ task: TrainingTask; active: boolean }>()
 const resources = shallowRef<TrainingResources>()
 const error = shallowRef('')
 const history = shallowRef<NonNullable<TrainingResources['sample']>[]>([])
+let manualRefresh = () => {}
 const sample = computed(() => resources.value?.sample)
 const memoryLabel = computed(() => sample.value?.memoryScope === 'container' ? '实例内存' : '宿主机内存')
 const gpu = computed(() => sample.value?.gpu)
@@ -37,10 +39,9 @@ const remainingMemory = computed(() => {
 })
 
 watch([() => props.active, () => props.task.id, () => terminalTrainingStates.has(props.task.status)],
-  ([active, id, finished], _, onCleanup) => {
+  ([active, id], _, onCleanup) => {
     if (!active) return
     const controller = new AbortController()
-    let timer: ReturnType<typeof setTimeout> | undefined
     async function refresh() {
       try {
         const result = await getTrainingResources(id, controller.signal)
@@ -52,13 +53,12 @@ watch([() => props.active, () => props.task.id, () => terminalTrainingStates.has
         }
       } catch (cause) {
         if (!controller.signal.aborted) error.value = cause instanceof Error ? cause.message : '资源采样读取失败'
-      } finally {
-        if (!controller.signal.aborted && !finished && resources.value?.state !== 'finished') {
-          timer = setTimeout(refresh, 5000)
-        }
       }
     }
-    onCleanup(() => { controller.abort(); clearTimeout(timer) })
+    manualRefresh = () => { void refresh() }
+    const unsubscribe = refreshOnChanges(['training', 'resources', 'worker'], refresh,
+      change => change.topic === 'worker' || (change.id === id && change.table === 'training_tasks'))
+    onCleanup(() => { controller.abort(); unsubscribe(); manualRefresh = () => {} })
     void refresh()
   }, { immediate: true })
 </script>
@@ -68,6 +68,7 @@ watch([() => props.active, () => props.task.id, () => terminalTrainingStates.has
     <header class="system-header">
       <div><h2 id="training-system-title">执行资源监控</h2><p>{{ task.device?.name ?? task.config.deviceId }} · 单任务运行</p></div>
       <div class="sample-state" :data-live="live">
+        <button class="button" type="button" @click="manualRefresh()">刷新采样</button>
         {{ error ? '刷新失败' : resources ? statusText[resources.state] : '正在读取采样' }}
         <time v-if="sample" :datetime="sample.sampledAt">{{ live ? '' : '最后采样 ' }}{{ time.format(new Date(sample.sampledAt)) }}</time>
       </div>

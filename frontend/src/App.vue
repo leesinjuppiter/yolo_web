@@ -3,6 +3,8 @@ import { computed, defineAsyncComponent, onMounted, onUnmounted, ref, watch } fr
 import { useRoute, useRouter } from 'vue-router'
 import AnnotationView from './AnnotationView.vue'
 import DatasetDialogs from './DatasetDialogs.vue'
+import ChangeConnection from './components/ChangeConnection.vue'
+import { changeRefresh, observeChanges } from './api/changes'
 import DatasetExchangeDialog from './components/DatasetExchangeDialog.vue'
 import DatasetExcludedImagesDialog from './components/DatasetExcludedImagesDialog.vue'
 import SimilarityReviewDialog from './components/SimilarityReviewDialog.vue'
@@ -70,7 +72,6 @@ const dialogError = ref('')
 const annotationError = ref('')
 const notice = ref('')
 let noticeTimer: ReturnType<typeof setTimeout> | undefined
-let reportPoll: ReturnType<typeof setTimeout> | undefined
 let reportController: AbortController | undefined
 
 const sections = [
@@ -97,20 +98,48 @@ function showNotice(value: string) {
   noticeTimer = setTimeout(() => { notice.value = '' }, 5500)
 }
 
-async function initialize() {
-  loaded.value = false
+let datasetRequest = 0
+async function initialize(background = false) {
+  const requestId = ++datasetRequest
+  if (!background) loaded.value = false
   loadingError.value = ''
   try {
-    datasets.value = await listDatasets()
+    const result = await listDatasets()
+    if (requestId !== datasetRequest) return
+    if (background && (route.name !== 'datasets' || busy.value)) { datasetsDirty = true; return }
+    datasets.value = result
   } catch (error) {
-    loadingError.value = message(error)
+    if (requestId === datasetRequest) loadingError.value = message(error)
   } finally {
-    loaded.value = true
+    if (requestId === datasetRequest) loaded.value = true
   }
 }
 
+let datasetsDirty = false
+const datasetUpdates = changeRefresh(async () => {
+  if (route.name !== 'datasets' || busy.value) { datasetsDirty = true; return }
+  datasetsDirty = false
+  await initialize(true)
+})
+const reportUpdates = changeRefresh(async () => {
+  const current = report.value
+  if (!current || !inDatasets.value) return
+  // Do not abort an explicit report rebuild because its own notification arrived.
+  if (reportRequest) await reportRequest
+  if (report.value !== current && (!report.value || report.value.datasetId !== current.datasetId || report.value.kind !== current.kind)) return
+  if (!report.value || !inDatasets.value) return
+  syncReport(false, 'change')
+  await reportRequest
+})
+const unsubscribeChanges = observeChanges(change => {
+  if (!change || change.topic === 'datasets') datasetUpdates.notify()
+  if (!change || (change.topic === 'reports' && change.id === report.value?.datasetId && change.kind === report.value?.kind)) reportUpdates.notify()
+})
+watch([() => route.name, busy], () => { if (datasetsDirty && route.name === 'datasets' && !busy.value) datasetUpdates.notify() })
+onUnmounted(() => { unsubscribeChanges(); datasetUpdates.stop(); reportUpdates.stop() })
+
 onMounted(async () => { await router.isReady(); if (inDatasets.value) void initialize() })
-watch(inDatasets, visible => { if (visible && !loaded.value) void initialize() })
+watch(inDatasets, visible => { if (visible && !loaded.value) void initialize(); if (visible && report.value) reportUpdates.notify() })
 onUnmounted(() => clearTimeout(noticeTimer))
 onUnmounted(stopReportSync)
 
@@ -158,7 +187,6 @@ function closeDialog() {
 }
 
 function stopReportSync() {
-  clearTimeout(reportPoll)
   reportController?.abort()
   reportController = undefined
 }
@@ -187,7 +215,7 @@ function applyReportSnapshot(datasetId: string, kind: ReportKind, snapshot: Repo
   }
 }
 
-async function updateReport(datasetId: string, kind: ReportKind, signal: AbortSignal, action: 'open' | 'poll' | 'refresh') {
+async function updateReport(datasetId: string, kind: ReportKind, signal: AbortSignal, action: 'open' | 'change' | 'refresh') {
   try {
     let snapshot = action === 'refresh'
       ? await refreshReportSnapshot(datasetId, kind, true, signal)
@@ -200,9 +228,6 @@ async function updateReport(datasetId: string, kind: ReportKind, signal: AbortSi
       if (signal.aborted) return
       applyReportSnapshot(datasetId, kind, snapshot)
     }
-    if (snapshot.status === 'queued' || snapshot.status === 'running') {
-      reportPoll = setTimeout(() => { void updateReport(datasetId, kind, signal, 'poll') }, 1000)
-    }
   } catch (error) {
     if (!signal.aborted && report.value) {
       report.value = { ...report.value, pending: false, status: 'failed', error: message(error) }
@@ -210,13 +235,14 @@ async function updateReport(datasetId: string, kind: ReportKind, signal: AbortSi
   }
 }
 
-function syncReport(force = false, action: 'open' | 'poll' = 'open') {
+let reportRequest: Promise<void> | undefined
+function syncReport(force = false, action: 'open' | 'change' = 'open') {
   const current = report.value
   if (!current) return
   stopReportSync()
   reportController = new AbortController()
-  report.value = { ...current, pending: true, status: 'loading', error: null }
-  void updateReport(current.datasetId, current.kind, reportController.signal, force ? 'refresh' : action)
+  if (force || action === 'open') report.value = { ...current, pending: true, status: 'loading', error: null }
+  reportRequest = updateReport(current.datasetId, current.kind, reportController.signal, force ? 'refresh' : action)
 }
 
 function openAnnotation(dataset: Dataset, imageId?: string) {
@@ -308,15 +334,15 @@ async function submitReview(decision: SimilarityDecision) {
     if (next >= 0) reviewFeedback.value = '审核已保存，已进入下一组。'
     const dataset = datasets.value.find(item => item.id === current.datasetId)
     if (discarded && dataset) {
-      replaceDataset({ ...dataset, images: dataset.images.filter(item => item.id !== discarded.id) }, 'poll')
+      replaceDataset({ ...dataset, images: dataset.images.filter(item => item.id !== discarded.id) }, 'change')
       showNotice(`已排除「${discarded.name}」，可在「已排除样本」中恢复。`)
     } else {
-      if (report.value?.datasetId === current.datasetId) syncReport(false, 'poll')
+      if (report.value?.datasetId === current.datasetId) syncReport(false, 'change')
       showNotice('审核结果已保存。')
     }
   } catch (error) {
     reviewError.value = message(error)
-    if (report.value?.datasetId === current.datasetId) syncReport(false, 'poll')
+    if (report.value?.datasetId === current.datasetId) syncReport(false, 'change')
   } finally {
     reviewBusy.value = false
   }
@@ -354,7 +380,7 @@ function datasetAction(action: DatasetAction, dataset: Dataset) {
   }
 }
 
-function replaceDataset(record: Dataset, reportAction: 'open' | 'poll' = 'open') {
+function replaceDataset(record: Dataset, reportAction: 'open' | 'change' = 'open') {
   datasets.value = datasets.value.map(item => item.id === record.id ? record : item)
   trainingDatasetsRevision.value += 1
   if (report.value?.datasetId !== record.id) return
@@ -515,7 +541,7 @@ async function deleteImage(imageId: string) {
       <header class="workbench-top">
         <div class="workbench-location">
           <span class="workbench-parent">检测工作台</span><span class="workbench-parent" aria-hidden="true">/</span>
-          <strong>{{ sectionTitle }}</strong>
+          <strong>{{ sectionTitle }}</strong><ChangeConnection />
           <span class="workbench-local" :class="{ 'workbench-training-mode': inTraining }">
             {{ inTraining ? '训练配置与监控' : inDatasets ? '本地标注服务' : activeSection === 'models' ? '版本与验证' : 'ONNX FP32 部署包' }}
           </span>
@@ -527,6 +553,7 @@ async function deleteImage(imageId: string) {
           </button>
         </div>
         <div v-else-if="inDatasets && loaded && !loadingError" class="workbench-actions">
+          <button class="button" type="button" :disabled="busy" @click="initialize()">刷新</button>
           <button class="button" type="button" @click="openDialog('import')">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V4m-4 4 4-4 4 4M4 15v5h16v-5"/></svg>
             导入数据集
@@ -555,7 +582,7 @@ async function deleteImage(imageId: string) {
         <div v-show="inDatasets">
           <div v-if="!loaded" class="page-state" role="status">正在读取数据集…</div>
           <div v-else-if="loadingError" class="page-state" role="alert">
-            <p>{{ loadingError }}</p><button class="button" @click="initialize">重试</button>
+            <p>{{ loadingError }}</p><button class="button" @click="initialize()">重试</button>
           </div>
           <DatasetsView
             v-else

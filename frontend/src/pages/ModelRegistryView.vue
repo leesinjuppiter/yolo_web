@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed,nextTick,onActivated,onDeactivated,onUnmounted,ref,watch } from 'vue'
 import { useRoute,useRouter } from 'vue-router'
+import { refreshOnChanges } from '../api/changes'
 import { archiveModel,deleteModel,getModel,listModels,updateModel } from '../api/models'
 import ModelActionDialog from '../components/models/ModelActionDialog.vue'
 import { taskLabels } from '../domain'
@@ -13,6 +14,7 @@ const selected=ref<string[]>([]),detail=ref<ModelVersion>(),detailError=ref(''),
 const action=ref<'evaluate'|'export'>(),name=ref(''),description=ref(''),busy=ref(false),notice=ref('')
 const deleteDialog=ref<HTMLDialogElement>(),deleteTarget=ref<ModelVersion>(),deleteError=ref('')
 let active=false,timer:ReturnType<typeof setTimeout>|undefined,controller:AbortController|undefined,detailController:AbortController|undefined,listScroll=0
+let unsubscribe:(()=>void)|undefined
 const pages=computed(()=>Math.max(1,Math.ceil((data.value?.total??0)/10)))
 const types=['detect','segment','obb','classify'] as const
 const canExecute=computed(()=>detail.value&&['detect','obb'].includes(detail.value.taskType)&&detail.value.lifecycle!=='archived')
@@ -25,24 +27,24 @@ const coreMetrics=computed(()=>{
  return keys.map(([key,label])=>({key:key!,label,value:model.trainingMetrics[key!]}))
 })
 function stop(){clearTimeout(timer);controller?.abort();detailController?.abort();loading.value=false}
-async function refresh(){
+async function refresh(quiet=false){
  if(!active)return
  clearTimeout(timer);controller?.abort();controller=new AbortController();const signal=controller.signal
- loading.value=true;error.value=''
+ loading.value=!quiet||!data.value;error.value=''
  const params=new URLSearchParams({query:query.value,page:String(page.value),page_size:'10'})
  if(task.value!=='all')params.set('task',task.value)
  if(lifecycle.value!=='all')params.set('lifecycle',lifecycle.value)
  try{const result=await listModels(params,signal);if(!signal.aborted){data.value=result;if(page.value>pages.value)page.value=pages.value}}
  catch(reason){if(!signal.aborted)error.value=reason instanceof Error?reason.message:'读取失败'}
- finally{if(!signal.aborted&&active){loading.value=false;timer=setTimeout(refresh,10000)}}
+ finally{if(!signal.aborted&&active){loading.value=false}}
 }
-async function loadDetail(){
+async function loadDetail(quiet=false){
  if(!active)return
  const id=typeof route.query.model==='string'?route.query.model:''
  detailController?.abort();detailError.value=''
  if(!id){detail.value=undefined;return}
- detailLoading.value=true;detailController=new AbortController();const signal=detailController.signal
- try{const value=await getModel(id,signal);if(!signal.aborted){detail.value=value;name.value=value.displayName||value.name;description.value=value.description||''}}
+ detailLoading.value=!quiet||!detail.value;detailController=new AbortController();const signal=detailController.signal
+ try{const value=await getModel(id,signal);if(!signal.aborted){detail.value=value;if(!quiet){name.value=value.displayName||value.name;description.value=value.description||''}}}
  catch(reason){if(!signal.aborted)detailError.value=reason instanceof Error?reason.message:'读取详情失败'}
  finally{if(!signal.aborted)detailLoading.value=false}
 }
@@ -83,13 +85,13 @@ function metric(model:ModelVersion){const values=model.trainingMetrics;return mo
 watch([query,task,lifecycle],()=>{page.value=1})
 watch([query,task,lifecycle,page],()=>{if(active){clearTimeout(timer);controller?.abort();timer=setTimeout(refresh,200)}})
 watch(()=>route.query.model,async(id,previous)=>{closeDelete();void loadDetail();if(!id&&previous){await nextTick();window.scrollTo(0,listScroll)}})
-onActivated(()=>{active=true;void refresh();void loadDetail()})
-onDeactivated(()=>{active=false;action.value=undefined;closeDelete();stop()})
-onUnmounted(stop)
+onActivated(()=>{active=true;unsubscribe=refreshOnChanges(['models','evaluations'],async()=>{await Promise.all([refresh(true),loadDetail(true)])});void refresh();void loadDetail()})
+onDeactivated(()=>{active=false;unsubscribe?.();action.value=undefined;closeDelete();stop()})
+onUnmounted(()=>{unsubscribe?.();stop()})
 </script>
 <template>
  <section class="model-workspace">
-  <div class="model-page-heading"><div><h1>模型仓库</h1><p>为训练结果保留身份、来源与验证依据</p></div><button class="button" :disabled="loading" @click="refresh">刷新</button></div>
+  <div class="model-page-heading"><div><h1>模型仓库</h1><p>为训练结果保留身份、来源与验证依据</p></div><button class="button" :disabled="loading" @click="refresh();loadDetail()">刷新</button></div>
   <p v-if="notice" class="model-note" role="status">{{notice}} <button class="model-text-button" @click="notice=''">收起</button></p>
   <div class="model-stat-grid">
    <div><span>已注册模型版本</span><strong>{{data?.summary.total??'—'}}</strong><small>来自训练结果登记</small></div>
@@ -100,7 +102,7 @@ onUnmounted(stop)
    <div class="model-panel">
     <div class="model-toolbar"><input v-model="query" type="search" placeholder="搜索模型名称或版本" aria-label="搜索模型"><select v-model="lifecycle" aria-label="模型状态"><option value="all">全部状态</option><option value="candidate">候选模型</option><option value="archived">已归档</option></select><button class="button" :disabled="selected.length<2" @click="router.push({name:'model-compare',query:{ids:selected.join(',')}})">模型对比（{{selected.length}}/4）</button><button v-if="selected.length" class="model-text-button" @click="selected=[]">清空选择</button></div>
     <div class="model-tabs" aria-label="任务类型"><button :class="{active:task==='all'}" @click="task='all'">全部</button><button v-for="value in types" :key="value" :class="{active:task===value}" @click="task=value">{{taskLabels[value]}}</button></div>
-    <p v-if="error" class="model-error" role="alert">{{error}} <button class="button" @click="refresh">重试</button></p>
+    <p v-if="error" class="model-error" role="alert">{{error}} <button class="button" @click="refresh();loadDetail()">重试</button></p>
     <div v-if="!data&&loading" class="page-state" role="status">正在读取模型版本…</div>
     <div v-else-if="data&&!data.items.length" class="page-state">没有匹配的模型版本。训练成功后，可在训练详情中注册模型。</div>
     <div v-else class="model-table-scroll"><table class="model-table"><thead><tr><th aria-label="选择"></th><th>模型名称 / 版本</th><th>任务类型</th><th>来源数据集</th><th>训练验证指标</th><th>验证与状态</th><th>操作</th></tr></thead><tbody><tr v-for="model in data?.items" :key="model.id"><td><input type="checkbox" :aria-label="'选择 '+model.name" :checked="selected.includes(model.id)" @change="toggle(model.id,($event.target as HTMLInputElement).checked)"></td><td><button class="model-link" @click="open(model.id)">{{model.displayName||model.name}}</button><small>{{model.version}} · {{formatDate(model.createdAt)}}</small></td><td><span class="model-chip">{{model.taskType.toUpperCase()}}</span><small>{{taskLabels[model.taskType]}}</small></td><td>{{model.datasetName}}<small class="model-mono">{{model.snapshotDigest?.slice(0,12)}}</small></td><td>{{metric(model)}}<small>来源：训练验证，非独立测试</small></td><td><span class="model-chip" :class="{good:!!model.evaluation}">{{model.evaluation?'已评估':'未独立评估'}}</span><small>{{model.lifecycle==='archived'?'已归档':'候选模型'}}</small></td><td><button class="button" @click="open(model.id)">详情与操作</button></td></tr></tbody></table></div>

@@ -144,7 +144,7 @@ watch([logPanel, () => props.initialTab], ([panel, tab]) => {
             </span>
           </div>
           <div class="actions">
-            <span v-if="!finished" class="monitor-mode">每 5 秒刷新</span>
+            <span v-if="!finished" class="monitor-mode">变化时更新</span>
             <button v-if="task.actions.includes('cancel')" type="button" class="button danger"
               :disabled="!!action || task.cancelRequested" @click="requestAction">
               {{ action || task.cancelRequested ? '处理中…' : actionLabel }}

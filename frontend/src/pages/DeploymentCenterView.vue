@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed,onActivated,onDeactivated,onUnmounted,ref,watch } from 'vue'
 import { useRoute,useRouter } from 'vue-router'
+import { refreshOnChanges } from '../api/changes'
 import { cancelModelJob,createPackage,getModelJob,listModelJobs,modelJobLogs } from '../api/deployment'
 import { cancelEvaluation,evaluationLogs,getEvaluation,listEvaluations } from '../api/evaluation'
 import type { JobResource } from '../api/deployment'
@@ -14,7 +15,7 @@ const tab=computed<Tab>(()=>route.query.tab==='packages'?'packages':route.query.
 const items=ref<ModelJob[]>([]),exports=ref<ModelJob[]>([]),packages=ref<ModelJob[]>([]),evaluations=ref<ModelJob[]>([])
 const selected=ref<ModelJob>(),logs=ref<JobLog[]>([]),query=ref(''),status=ref('all'),loading=ref(false),error=ref(''),busy=ref(false),notice=ref(''),page=ref(1),total=ref(0)
 const pageCount=computed(()=>Math.max(1,Math.ceil(total.value/20)))
-let active=false,controller:AbortController|undefined,timer:ReturnType<typeof setTimeout>|undefined
+let active=false,controller:AbortController|undefined,unsubscribe:(()=>void)|undefined
 const packageKeys=new Map<string,string>()
 function versionId(item:ModelJob){return item.versionId||String(item.manifest?.modelVersionId??exports.value.find(job=>job.id===item.exportId)?.versionId??'—')}
 const visible=computed(()=>items.value.filter(item=>(status.value==='all'||item.status===status.value)&&(!query.value.trim()||[item.id,versionId(item),item.exportId].join(' ').toLowerCase().includes(query.value.trim().toLowerCase()))))
@@ -22,10 +23,10 @@ const reportExports=computed(()=>exports.value.filter(item=>item.report))
 const finishedPackages=computed(()=>packages.value.filter(item=>item.status==='succeeded').length)
 const running=computed(()=>[...exports.value,...packages.value,...evaluations.value].filter(item=>['queued','running'].includes(item.status)).length)
 const resource=computed<JobResource>(()=>tab.value==='packages'?'deployment-packages':'exports')
-function stop(){clearTimeout(timer);controller?.abort();loading.value=false}
-async function refresh(){
+function stop(){controller?.abort();loading.value=false}
+async function refresh(quiet=false){
  if(!active)return
- stop();controller=new AbortController();const signal=controller.signal;loading.value=true;error.value=''
+ stop();controller=new AbortController();const signal=controller.signal;loading.value=!quiet;error.value=''
  const currentTab=tab.value,currentResource=resource.value,id=typeof route.query.job==='string'?route.query.job:''
  try{
   const [a,b,c]=await Promise.all([listModelJobs('exports',signal,currentTab==='exports'?page.value:1),listModelJobs('deployment-packages',signal,currentTab==='packages'?page.value:1),listEvaluations(signal)])
@@ -39,7 +40,7 @@ async function refresh(){
    if(!signal.aborted){selected.value=job;logs.value=result.items}
   }else {selected.value=undefined;logs.value=[]}
  }catch(reason){if(!signal.aborted)error.value=reason instanceof Error?reason.message:'读取任务失败'}
- finally{if(!signal.aborted&&active){loading.value=false;timer=setTimeout(refresh,5000)}}
+ finally{if(!signal.aborted&&active){loading.value=false}}
 }
 function switchTab(value:Tab){page.value=1;void router.replace({name:'deployments',query:{tab:value}})}
 function open(id:string){void router.replace({name:'deployments',query:{tab:tab.value,job:id}})}
@@ -60,18 +61,18 @@ async function build(id:string){
 function saveReport(job:ModelJob){const url=URL.createObjectURL(new Blob([JSON.stringify(job.report,null,2)],{type:'application/json'})),link=document.createElement('a');link.href=url;link.download='report-'+job.id+'.json';link.click();URL.revokeObjectURL(url)}
 watch(()=>route.fullPath,()=>{if(route.query.job!==selected.value?.id){selected.value=undefined;logs.value=[]}void refresh()})
 watch(page,()=>void refresh())
-onActivated(()=>{active=true;void refresh()})
-onDeactivated(()=>{active=false;stop()});onUnmounted(stop)
+onActivated(()=>{active=true;unsubscribe=refreshOnChanges(['exports','packages','evaluations'],()=>refresh(true));void refresh()})
+onDeactivated(()=>{active=false;unsubscribe?.();stop()});onUnmounted(()=>{unsubscribe?.();stop()})
 </script>
 <template>
  <section class="model-workspace">
-  <div class="model-page-heading"><div><h1>部署中心</h1><p>导出模型、核对验证报告并生成可下载的部署包</p></div><button class="button" :disabled="loading" @click="refresh">刷新</button></div>
+  <div class="model-page-heading"><div><h1>部署中心</h1><p>导出模型、核对验证报告并生成可下载的部署包</p></div><button class="button" :disabled="loading" @click="refresh()">刷新</button></div>
   <div class="model-stat-grid"><div><span>已载入导出任务</span><strong>{{exports.length}}</strong><small>Detect / OBB · ONNX FP32</small></div><div><span>已载入的成功部署包</span><strong>{{finishedPackages}}</strong><small>完整性校验与环境说明</small></div><div><span>已载入的等待或执行任务</span><strong>{{running}}</strong><small>评估、导出与包构建任务</small></div></div>
   <p class="model-note">本版本交付到部署包生成与下载。报告记录实际验证环境；目标机器上的运行兼容性需在接入后验证。</p>
   <p v-if="notice" role="status" class="model-note">{{notice}}</p>
   <div class="model-panel">
    <div class="model-tabs"><button :class="{active:tab==='exports'}" @click="switchTab('exports')">导出任务</button><button :class="{active:tab==='packages'}" @click="switchTab('packages')">部署包</button><button :class="{active:tab==='reports'}" @click="switchTab('reports')">验证报告</button></div>
-   <p v-if="error" role="alert" class="model-error">{{error}} <button class="button" @click="refresh">重试</button></p>
+   <p v-if="error" role="alert" class="model-error">{{error}} <button class="button" @click="refresh()">重试</button></p>
    <template v-if="selected">
     <div class="model-toolbar"><button class="button" @click="switchTab(tab)">返回{{tab==='exports'?'导出任务':tab==='packages'?'部署包':'验证报告'}}</button><span class="model-chip">{{jobLabels[selected.status]||selected.status}}</span><span>{{selected.phase}}</span><button v-if="tab!=='packages'&&['queued','running'].includes(selected.status)" class="button danger" :disabled="busy" @click="cancel">取消任务</button><a v-if="selected.downloadUrl&&selected.status==='succeeded'" class="button" :href="selected.downloadUrl">下载{{tab==='packages'?'部署包':'ONNX 产物'}}</a><button v-if="tab==='exports'&&selected.status==='succeeded'" class="button primary" :disabled="busy" @click="build(selected.id)">生成部署包</button></div>
     <dl class="model-facts model-detail"><div><dt>任务 ID</dt><dd>{{selected.id}}</dd></div><div><dt>模型版本 ID</dt><dd>{{versionId(selected)}}</dd></div><div><dt>创建时间</dt><dd>{{formatDate(selected.createdAt)}}</dd></div><div><dt>完成时间</dt><dd>{{formatDate(selected.finishedAt)}}</dd></div></dl>

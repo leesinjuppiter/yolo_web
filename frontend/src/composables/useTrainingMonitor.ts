@@ -1,9 +1,8 @@
 import { onScopeDispose, ref, shallowRef, watch } from 'vue'
+import { refreshOnChanges } from '../api/changes'
 import { cancelTraining, getTraining, getTrainingLogs, getTrainingMetrics, trainingPageLimit } from '../api/training'
-import { terminalTrainingStates } from '../types/training'
 import type { TrainingAction, TrainingLogEntry, TrainingMetricPoint, TrainingTask } from '../types/training'
 
-const intervalMs = 5000
 const logWindow = 1000
 const errorText = (cause: unknown) => cause instanceof Error ? cause.message : '请求失败，请稍后重试'
 
@@ -16,6 +15,7 @@ export function useTrainingMonitor(taskId: () => string) {
   const action = ref<TrainingAction>()
   const actionError = ref('')
   let controller = new AbortController()
+  let dirty = false
   let timer: ReturnType<typeof setTimeout> | undefined
 
   function stopRefresh() {
@@ -26,12 +26,12 @@ export function useTrainingMonitor(taskId: () => string) {
   }
 
   async function refresh() {
-    if (refreshing.value || action.value) return
+    if (refreshing.value || action.value) { dirty = true; return }
+    dirty = false
     clearTimeout(timer)
     const { signal } = controller
     const id = taskId()
     refreshing.value = true
-    let complete = false
     let pending = false
     try {
       const current = await getTraining(id, signal)
@@ -56,13 +56,12 @@ export function useTrainingMonitor(taskId: () => string) {
         pending ||= logResult.value.length >= trainingPageLimit
       } else failures.push(`日志更新失败：${errorText(logResult.reason)}`)
       refreshError.value = failures.join('。')
-      complete = !failures.length && !pending && terminalTrainingStates.has(current.status)
     } catch (cause) {
       if (!signal.aborted) refreshError.value = errorText(cause)
     } finally {
       if (!signal.aborted) {
         refreshing.value = false
-        if (task.value && !complete) timer = setTimeout(refresh, pending ? 0 : intervalMs)
+        if (pending || dirty) timer = setTimeout(refresh, 0)
       }
     }
   }
@@ -96,7 +95,8 @@ export function useTrainingMonitor(taskId: () => string) {
     actionError.value = ''
     void refresh()
   }, { immediate: true })
-  onScopeDispose(stopRefresh)
+  const unsubscribe = refreshOnChanges(['training', 'models'], refresh, change => change.topic === 'models' || change.id === taskId())
+  onScopeDispose(() => { unsubscribe(); stopRefresh() })
 
   return { task, metrics, logs, refreshing, refreshError, action, actionError, refresh, runAction }
 }
