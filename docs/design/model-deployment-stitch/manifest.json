@@ -1,0 +1,46 @@
+[
+  {
+    "id": "ee909f86d97341bc8f8ca2fade81ed4b",
+    "title": "模型仓库 - 检测系统工作台",
+    "projectId": "18239273122054167103",
+    "html": "01-model-registry.html",
+    "image": "01-model-registry.jpg",
+    "width": "2560",
+    "height": "2048",
+    "sourceHtmlResource": "projects/18239273122054167103/files/11875628503238549569",
+    "sourceImageResource": "projects/18239273122054167103/files/3523598525020783821"
+  },
+  {
+    "id": "8048d65cb86c4da8b03f0101b61b1e98",
+    "title": "模型仓库 - 多模型对比 (Diff) 综合看板",
+    "projectId": "18239273122054167103",
+    "html": "02-model-comparison.html",
+    "image": "02-model-comparison.jpg",
+    "width": "2560",
+    "height": "2048",
+    "sourceHtmlResource": "projects/18239273122054167103/files/2236101260861215697",
+    "sourceImageResource": "projects/18239273122054167103/files/10253837567293819268"
+  },
+  {
+    "id": "64832da5e0784caeacf89710329205ff",
+    "title": "模型仓库 - 部署上线配置弹窗画板",
+    "projectId": "18239273122054167103",
+    "html": "03-deploy-dialog.html",
+    "image": "03-deploy-dialog.jpg",
+    "width": "2560",
+    "height": "2048",
+    "sourceHtmlResource": "projects/18239273122054167103/files/2204962060336111425",
+    "sourceImageResource": "projects/18239273122054167103/files/3174107529444066617"
+  },
+  {
+    "id": "e2c183d00c98445da078ff80eb959562",
+    "title": "部署中心 - 模型下发与分发管理工作台",
+    "projectId": "18239273122054167103",
+    "html": "04-deployment-center.html",
+    "image": "04-deployment-center.png",
+    "width": "2560",
+    "height": "2048",
+    "sourceHtmlResource": "projects/18239273122054167103/screens/e2c183d00c98445da078ff80eb959562/fileEntries/html",
+    "sourceImageResource": "projects/18239273122054167103/screens/e2c183d00c98445da078ff80eb959562/fileEntries/screenshot"
+  }
+]

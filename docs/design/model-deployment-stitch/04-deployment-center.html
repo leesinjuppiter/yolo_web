@@ -1,0 +1,835 @@
+<!DOCTYPE html>
+
+<html class="h-full" lang="zh-CN"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>OPTI-METRIX 部署中心 - 工业视觉检测引擎</title>
+<!-- Fonts -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          "colors": {
+            "surface-variant": "#d8e3f9",
+            "on-surface": "#111c2b",
+            "tertiary": "#005c15",
+            "on-surface-variant": "#43474d",
+            "on-secondary-fixed-variant": "#42474c",
+            "surface-dim": "#cfdbf0",
+            "on-primary": "#ffffff",
+            "on-error-container": "#93000a",
+            "on-error": "#ffffff",
+            "on-secondary-fixed": "#171c20",
+            "outline-variant": "#c3c6ce",
+            "error": "#ba1a1a",
+            "background": "#f8f9ff",
+            "on-tertiary-fixed-variant": "#005312",
+            "surface-container-lowest": "#ffffff",
+            "surface": "#f8f9ff",
+            "primary-fixed": "#d1e4ff",
+            "inverse-primary": "#afc9ea",
+            "tertiary-fixed-dim": "#88d982",
+            "surface-bright": "#f8f9ff",
+            "secondary-container": "#dbe0e5",
+            "secondary": "#595f63",
+            "surface-container-low": "#eff3ff",
+            "on-primary-fixed": "#001d35",
+            "inverse-on-surface": "#ebf1ff",
+            "primary-container": "#4f6885",
+            "secondary-fixed-dim": "#c2c7cc",
+            "error-container": "#ffdad6",
+            "surface-container-high": "#dde9fe",
+            "on-tertiary-fixed": "#002204",
+            "on-background": "#111c2b",
+            "on-secondary-container": "#5e6368",
+            "on-tertiary": "#ffffff",
+            "surface-container": "#e6eeff",
+            "secondary-fixed": "#dee3e8",
+            "outline": "#73777e",
+            "tertiary-fixed": "#a3f69c",
+            "surface-tint": "#47607d",
+            "inverse-surface": "#263141",
+            "on-primary-container": "#d5e6ff",
+            "on-tertiary-container": "#a5f99e",
+            "on-primary-fixed-variant": "#2f4964",
+            "primary-fixed-dim": "#afc9ea",
+            "tertiary-container": "#25752b",
+            "primary": "#37506c",
+            "surface-container-highest": "#d8e3f9",
+            "on-secondary": "#ffffff"
+          },
+          "borderRadius": {
+            "DEFAULT": "0.125rem",
+            "lg": "0.25rem",
+            "xl": "0.5rem",
+            "full": "0.75rem"
+          },
+          "spacing": {
+            "margin-desktop": "1rem",
+            "gutter": "0.5rem",
+            "space-xl": "1rem",
+            "space-md": "0.5rem",
+            "margin": "0.75rem",
+            "space-lg": "0.75rem",
+            "space-xs": "0.125rem",
+            "gutter-desktop": "0.75rem",
+            "space-sm": "0.25rem"
+          },
+          "fontFamily": {
+            "label-lg": ["JetBrains Mono"],
+            "headline-md": ["Hanken Grotesk"],
+            "label-sm": ["JetBrains Mono"],
+            "headline-lg": ["Hanken Grotesk"],
+            "body-md": ["Hanken Grotesk"],
+            "headline-sm": ["Hanken Grotesk"],
+            "body-sm": ["Hanken Grotesk"],
+            "label-md": ["JetBrains Mono"],
+            "body-lg": ["Hanken Grotesk"]
+          },
+          "fontSize": {
+            "label-lg": ["13px", { "lineHeight": "16px", "letterSpacing": "0.02em", "fontWeight": "500" }],
+            "headline-md": ["18px", { "lineHeight": "24px", "letterSpacing": "-0.005em", "fontWeight": "600" }],
+            "label-sm": ["10px", { "lineHeight": "12px", "letterSpacing": "0.03em", "fontWeight": "400" }],
+            "headline-lg": ["24px", { "lineHeight": "32px", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+            "body-md": ["13px", { "lineHeight": "18px", "fontWeight": "400" }],
+            "headline-sm": ["15px", { "lineHeight": "20px", "fontWeight": "600" }],
+            "body-sm": ["12px", { "lineHeight": "16px", "fontWeight": "400" }],
+            "label-md": ["11px", { "lineHeight": "14px", "letterSpacing": "0.02em", "fontWeight": "500" }],
+            "body-lg": ["14px", { "lineHeight": "20px", "fontWeight": "400" }]
+          }
+        }
+      }
+    }
+  </script>
+<style>
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+      font-size: 16px;
+      line-height: 1;
+      display: inline-block;
+      vertical-align: middle;
+    }
+    .material-symbols-outlined.fill {
+      font-variation-settings: 'FILL' 1;
+    }
+    /* Industrial hairline styling */
+    .hairline-border {
+      border: 1px solid #E6E9ED;
+    }
+    .hairline-b {
+      border-bottom: 1px solid #E6E9ED;
+    }
+    .hairline-r {
+      border-right: 1px solid #E6E9ED;
+    }
+    .hairline-t {
+      border-top: 1px solid #E6E9ED;
+    }
+    .hairline-l {
+      border-left: 1px solid #E6E9ED;
+    }
+    /* Precision custom scrollbar */
+    ::-webkit-scrollbar {
+      width: 5px;
+      height: 5px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #F8F9FB;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #C3C6CE;
+      border-radius: 2px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #73777E;
+    }
+  </style>
+</head>
+<body class="h-full bg-background text-on-surface antialiased overflow-hidden flex font-body-md text-body-md select-none">
+<!-- ==================== 1. 左侧固定导航栏 (SideNavBar) ==================== -->
+<aside class="w-56 h-screen flex-shrink-0 flex flex-col justify-between hairline-r bg-surface-container-lowest z-40">
+<!-- Brand Header -->
+<div class="p-space-lg hairline-b">
+<div class="flex items-center gap-space-md">
+<div class="w-7 h-7 bg-primary flex items-center justify-center rounded-DEFAULT text-on-primary">
+<span class="material-symbols-outlined" data-icon="rocket_launch">rocket_launch</span>
+</div>
+<div class="flex flex-col">
+<span class="font-headline-sm text-headline-sm font-bold text-on-surface tracking-tight leading-tight">OPTI-METRIX</span>
+<span class="font-label-sm text-label-sm text-secondary tracking-wider font-mono">v4.2.0-CORE-STATION</span>
+</div>
+</div>
+</div>
+<!-- Navigation Tab List -->
+<nav class="flex-1 px-space-md py-space-md space-y-space-xs overflow-y-auto">
+<!-- 0: 数据集 -->
+<a class="flex items-center gap-space-md px-space-lg py-space-sm text-on-surface-variant hover:bg-surface-container-low rounded-DEFAULT transition-colors" href="#">
+<span class="material-symbols-outlined" data-icon="dataset">dataset</span>
+<span class="font-label-md text-label-md">数据集</span>
+</a>
+<!-- 1: 模型训练 -->
+<a class="flex items-center gap-space-md px-space-lg py-space-sm text-on-surface-variant hover:bg-surface-container-low rounded-DEFAULT transition-colors" href="#">
+<span class="material-symbols-outlined" data-icon="model_training">model_training</span>
+<span class="font-label-md text-label-md">模型训练</span>
+</a>
+<!-- 2: 模型仓库 -->
+<a class="flex items-center gap-space-md px-space-lg py-space-sm text-on-surface-variant hover:bg-surface-container-low rounded-DEFAULT transition-colors" href="#">
+<span class="material-symbols-outlined" data-icon="deployed_code">deployed_code</span>
+<span class="font-label-md text-label-md">模型仓库</span>
+</a>
+<!-- 3: 部署中心 (ACTIVE STATE) -->
+<a class="flex items-center gap-space-md px-space-lg py-space-sm bg-surface-container-high text-primary font-medium rounded-DEFAULT relative" href="#">
+<span class="material-symbols-outlined fill text-primary" data-icon="rocket_launch" data-weight="fill">rocket_launch</span>
+<span class="font-label-md text-label-md font-semibold">部署中心</span>
+<span class="absolute right-2.5 w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></span>
+</a>
+<!-- 4: 智能体 -->
+<a class="flex items-center gap-space-md px-space-lg py-space-sm text-on-surface-variant hover:bg-surface-container-low rounded-DEFAULT transition-colors" href="#">
+<span class="material-symbols-outlined" data-icon="smart_toy">smart_toy</span>
+<span class="font-label-md text-label-md">智能体</span>
+</a>
+<!-- 5: 审计日志 -->
+<a class="flex items-center gap-space-md px-space-lg py-space-sm text-on-surface-variant hover:bg-surface-container-low rounded-DEFAULT transition-colors" href="#">
+<span class="material-symbols-outlined" data-icon="receipt_long">receipt_long</span>
+<span class="font-label-md text-label-md">审计日志</span>
+</a>
+<!-- 6: 系统设置 -->
+<a class="flex items-center gap-space-md px-space-lg py-space-sm text-on-surface-variant hover:bg-surface-container-low rounded-DEFAULT transition-colors" href="#">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+<span class="font-label-md text-label-md">系统设置</span>
+</a>
+</nav>
+<!-- Sidebar Station Status Footer -->
+<div class="p-space-md hairline-t bg-surface-container-low/50">
+<div class="px-space-md py-space-sm bg-surface-container-lowest hairline-border rounded-DEFAULT flex items-center justify-between">
+<div class="flex items-center gap-space-sm overflow-hidden">
+<span class="material-symbols-outlined text-tertiary text-[14px]" data-icon="check_circle">check_circle</span>
+<span class="font-label-sm text-label-sm text-secondary truncate">本地工作台: 就绪</span>
+</div>
+<span class="font-label-sm text-label-sm text-tertiary font-mono font-medium">0.4ms</span>
+</div>
+</div>
+</aside>
+<!-- ==================== 2. 主页面工作空间 (Main Canvas) ==================== -->
+<div class="flex-1 flex flex-col h-screen overflow-hidden">
+<!-- 顶部工作流与操作栏 (TopNavBar) -->
+<header class="flex justify-between items-center h-12 px-margin-desktop w-full hairline-b bg-surface-container-lowest sticky top-0 z-30 shrink-0">
+<!-- Breadcrumbs & Meta -->
+<div class="flex items-center gap-space-md">
+<span class="font-label-md text-label-md text-secondary font-mono">工作空间: LINE-04</span>
+<span class="text-outline-variant font-mono">/</span>
+<span class="font-label-md text-label-md text-secondary">模型工程中心</span>
+<span class="text-outline-variant font-mono">/</span>
+<div class="flex items-center gap-1.5">
+<span class="font-headline-sm text-headline-sm font-semibold text-on-surface">部署中心</span>
+<span class="font-label-sm text-label-sm bg-surface-container-high text-primary px-1.5 py-0.5 rounded-DEFAULT font-mono">DEPLOY-HUB</span>
+</div>
+</div>
+<!-- Action Tools -->
+<div class="flex items-center gap-space-md">
+<!-- Quick System Status Indicators -->
+<div class="hidden lg:flex items-center gap-space-md px-space-md py-1 hairline-border rounded-DEFAULT bg-surface-container-low/40">
+<div class="flex items-center gap-1.5">
+<span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+<span class="font-label-sm text-label-sm text-secondary">分发引擎: 同步活跃</span>
+</div>
+<span class="text-outline-variant">|</span>
+<div class="flex items-center gap-1 text-secondary font-mono font-label-sm text-label-sm">
+<span class="material-symbols-outlined text-[13px]" data-icon="shield">shield</span>
+<span>自动回滚守卫: 就绪</span>
+</div>
+</div>
+<div class="flex items-center gap-space-sm hairline-l pl-space-md">
+<button class="h-7 px-space-md hairline-border bg-surface-container-lowest hover:bg-surface-container-low text-on-surface rounded-DEFAULT font-label-md text-label-md flex items-center gap-1 transition-colors" type="button">
+<span class="material-symbols-outlined text-[14px]" data-icon="deployed_code">deployed_code</span>
+<span>管理部署包</span>
+</button>
+<button class="h-7 px-space-md hairline-border bg-surface-container-lowest hover:bg-surface-container-low text-on-surface rounded-DEFAULT font-label-md text-label-md flex items-center gap-1 transition-colors" type="button">
+<span class="material-symbols-outlined text-[14px]" data-icon="developer_board">developer_board</span>
+<span>目标节点 (12)</span>
+</button>
+<button class="h-7 px-space-lg bg-primary hover:bg-primary-container text-on-primary rounded-DEFAULT font-label-md text-label-md font-medium flex items-center gap-1.5 transition-colors shadow-none" type="button">
+<span class="material-symbols-outlined text-[15px]" data-icon="add">add</span>
+<span>新建部署下发任务</span>
+</button>
+</div>
+<!-- Quick utility icons -->
+<div class="flex items-center gap-1 hairline-l pl-space-md text-secondary">
+<button class="w-7 h-7 flex items-center justify-center hover:bg-surface-container-low rounded-DEFAULT text-on-surface-variant" title="刷新状态">
+<span class="material-symbols-outlined" data-icon="refresh">refresh</span>
+</button>
+<button class="w-7 h-7 flex items-center justify-center hover:bg-surface-container-low rounded-DEFAULT text-on-surface-variant" title="发布策略参数设置">
+<span class="material-symbols-outlined" data-icon="tune">tune</span>
+</button>
+<button class="w-7 h-7 flex items-center justify-center hover:bg-surface-container-low rounded-DEFAULT text-on-surface-variant" title="全屏工作台">
+<span class="material-symbols-outlined" data-icon="fullscreen">fullscreen</span>
+</button>
+<button class="w-7 h-7 flex items-center justify-center hover:bg-surface-container-low rounded-DEFAULT text-on-surface-variant" title="下发指南">
+<span class="material-symbols-outlined" data-icon="help_outline">help_outline</span>
+</button>
+</div>
+</div>
+</header>
+<!-- 滚动工作区 -->
+<main class="flex-1 overflow-y-auto bg-background p-margin-desktop space-y-margin-desktop">
+<!-- ==================== 顶部统计指标卡 (Telemetry Micro-Cards) ==================== -->
+<section class="grid grid-cols-4 gap-gutter-desktop">
+<!-- Metric 1: 待部署 / 稳定发布版本 -->
+<div class="bg-surface-container-lowest hairline-border p-space-lg rounded-DEFAULT flex flex-col justify-between">
+<div class="flex items-center justify-between text-secondary">
+<span class="font-label-sm text-label-sm uppercase tracking-wide">待部署 / 稳定发布版本</span>
+<span class="material-symbols-outlined text-primary text-[18px]" data-icon="inventory_2">inventory_2</span>
+</div>
+<div class="mt-space-md flex items-baseline justify-between">
+<div class="flex items-baseline gap-1.5">
+<span class="font-headline-lg text-headline-lg font-bold text-on-surface">3</span>
+<span class="font-label-sm text-label-sm text-secondary">个可用包</span>
+</div>
+<span class="font-label-sm text-label-sm text-tertiary bg-emerald-50 px-1.5 py-0.5 rounded-DEFAULT font-mono">100% 签名验签</span>
+</div>
+<div class="mt-space-xs font-label-sm text-label-sm text-secondary truncate font-mono">
+            最新: YOLO11s-Detect v1.1.0
+          </div>
+</div>
+<!-- Metric 2: 在线受管边缘目标节点 -->
+<div class="bg-surface-container-lowest hairline-border p-space-lg rounded-DEFAULT flex flex-col justify-between">
+<div class="flex items-center justify-between text-secondary">
+<span class="font-label-sm text-label-sm uppercase tracking-wide">在线受管边缘目标节点</span>
+<span class="material-symbols-outlined text-emerald-600 text-[18px]" data-icon="hub">hub</span>
+</div>
+<div class="mt-space-md flex items-baseline justify-between">
+<div class="flex items-baseline gap-1.5">
+<span class="font-headline-lg text-headline-lg font-bold text-on-surface">12</span>
+<span class="font-label-sm text-label-sm text-secondary">/ 12 节点在线</span>
+</div>
+<span class="font-label-sm text-label-sm text-tertiary bg-emerald-50 px-1.5 py-0.5 rounded-DEFAULT font-mono">100% ONLINE</span>
+</div>
+<div class="mt-space-xs font-label-sm text-label-sm text-secondary truncate font-mono">
+            Jetson Orin (8) · 工控IPC (4)
+          </div>
+</div>
+<!-- Metric 3: 活跃部署任务 / 流水线 -->
+<div class="bg-surface-container-lowest hairline-border p-space-lg rounded-DEFAULT flex flex-col justify-between">
+<div class="flex items-center justify-between text-secondary">
+<span class="font-label-sm text-label-sm uppercase tracking-wide">活跃部署流水线</span>
+<span class="material-symbols-outlined text-primary text-[18px]" data-icon="sync_alt">sync_alt</span>
+</div>
+<div class="mt-space-md flex items-baseline justify-between">
+<div class="flex items-baseline gap-1.5">
+<span class="font-headline-lg text-headline-lg font-bold text-on-surface">2</span>
+<span class="font-label-sm text-label-sm text-secondary">项下发校验中</span>
+</div>
+<span class="font-label-sm text-label-sm text-primary bg-surface-container-high px-1.5 py-0.5 rounded-DEFAULT font-mono">Canary 30%</span>
+</div>
+<div class="mt-space-xs font-label-sm text-label-sm text-secondary truncate font-mono">
+            LINE-04B 正在进行旁路验证
+          </div>
+</div>
+<!-- Metric 4: 当前平均分发耗时与验证通过率 -->
+<div class="bg-surface-container-lowest hairline-border p-space-lg rounded-DEFAULT flex flex-col justify-between">
+<div class="flex items-center justify-between text-secondary">
+<span class="font-label-sm text-label-sm uppercase tracking-wide">平均分发时延 / 节拍达标率</span>
+<span class="material-symbols-outlined text-tertiary text-[18px]" data-icon="speed">speed</span>
+</div>
+<div class="mt-space-md flex items-baseline justify-between">
+<div class="flex items-baseline gap-1.5 font-mono">
+<span class="font-headline-lg text-headline-lg font-bold text-on-surface">1.8s</span>
+<span class="font-label-sm text-label-sm text-secondary">/ 节点</span>
+</div>
+<span class="font-label-sm text-label-sm text-tertiary bg-emerald-50 px-1.5 py-0.5 rounded-DEFAULT font-mono">100% 节拍达标</span>
+</div>
+<div class="mt-space-xs font-label-sm text-label-sm text-secondary truncate font-mono">
+            Dry-Run 显存上限校验: PASS
+          </div>
+</div>
+</section>
+<!-- ==================== 板块 A: 当前产线工位绑定总览矩阵 ==================== -->
+<section class="bg-surface-container-lowest hairline-border rounded-DEFAULT">
+<!-- 矩阵标题头 -->
+<div class="px-space-lg py-space-md hairline-b bg-surface-container-low/30 flex items-center justify-between">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary text-[16px]" data-icon="precision_manufacturing">precision_manufacturing</span>
+<span class="font-headline-sm text-headline-sm font-semibold text-on-surface">当前产线工位绑定与下发矩阵 (Active Edge Station Matrix)</span>
+<span class="font-label-sm text-label-sm text-secondary font-mono">实时映射: 4 个生产关键质检站</span>
+</div>
+<div class="flex items-center gap-space-md text-label-sm text-secondary font-mono">
+<div class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-emerald-500"></span> 生产正常</div>
+<div class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></span> 金丝雀灰度</div>
+<div class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-amber-500"></span> 待更新</div>
+</div>
+</div>
+<!-- 4 核心工位矩阵卡片 -->
+<div class="p-space-lg grid grid-cols-4 gap-gutter-desktop">
+<!-- 工位 01: LINE-04 主检站 -->
+<div class="bg-surface-container-lowest hairline-border rounded-DEFAULT p-space-md flex flex-col justify-between hover:bg-surface-container-low/20 transition-colors">
+<div>
+<div class="flex items-start justify-between">
+<div>
+<div class="flex items-center gap-1.5">
+<span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+<span class="font-headline-sm text-headline-sm font-semibold text-on-surface">工位 01: LINE-04 主检站</span>
+</div>
+<div class="font-label-sm text-label-sm text-secondary font-mono mt-0.5">IPC-04A · Jetson AGX Orin 64GB</div>
+</div>
+<span class="font-label-sm text-label-sm bg-emerald-50 text-emerald-800 px-1.5 py-0.5 rounded-DEFAULT font-mono border border-emerald-200">稳定运行 18天</span>
+</div>
+<!-- 模型与部署包元数据 -->
+<div class="mt-space-md space-y-1.5 bg-surface-container-low/40 p-space-sm rounded-DEFAULT hairline-border text-label-sm font-mono">
+<div class="flex justify-between">
+<span class="text-secondary">运行模型:</span>
+<span class="text-on-surface font-semibold truncate max-w-[150px]" title="YOLO11s-Detect v1.1.0 (FP16 TensorRT)">YOLO11s-Detect v1.1.0</span>
+</div>
+<div class="flex justify-between">
+<span class="text-secondary">部署包 ID:</span>
+<span class="text-primary truncate max-w-[150px]">PKG-20250618-YOLO11S-TRT86</span>
+</div>
+<div class="flex justify-between items-center text-tertiary">
+<span class="text-secondary">推理节拍:</span>
+<span class="font-medium">5.8ms ≤ 45ms 达标</span>
+</div>
+</div>
+<!-- 验证进度 -->
+<div class="mt-space-sm flex items-center justify-between text-label-sm font-mono text-secondary">
+<span>验证状态: 100% 校验通过</span>
+<span class="text-tertiary">合规</span>
+</div>
+</div>
+<!-- 操作按钮组 -->
+<div class="mt-space-md hairline-t pt-space-sm grid grid-cols-3 gap-1">
+<button class="h-6 text-label-sm font-label-sm hairline-border bg-surface-container-lowest hover:bg-surface-container-low text-on-surface rounded-DEFAULT">更新下发</button>
+<button class="h-6 text-label-sm font-label-sm hairline-border bg-surface-container-lowest hover:bg-red-50 text-error rounded-DEFAULT" title="安全快速回滚">回滚 v1.0.0</button>
+<button class="h-6 text-label-sm font-label-sm hairline-border bg-surface-container-lowest hover:bg-surface-container-low text-secondary rounded-DEFAULT">部署记录</button>
+</div>
+</div>
+<!-- 工位 02: LINE-04 侧视缺陷站 -->
+<div class="bg-surface-container-lowest hairline-border rounded-DEFAULT p-space-md flex flex-col justify-between border-primary-container/40 hover:bg-surface-container-low/20 transition-colors">
+<div>
+<div class="flex items-start justify-between">
+<div>
+<div class="flex items-center gap-1.5">
+<span class="w-2 h-2 rounded-full bg-blue-500 animate-ping"></span>
+<span class="font-headline-sm text-headline-sm font-semibold text-on-surface">工位 02: LINE-04 侧视缺陷站</span>
+</div>
+<div class="font-label-sm text-label-sm text-secondary font-mono mt-0.5">IPC-04B · Jetson Orin NX 16GB</div>
+</div>
+<span class="font-label-sm text-label-sm bg-blue-50 text-primary px-1.5 py-0.5 rounded-DEFAULT font-mono border border-blue-200">Canary 30%</span>
+</div>
+<!-- 模型与部署包元数据 -->
+<div class="mt-space-md space-y-1.5 bg-surface-container-low/40 p-space-sm rounded-DEFAULT hairline-border text-label-sm font-mono">
+<div class="flex justify-between">
+<span class="text-secondary">目标模型:</span>
+<span class="text-primary font-semibold truncate max-w-[150px]">YOLO11n-Detect v1.0.0</span>
+</div>
+<div class="flex justify-between">
+<span class="text-secondary">部署包 ID:</span>
+<span class="text-secondary truncate max-w-[150px]">PKG-20250621-YOLO11N-INT8</span>
+</div>
+<div class="flex justify-between items-center text-blue-700">
+<span class="text-secondary">旁路校验:</span>
+<span class="font-medium">一致性 99.82%</span>
+</div>
+</div>
+<!-- 验证进度 -->
+<div class="mt-space-sm">
+<div class="flex justify-between text-label-sm font-mono text-secondary mb-1">
+<span>流量切分进度</span>
+<span class="text-primary font-medium">30% 灰度中</span>
+</div>
+<div class="w-full bg-surface-container h-1.5 rounded-full overflow-hidden">
+<div class="bg-primary h-full w-[30%]"></div>
+</div>
+</div>
+</div>
+<!-- 操作按钮组 -->
+<div class="mt-space-md hairline-t pt-space-sm grid grid-cols-3 gap-1">
+<button class="h-6 text-label-sm font-label-sm bg-primary text-on-primary hover:bg-primary-container rounded-DEFAULT font-medium truncate px-1">全量接管</button>
+<button class="h-6 text-label-sm font-label-sm hairline-border bg-surface-container-lowest hover:bg-red-50 text-error rounded-DEFAULT truncate px-1">中止并回滚</button>
+<button class="h-6 text-label-sm font-label-sm hairline-border bg-surface-container-lowest hover:bg-surface-container-low text-secondary rounded-DEFAULT truncate px-1">对比遥测</button>
+</div>
+</div>
+<!-- 工位 03: LINE-02 焊缝复检工位 -->
+<div class="bg-surface-container-lowest hairline-border rounded-DEFAULT p-space-md flex flex-col justify-between hover:bg-surface-container-low/20 transition-colors">
+<div>
+<div class="flex items-start justify-between">
+<div>
+<div class="flex items-center gap-1.5">
+<span class="w-2 h-2 rounded-full bg-amber-500"></span>
+<span class="font-headline-sm text-headline-sm font-semibold text-on-surface">工位 03: LINE-02 焊缝复检站</span>
+</div>
+<div class="font-label-sm text-label-sm text-secondary font-mono mt-0.5">IPC-02A · x86 + RTX 4060Ti</div>
+</div>
+<span class="font-label-sm text-label-sm bg-amber-50 text-amber-800 px-1.5 py-0.5 rounded-DEFAULT font-mono border border-amber-200">待升级 (新包)</span>
+</div>
+<!-- 模型与部署包元数据 -->
+<div class="mt-space-md space-y-1.5 bg-surface-container-low/40 p-space-sm rounded-DEFAULT hairline-border text-label-sm font-mono">
+<div class="flex justify-between">
+<span class="text-secondary">运行版本:</span>
+<span class="text-secondary truncate max-w-[150px]">YOLO11m-Detect v0.9.0</span>
+</div>
+<div class="flex justify-between">
+<span class="text-secondary">推荐升级包:</span>
+<span class="text-primary font-medium truncate max-w-[150px]">PKG-20250623-WELD-FP16</span>
+</div>
+<div class="flex justify-between items-center text-amber-700">
+<span class="text-secondary">显存余量:</span>
+<span class="font-medium">12.4GB / 16GB</span>
+</div>
+</div>
+<!-- 验证进度 -->
+<div class="mt-space-sm flex items-center justify-between text-label-sm font-mono text-secondary">
+<span>预检状态: Dry-Run 准备就绪</span>
+<span class="text-amber-700">待分发</span>
+</div>
+</div>
+<!-- 操作按钮组 -->
+<div class="mt-space-md hairline-t pt-space-sm grid grid-cols-2 gap-1">
+<button class="h-6 text-label-sm font-label-sm bg-surface-container-high text-primary hover:bg-surface-variant font-medium rounded-DEFAULT">下发预检</button>
+<button class="h-6 text-label-sm font-label-sm hairline-border bg-surface-container-lowest hover:bg-surface-container-low text-on-surface rounded-DEFAULT">一键分发</button>
+</div>
+</div>
+<!-- 工位 04: LINE-01 传送皮带站 -->
+<div class="bg-surface-container-lowest hairline-border rounded-DEFAULT p-space-md flex flex-col justify-between hover:bg-surface-container-low/20 transition-colors">
+<div>
+<div class="flex items-start justify-between">
+<div>
+<div class="flex items-center gap-1.5">
+<span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+<span class="font-headline-sm text-headline-sm font-semibold text-on-surface">工位 04: LINE-01 传送皮带站</span>
+</div>
+<div class="font-label-sm text-label-sm text-secondary font-mono mt-0.5">IPC-01A · Orin Nano 8GB</div>
+</div>
+<span class="font-label-sm text-label-sm bg-emerald-50 text-emerald-800 px-1.5 py-0.5 rounded-DEFAULT font-mono border border-emerald-200">健康运行</span>
+</div>
+<!-- 模型与部署包元数据 -->
+<div class="mt-space-md space-y-1.5 bg-surface-container-low/40 p-space-sm rounded-DEFAULT hairline-border text-label-sm font-mono">
+<div class="flex justify-between">
+<span class="text-secondary">运行模型:</span>
+<span class="text-on-surface font-semibold truncate max-w-[150px]">YOLO11n-Track v2.0.1</span>
+</div>
+<div class="flex justify-between">
+<span class="text-secondary">部署包 ID:</span>
+<span class="text-secondary truncate max-w-[150px]">PKG-20250610-NANO-INT8</span>
+</div>
+<div class="flex justify-between items-center text-tertiary">
+<span class="text-secondary">节拍余量:</span>
+<span class="font-medium">11.2ms (裕度 68%)</span>
+</div>
+</div>
+<!-- 验证进度 -->
+<div class="mt-space-sm flex items-center justify-between text-label-sm font-mono text-secondary">
+<span>在线运行心跳: 正常</span>
+<span class="text-tertiary font-mono">0 丢帧</span>
+</div>
+</div>
+<!-- 操作按钮组 -->
+<div class="mt-space-md hairline-t pt-space-sm grid grid-cols-2 gap-1">
+<button class="h-6 text-label-sm font-label-sm hairline-border bg-surface-container-lowest hover:bg-surface-container-low text-on-surface rounded-DEFAULT">配置下发</button>
+<button class="h-6 text-label-sm font-label-sm hairline-border bg-surface-container-lowest hover:bg-surface-container-low text-secondary rounded-DEFAULT">工位遥测</button>
+</div>
+</div>
+</div>
+</section>
+<!-- ==================== 板块 B: 模型部署与下发任务管理 (表格与Tabs) ==================== -->
+<section class="bg-surface-container-lowest hairline-border rounded-DEFAULT flex flex-col">
+<!-- Tabs 切换头 -->
+<div class="flex items-center justify-between px-space-lg hairline-b bg-surface-container-lowest">
+<div class="flex items-center gap-space-lg">
+<button class="py-space-md font-label-md text-label-md text-primary font-semibold border-b-2 border-primary flex items-center gap-2">
+<span>部署发布任务 (Deploy Tasks)</span>
+<span class="px-1.5 py-0.2 bg-surface-container-high text-primary rounded-full text-label-sm font-mono">3 活跃</span>
+</button>
+<button class="py-space-md font-label-md text-label-md text-secondary hover:text-on-surface flex items-center gap-1.5">
+<span>部署包仓库 (Deployment Packages)</span>
+<span class="font-mono text-label-sm text-outline">8</span>
+</button>
+<button class="py-space-md font-label-md text-label-md text-secondary hover:text-on-surface flex items-center gap-1.5">
+<span>目标机器集群 (Target Edge Nodes)</span>
+<span class="font-mono text-label-sm text-outline">12</span>
+</button>
+<button class="py-space-md font-label-md text-label-md text-secondary hover:text-on-surface flex items-center gap-1.5">
+<span>版本回滚与故障审计 (Rollback History)</span>
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+</button>
+</div>
+<!-- 右侧轻量过滤筛选 -->
+<div class="flex items-center gap-space-sm py-2">
+<div class="relative">
+<span class="material-symbols-outlined absolute left-2 top-1.5 text-secondary text-[14px]" data-icon="search">search</span>
+<input class="h-7 w-56 pl-7 pr-2 text-body-sm font-body-sm bg-surface-container-lowest hairline-border rounded-DEFAULT focus:outline-none focus:border-primary text-on-surface placeholder:text-outline" placeholder="搜索任务单号 / 模型 / 目标IP..." type="text"/>
+</div>
+<select class="h-7 text-label-sm font-label-sm bg-surface-container-lowest hairline-border rounded-DEFAULT px-2 text-secondary focus:outline-none focus:border-primary py-0">
+<option>全部工位节点</option>
+<option>LINE-04 主检站</option>
+<option>LINE-04 侧视缺陷站</option>
+<option>LINE-02 焊缝复检站</option>
+</select>
+<select class="h-7 text-label-sm font-label-sm bg-surface-container-lowest hairline-border rounded-DEFAULT px-2 text-secondary focus:outline-none focus:border-primary py-0">
+<option>发布状态: 全部</option>
+<option>运行中 (Active)</option>
+<option>灰度中 (Canary)</option>
+<option>已完成回滚</option>
+</select>
+</div>
+</div>
+<!-- 数据表格 (Metrology Table) -->
+<div class="overflow-x-auto">
+<table class="w-full border-collapse text-left font-body-sm text-body-sm">
+<thead>
+<tr class="bg-surface hairline-b text-label-md font-label-md text-secondary font-mono h-8">
+<th class="px-space-md font-medium">任务单号 / 部署名称</th>
+<th class="px-space-md font-medium">下发模型与版本</th>
+<th class="px-space-md font-medium">部署包工程化格式 (Artifact)</th>
+<th class="px-space-md font-medium">目标边缘机器节点</th>
+<th class="px-space-md font-medium">发布策略与进度</th>
+<th class="px-space-md font-medium">验证状态 (Dry-Run / 节拍)</th>
+<th class="px-space-md font-medium">当前运行状态</th>
+<th class="px-space-md font-medium text-right">生命周期操作</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-[#E6E9ED]">
+<!-- 记录 1: 正在进行灰度发布的任务 -->
+<tr class="h-10 hover:bg-surface-container-low/50 transition-colors bg-blue-50/20">
+<td class="px-space-md">
+<div class="flex items-center gap-1.5">
+<span class="font-label-sm text-label-sm font-mono text-primary font-semibold">#DEP-20250624-02</span>
+</div>
+<div class="font-body-sm text-on-surface truncate max-w-[200px]" title="LINE-04 侧视缺陷模型金丝雀分发">LINE-04 侧视缺陷模型金丝雀分发</div>
+</td>
+<td class="px-space-md">
+<div class="font-mono text-label-sm font-semibold text-on-surface">YOLO11n-Detect v1.0.0</div>
+<div class="text-label-sm text-secondary font-mono flex items-center gap-1">
+<span class="bg-surface-container px-1 rounded-DEFAULT text-[10px]">SRC: TRAIN-RUN-884</span>
+</div>
+</td>
+<td class="px-space-md">
+<div class="font-mono text-label-sm text-on-surface font-medium">TensorRT 8.6.2 (INT8)</div>
+<div class="text-label-sm text-secondary font-mono">11.4MB · MD5: e4b2...8f1a</div>
+</td>
+<td class="px-space-md">
+<div class="font-mono text-label-sm font-medium text-on-surface">IPC-04B-NODE</div>
+<div class="text-label-sm text-secondary font-mono">Jetson Orin NX (192.168.10.43)</div>
+</td>
+<td class="px-space-md">
+<div class="w-36">
+<div class="flex justify-between text-label-sm font-mono text-secondary mb-0.5">
+<span class="text-primary font-medium">Canary 30%</span>
+<span>100% 同步</span>
+</div>
+<div class="w-full bg-surface-container h-1.5 rounded-full overflow-hidden">
+<div class="bg-primary h-full w-[30%]"></div>
+</div>
+</div>
+</td>
+<td class="px-space-md">
+<div class="flex items-center gap-1 text-tertiary font-mono text-label-sm">
+<span class="material-symbols-outlined text-[13px]" data-icon="check_circle">check_circle</span>
+<span>Dry-Run 校验通过</span>
+</div>
+<div class="text-label-sm text-secondary font-mono">节拍 4.2ms · 显存占用 420MB</div>
+</td>
+<td class="px-space-md">
+<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-DEFAULT text-label-sm font-mono bg-blue-50 text-primary border border-blue-200">
+<span class="w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></span>
+                    灰度下发中
+                  </span>
+</td>
+<td class="px-space-md text-right">
+<div class="flex items-center justify-end gap-1">
+<button class="h-6 px-2 text-label-sm font-label-sm bg-primary hover:bg-primary-container text-on-primary rounded-DEFAULT font-medium">推进全量</button>
+<button class="h-6 px-2 text-label-sm font-label-sm hairline-border bg-surface-container-lowest hover:bg-red-50 text-error rounded-DEFAULT">取消下发</button>
+</div>
+</td>
+</tr>
+<!-- 记录 2: 常规生产稳定运行中的任务 -->
+<tr class="h-10 hover:bg-surface-container-low/50 transition-colors">
+<td class="px-space-md">
+<div class="flex items-center gap-1.5">
+<span class="font-label-sm text-label-sm font-mono text-on-surface-variant font-semibold">#DEP-20250618-01</span>
+</div>
+<div class="font-body-sm text-on-surface truncate max-w-[200px]" title="LINE-04 主检模型常规稳定升级">LINE-04 主检模型常规稳定升级</div>
+</td>
+<td class="px-space-md">
+<div class="font-mono text-label-sm font-semibold text-on-surface">YOLO11s-Detect v1.1.0</div>
+<div class="text-label-sm text-secondary font-mono flex items-center gap-1">
+<span class="bg-surface-container px-1 rounded-DEFAULT text-[10px]">SRC: TRAIN-RUN-812</span>
+</div>
+</td>
+<td class="px-space-md">
+<div class="font-mono text-label-sm text-on-surface font-medium">TensorRT 8.6.2 (FP16)</div>
+<div class="text-label-sm text-secondary font-mono">18.2MB · MD5: 9a3c...44e0</div>
+</td>
+<td class="px-space-md">
+<div class="font-mono text-label-sm font-medium text-on-surface">IPC-04A-NODE</div>
+<div class="text-label-sm text-secondary font-mono">Jetson Orin 64GB (192.168.10.42)</div>
+</td>
+<td class="px-space-md">
+<div class="font-mono text-label-sm text-on-surface">全量热替换 (8ms 切换)</div>
+<div class="text-label-sm text-secondary font-mono">蓝绿切换 · 无停机</div>
+</td>
+<td class="px-space-md">
+<div class="flex items-center gap-1 text-tertiary font-mono text-label-sm">
+<span class="material-symbols-outlined text-[13px]" data-icon="verified">verified</span>
+<span>基线比对 99.8%</span>
+</div>
+<div class="text-label-sm text-secondary font-mono">时延 5.8ms · 显存 860MB</div>
+</td>
+<td class="px-space-md">
+<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-DEFAULT text-label-sm font-mono bg-emerald-50 text-emerald-800 border border-emerald-200">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                    运行中 (Active)
+                  </span>
+</td>
+<td class="px-space-md text-right">
+<div class="flex items-center justify-end gap-1">
+<button class="h-6 px-2 text-label-sm font-label-sm hairline-border bg-surface-container-lowest hover:bg-surface-container-low text-on-surface rounded-DEFAULT">日志</button>
+<button class="h-6 px-2 text-label-sm font-label-sm hairline-border bg-surface-container-lowest hover:bg-surface-container-low text-secondary rounded-DEFAULT">参数微调</button>
+<button class="h-6 px-2 text-label-sm font-label-sm hairline-border bg-surface-container-lowest hover:bg-red-50 text-error rounded-DEFAULT font-medium" title="一键安全回滚">一键回滚</button>
+</div>
+</td>
+</tr>
+<!-- 记录 3: 皮带质检全量部署任务 -->
+<tr class="h-10 hover:bg-surface-container-low/50 transition-colors">
+<td class="px-space-md">
+<div class="flex items-center gap-1.5">
+<span class="font-label-sm text-label-sm font-mono text-on-surface-variant font-semibold">#DEP-20250610-04</span>
+</div>
+<div class="font-body-sm text-on-surface truncate max-w-[200px]" title="LINE-01 传送带目标追踪基线替换">LINE-01 传送带目标追踪基线替换</div>
+</td>
+<td class="px-space-md">
+<div class="font-mono text-label-sm font-semibold text-on-surface">YOLO11n-Track v2.0.1</div>
+<div class="text-label-sm text-secondary font-mono flex items-center gap-1">
+<span class="bg-surface-container px-1 rounded-DEFAULT text-[10px]">SRC: TRAIN-RUN-790</span>
+</div>
+</td>
+<td class="px-space-md">
+<div class="font-mono text-label-sm text-on-surface font-medium">TensorRT 8.5 (INT8 量化)</div>
+<div class="text-label-sm text-secondary font-mono">8.9MB · MD5: c71d...31bb</div>
+</td>
+<td class="px-space-md">
+<div class="font-mono text-label-sm font-medium text-on-surface">IPC-01A-NODE</div>
+<div class="text-label-sm text-secondary font-mono">Orin Nano 8GB (192.168.10.12)</div>
+</td>
+<td class="px-space-md">
+<div class="font-mono text-label-sm text-on-surface">滚动分发 (全量完成)</div>
+<div class="text-label-sm text-secondary font-mono">下发耗时: 1.2s</div>
+</td>
+<td class="px-space-md">
+<div class="flex items-center gap-1 text-tertiary font-mono text-label-sm">
+<span class="material-symbols-outlined text-[13px]" data-icon="check_circle">check_circle</span>
+<span>节拍达标 11.2ms</span>
+</div>
+<div class="text-label-sm text-secondary font-mono">显存占用 280MB (轻量)</div>
+</td>
+<td class="px-space-md">
+<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-DEFAULT text-label-sm font-mono bg-emerald-50 text-emerald-800 border border-emerald-200">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                    运行中 (Active)
+                  </span>
+</td>
+<td class="px-space-md text-right">
+<div class="flex items-center justify-end gap-1">
+<button class="h-6 px-2 text-label-sm font-label-sm hairline-border bg-surface-container-lowest hover:bg-surface-container-low text-on-surface rounded-DEFAULT">日志</button>
+<button class="h-6 px-2 text-label-sm font-label-sm hairline-border bg-surface-container-lowest hover:bg-red-50 text-error rounded-DEFAULT">一键回滚</button>
+</div>
+</td>
+</tr>
+<!-- 记录 4: 历史已安全回滚的审计任务 -->
+<tr class="h-10 hover:bg-surface-container-low/50 transition-colors bg-surface-container-low/10">
+<td class="px-space-md">
+<div class="flex items-center gap-1.5">
+<span class="font-label-sm text-label-sm font-mono text-outline font-semibold">#DEP-20250604-03</span>
+</div>
+<div class="font-body-sm text-secondary truncate max-w-[200px]" title="LINE-02 焊缝复检实验版测试">LINE-02 焊缝复检实验版测试</div>
+</td>
+<td class="px-space-md">
+<div class="font-mono text-label-sm text-secondary">YOLO11m-Detect v0.9.1-beta</div>
+<div class="text-label-sm text-outline font-mono">SRC: TRAIN-RUN-771</div>
+</td>
+<td class="px-space-md">
+<div class="font-mono text-label-sm text-secondary">ONNX Runtime 1.16</div>
+<div class="text-label-sm text-outline font-mono">42.5MB · FP16</div>
+</td>
+<td class="px-space-md">
+<div class="font-mono text-label-sm text-secondary">IPC-02A-NODE</div>
+<div class="text-label-sm text-outline font-mono">x86+RTX4060Ti (192.168.10.22)</div>
+</td>
+<td class="px-space-md">
+<div class="font-mono text-label-sm text-secondary">金丝雀 10% 阶段触发</div>
+<div class="text-label-sm text-error font-mono">节拍波动 &gt; 55ms 阈值</div>
+</td>
+<td class="px-space-md">
+<div class="flex items-center gap-1 text-error font-mono text-label-sm">
+<span class="material-symbols-outlined text-[13px]" data-icon="warning">warning</span>
+<span>超时异常回滚保护</span>
+</div>
+<div class="text-label-sm text-outline font-mono">触发秒级熔断回路</div>
+</td>
+<td class="px-space-md">
+<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-DEFAULT text-label-sm font-mono bg-red-50 text-error border border-red-200">
+<span class="w-1.5 h-1.5 rounded-full bg-error"></span>
+                    已完成回滚
+                  </span>
+</td>
+<td class="px-space-md text-right">
+<div class="flex items-center justify-end gap-1">
+<button class="h-6 px-2 text-label-sm font-label-sm hairline-border bg-surface-container-lowest hover:bg-surface-container-low text-secondary rounded-DEFAULT">查看审计溯源</button>
+</div>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<!-- 表格底部微分页与统计 -->
+<div class="px-space-lg py-space-sm hairline-t bg-surface-container-low/20 flex items-center justify-between text-label-sm text-secondary font-mono">
+<div class="flex items-center gap-space-md">
+<span>显示 1-4 条，共 28 条发布记录</span>
+<span class="text-outline-variant">|</span>
+<span>节点配置与固件签名：100% 校验合规</span>
+</div>
+<div class="flex items-center gap-1">
+<button class="h-6 px-2 hairline-border bg-surface-container-lowest text-outline rounded-DEFAULT cursor-not-allowed" disabled="">上一页</button>
+<span class="px-2 py-0.5 bg-primary text-on-primary rounded-DEFAULT">1</span>
+<button class="h-6 px-2 hairline-border bg-surface-container-lowest hover:bg-surface-container-low text-on-surface rounded-DEFAULT">2</button>
+<button class="h-6 px-2 hairline-border bg-surface-container-lowest hover:bg-surface-container-low text-on-surface rounded-DEFAULT">3</button>
+<button class="h-6 px-2 hairline-border bg-surface-container-lowest hover:bg-surface-container-low text-on-surface rounded-DEFAULT">下一页</button>
+</div>
+</div>
+</section>
+<!-- ==================== 底部安全容灾策略与下发状态守护栏 (Failover Safeguard Banner) ==================== -->
+<footer class="bg-surface-container-lowest hairline-border p-space-md rounded-DEFAULT flex items-center justify-between">
+<div class="flex items-center gap-space-md">
+<div class="w-8 h-8 rounded-DEFAULT bg-emerald-50 text-tertiary flex items-center justify-center border border-emerald-200">
+<span class="material-symbols-outlined text-[20px]" data-icon="security_update_good">security_update_good</span>
+</div>
+<div class="flex flex-col">
+<div class="flex items-center gap-2">
+<span class="font-headline-sm text-headline-sm font-semibold text-on-surface">生产线安全下发与容灾熔断策略 (Failover Safeguard)</span>
+<span class="font-label-sm text-label-sm bg-emerald-100 text-emerald-800 px-1.5 py-0.2 rounded-DEFAULT font-mono">ENFORCED</span>
+</div>
+<p class="font-body-sm text-secondary mt-0.5">
+              自动化安全回滚机制已开启：当下发节点连续 5 帧推理超时 (超过 45ms) 或捕获到 CUDA Out-Of-Memory 时，守护进程将在 8ms 内无感热回滚至上一验证稳定的生产基线版本。
+            </p>
+</div>
+</div>
+<div class="flex items-center gap-space-md pl-space-lg hairline-l">
+<div class="text-right font-mono text-label-sm">
+<div class="text-secondary">回滚预热镜像</div>
+<div class="text-tertiary font-semibold">100% 内存就绪</div>
+</div>
+<button class="h-7 px-space-md hairline-border bg-surface-container-lowest hover:bg-surface-container-low text-on-surface rounded-DEFAULT font-label-md text-label-md flex items-center gap-1 transition-colors">
+<span class="material-symbols-outlined text-[14px]" data-icon="tune">tune</span>
+<span>策略阈值配置</span>
+</button>
+</div>
+</footer>
+</main>
+</div>
+</body></html>

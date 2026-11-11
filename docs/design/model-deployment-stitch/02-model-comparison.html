@@ -1,0 +1,724 @@
+<!DOCTYPE html><html class="h-full" lang="zh-CN"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>OPTI-METRIX | 模型仓库 - 多模型对比 (Diff) 综合看板</title>
+<!-- Fonts -->
+<link href="https://fonts.googleapis.com" rel="preconnect">
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect">
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:ital,wght@0,300..900;1,300..900&amp;family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          "colors": {
+            "on-secondary-fixed": "#171c20",
+            "inverse-primary": "#afc9ea",
+            "primary-container": "#4f6885",
+            "tertiary-fixed": "#a3f69c",
+            "on-error": "#ffffff",
+            "inverse-on-surface": "#ebf1ff",
+            "on-surface": "#111c2b",
+            "surface-dim": "#cfdbf0",
+            "primary": "#37506c",
+            "surface-bright": "#f8f9ff",
+            "tertiary-fixed-dim": "#88d982",
+            "on-primary-fixed-variant": "#2f4964",
+            "inverse-surface": "#263141",
+            "on-primary-fixed": "#001d35",
+            "on-primary": "#ffffff",
+            "surface-container": "#e6eeff",
+            "secondary": "#595f63",
+            "error": "#ba1a1a",
+            "on-tertiary-container": "#a5f99e",
+            "secondary-fixed": "#dee3e8",
+            "on-tertiary-fixed-variant": "#005312",
+            "outline": "#73777e",
+            "surface-container-low": "#eff3ff",
+            "tertiary-container": "#25752b",
+            "surface-tint": "#47607d",
+            "primary-fixed": "#d1e4ff",
+            "surface-container-high": "#dde9fe",
+            "outline-variant": "#c3c6ce",
+            "primary-fixed-dim": "#afc9ea",
+            "surface-container-highest": "#d8e3f9",
+            "on-tertiary": "#ffffff",
+            "on-tertiary-fixed": "#002204",
+            "on-secondary": "#ffffff",
+            "on-background": "#111c2b",
+            "secondary-fixed-dim": "#c2c7cc",
+            "tertiary": "#005c15",
+            "on-secondary-fixed-variant": "#42474c",
+            "on-surface-variant": "#43474d",
+            "surface-container-lowest": "#ffffff",
+            "surface-variant": "#d8e3f9",
+            "surface": "#f8f9ff",
+            "on-error-container": "#93000a",
+            "error-container": "#ffdad6",
+            "on-secondary-container": "#5e6368",
+            "secondary-container": "#dbe0e5",
+            "background": "#f8f9ff",
+            "on-primary-container": "#d5e6ff"
+          },
+          "borderRadius": {
+            "DEFAULT": "0.125rem",
+            "lg": "0.25rem",
+            "xl": "0.5rem",
+            "full": "0.75rem"
+          },
+          "spacing": {
+            "space-xs": "0.125rem",
+            "gutter": "0.5rem",
+            "space-xl": "1rem",
+            "space-md": "0.5rem",
+            "gutter-desktop": "0.75rem",
+            "space-lg": "0.75rem",
+            "space-sm": "0.25rem",
+            "margin": "0.75rem",
+            "margin-desktop": "1rem"
+          },
+          "fontFamily": {
+            "label-sm": ["JetBrains Mono"],
+            "label-lg": ["JetBrains Mono"],
+            "label-md": ["JetBrains Mono"],
+            "headline-sm": ["Hanken Grotesk"],
+            "headline-md": ["Hanken Grotesk"],
+            "body-lg": ["Hanken Grotesk"],
+            "headline-lg": ["Hanken Grotesk"],
+            "body-md": ["Hanken Grotesk"],
+            "body-sm": ["Hanken Grotesk"]
+          },
+          "fontSize": {
+            "label-sm": ["10px", { "lineHeight": "12px", "letterSpacing": "0.03em", "fontWeight": "400" }],
+            "label-md": ["11px", { "lineHeight": "14px", "letterSpacing": "0.02em", "fontWeight": "500" }],
+            "label-lg": ["13px", { "lineHeight": "16px", "letterSpacing": "0.02em", "fontWeight": "500" }],
+            "body-sm": ["12px", { "lineHeight": "16px", "fontWeight": "400" }],
+            "body-md": ["13px", { "lineHeight": "18px", "fontWeight": "400" }],
+            "body-lg": ["14px", { "lineHeight": "20px", "fontWeight": "400" }],
+            "headline-sm": ["15px", { "lineHeight": "20px", "fontWeight": "600" }],
+            "headline-md": ["18px", { "lineHeight": "24px", "letterSpacing": "-0.005em", "fontWeight": "600" }],
+            "headline-lg": ["24px", { "lineHeight": "32px", "letterSpacing": "-0.01em", "fontWeight": "600" }]
+          }
+        }
+      }
+    }
+  </script>
+<style>
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+      font-size: 16px;
+      line-height: 1;
+      display: inline-block;
+      vertical-align: middle;
+    }
+    .custom-scroll::-webkit-scrollbar {
+      width: 4px;
+      height: 4px;
+    }
+    .custom-scroll::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    .custom-scroll::-webkit-scrollbar-thumb {
+      background: #c3c6ce;
+      border-radius: 2px;
+    }
+    .custom-scroll::-webkit-scrollbar-thumb:hover {
+      background: #73777e;
+    }
+  </style>
+</head>
+<body class="bg-surface text-on-surface h-full flex flex-col font-body-sm antialiased overflow-hidden select-none">
+<!-- ==================== 1. SIDE NAVIGATION (DOCKED SHELL) ==================== -->
+<aside class="w-56 fixed top-0 left-0 bottom-0 z-40 bg-surface-container-lowest dark:bg-inverse-surface border-r border-outline-variant dark:border-outline flex flex-col justify-between">
+<!-- Brand Header -->
+<div class="p-space-lg border-b border-outline-variant dark:border-outline">
+<div class="flex items-center gap-space-md">
+<div class="w-7 h-7 bg-primary text-on-primary flex items-center justify-center rounded-DEFAULT font-label-md font-bold tracking-tighter">
+          OM
+        </div>
+<div>
+<div class="text-headline-sm font-headline-sm font-bold text-on-surface dark:text-inverse-on-surface tracking-tight leading-none">
+            OPTI-METRIX
+          </div>
+<div class="text-label-sm font-label-sm text-secondary mt-1 tracking-wider uppercase">
+            v4.2.0-CORE-STATION
+          </div>
+</div>
+</div>
+</div>
+<!-- Navigation Tabs -->
+<nav class="flex-1 px-space-md py-space-lg space-y-space-xs overflow-y-auto custom-scroll">
+<!-- 1. 数据集 -->
+<a class="flex items-center gap-space-md px-space-lg py-space-sm text-on-surface-variant dark:text-outline-variant hover:bg-surface-container-low dark:hover:bg-surface-container-high rounded-DEFAULT transition-colors cursor-pointer" href="#">
+<span class="material-symbols-outlined" data-icon="dataset">dataset</span>
+<span class="text-label-md font-label-md">数据集</span>
+</a>
+<!-- 2. 模型训练 -->
+<a class="flex items-center gap-space-md px-space-lg py-space-sm text-on-surface-variant dark:text-outline-variant hover:bg-surface-container-low dark:hover:bg-surface-container-high rounded-DEFAULT transition-colors cursor-pointer" href="#">
+<span class="material-symbols-outlined" data-icon="model_training">model_training</span>
+<span class="text-label-md font-label-md">模型训练</span>
+</a>
+<!-- 3. 模型仓库 (ACTIVE TAB: style_active_navigation applied) -->
+<a class="flex items-center gap-space-md px-space-lg py-space-sm bg-surface-container-high dark:bg-surface-container text-primary dark:text-inverse-primary font-medium rounded-DEFAULT cursor-pointer" href="#">
+<span class="material-symbols-outlined" data-icon="deployed_code" style="font-variation-settings: 'FILL' 1;">deployed_code</span>
+<span class="text-label-md font-label-md">模型仓库</span>
+</a><a class="flex items-center gap-space-md px-space-lg py-space-sm text-on-surface-variant dark:text-outline-variant hover:bg-surface-container-low dark:hover:bg-surface-container-high rounded-DEFAULT transition-colors cursor-pointer" href="#"><span class="material-symbols-outlined" data-icon="rocket_launch">rocket_launch</span><span class="text-label-md font-label-md">部署中心</span></a>
+<!-- 4. 智能体 -->
+<a class="flex items-center gap-space-md px-space-lg py-space-sm text-on-surface-variant dark:text-outline-variant hover:bg-surface-container-low dark:hover:bg-surface-container-high rounded-DEFAULT transition-colors cursor-pointer" href="#">
+<span class="material-symbols-outlined" data-icon="smart_toy">smart_toy</span>
+<span class="text-label-md font-label-md">智能体</span>
+</a>
+<!-- 5. 审计日志 -->
+<a class="flex items-center gap-space-md px-space-lg py-space-sm text-on-surface-variant dark:text-outline-variant hover:bg-surface-container-low dark:hover:bg-surface-container-high rounded-DEFAULT transition-colors cursor-pointer" href="#">
+<span class="material-symbols-outlined" data-icon="receipt_long">receipt_long</span>
+<span class="text-label-md font-label-md">审计日志</span>
+</a>
+<!-- 6. 系统设置 -->
+<a class="flex items-center gap-space-md px-space-lg py-space-sm text-on-surface-variant dark:text-outline-variant hover:bg-surface-container-low dark:hover:bg-surface-container-high rounded-DEFAULT transition-colors cursor-pointer" href="#">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+<span class="text-label-md font-label-md">系统设置</span>
+</a>
+</nav>
+<!-- SideNav Footer Status -->
+<div class="p-space-md border-t border-outline-variant dark:border-outline bg-surface-container-low dark:bg-inverse-surface">
+<div class="flex items-center gap-space-sm px-space-sm py-space-xs text-tertiary-container dark:text-tertiary-fixed font-label-sm font-medium">
+<span class="material-symbols-outlined text-[14px]" data-icon="check_circle">check_circle</span>
+<span>本地工作台: 就绪 (0.4ms)</span>
+</div>
+</div>
+</aside>
+<!-- ==================== 2. MAIN APPLICATION WORKSPACE ==================== -->
+<div class="pl-56 flex flex-col h-full flex-1">
+<!-- Top Navigation Bar -->
+<header class="flex justify-between items-center h-12 px-margin-desktop w-full border-b border-outline-variant dark:border-outline bg-surface-container-lowest dark:bg-inverse-surface sticky top-0 z-30 flex-shrink-0">
+<!-- Breadcrumb & Registry Meta -->
+<div class="flex items-center gap-space-md">
+<span class="text-secondary text-label-md font-label-md">工作空间: LINE-04</span>
+<span class="text-outline-variant">/</span>
+<span class="text-secondary text-label-md font-label-md">模型资产管理</span>
+<span class="text-outline-variant">/</span>
+<a class="text-secondary hover:text-primary text-label-md font-label-md flex items-center gap-1 transition-colors" href="#">
+<span>模型仓库 (Registry)</span>
+</a>
+<span class="text-outline-variant">/</span>
+<div class="flex items-center gap-space-xs">
+<span class="w-1.5 h-1.5 rounded-full bg-primary"></span>
+<span class="text-primary font-headline-sm text-headline-sm">多模型对比 (Diff)</span>
+</div>
+</div>
+<!-- Trailing Controls & Station Status -->
+<div class="flex items-center gap-space-md">
+<div class="flex items-center gap-space-xs px-2 py-0.5 bg-surface-container-high rounded text-label-sm font-label-sm text-primary">
+<span class="material-symbols-outlined text-[13px]" data-icon="videocam">videocam</span>
+<span>检测站: CAM-A-TOP</span>
+</div>
+<div class="h-4 w-px bg-outline-variant"></div>
+<!-- Quick Icon Actions -->
+<div class="flex items-center gap-1 text-secondary">
+<button class="w-7 h-7 flex items-center justify-center rounded hover:bg-surface-container hover:text-on-surface transition-colors" title="刷新度量数据">
+<span class="material-symbols-outlined" data-icon="refresh">refresh</span>
+</button>
+<button class="w-7 h-7 flex items-center justify-center rounded hover:bg-surface-container hover:text-on-surface transition-colors" title="全屏视口">
+<span class="material-symbols-outlined" data-icon="fullscreen">fullscreen</span>
+</button>
+<button class="w-7 h-7 flex items-center justify-center rounded hover:bg-surface-container hover:text-on-surface transition-colors" title="对比指引文档">
+<span class="material-symbols-outlined" data-icon="help_outline">help_outline</span>
+</button>
+</div>
+<div class="h-4 w-px bg-outline-variant"></div>
+<button class="h-7 px-space-md bg-surface-container-lowest border border-outline-variant text-on-surface text-label-md font-label-md rounded flex items-center gap-1.5 hover:bg-surface-container-low transition-colors">
+<span class="material-symbols-outlined text-[14px]" data-icon="arrow_back">arrow_back</span>
+<span>返回仓库列表</span>
+</button>
+<button class="h-7 px-space-md bg-surface-container-lowest border border-outline-variant text-on-surface text-label-md font-label-md rounded flex items-center gap-1.5 hover:bg-surface-container-low transition-colors">
+<span class="material-symbols-outlined text-[14px]" data-icon="file_download">file_download</span>
+<span>导出对比报告 (PDF/CSV)</span>
+</button>
+<button class="h-7 px-space-md bg-primary text-on-primary text-label-md font-label-md rounded flex items-center gap-1.5 hover:bg-primary-container transition-colors shadow-none">
+<span class="material-symbols-outlined text-[14px]" data-icon="rocket_launch">rocket_launch</span>
+<span>直接部署优胜模型</span>
+</button>
+</div>
+</header>
+<!-- ==================== 3. COMPARISON WORKSPACE CONTENT ==================== -->
+<main class="flex-1 overflow-y-auto custom-scroll p-space-lg space-y-space-md bg-surface">
+<!-- ================= Section 1: Comparison Header & Baseline Selector ================= -->
+<section class="bg-surface-container-lowest border border-outline-variant p-space-md rounded-DEFAULT flex flex-wrap items-center justify-between gap-space-md">
+<!-- Active Comparison Models Capsules -->
+<div class="flex items-center gap-space-sm flex-wrap">
+<div class="text-label-sm font-label-sm text-secondary uppercase tracking-wider pr-1">对比选样 (3/4):</div>
+<!-- Model A: Baseline -->
+<div class="flex items-center gap-1.5 px-2 py-1 bg-surface-container border border-[#4F46E5]/40 rounded text-label-md font-label-md text-on-surface">
+<span class="w-2 h-2 rounded-full bg-[#4F46E5]"></span>
+<span class="font-bold text-[#4F46E5]">[基准]</span>
+<span class="font-semibold">YOLO11n-Detect</span>
+<span class="text-label-sm text-secondary">v1.0.0</span>
+<span class="px-1 py-0.2 bg-[#4F46E5]/10 text-[#4F46E5] text-[9px] rounded font-label-sm">FP16</span>
+</div>
+<!-- Model B: Candidate 1 -->
+<div class="flex items-center gap-1.5 px-2 py-1 bg-surface-container border border-[#0EA5E9]/40 rounded text-label-md font-label-md text-on-surface">
+<span class="w-2 h-2 rounded-full bg-[#0EA5E9]"></span>
+<span class="font-semibold text-on-surface">YOLO11s-Detect</span>
+<span class="text-label-sm text-secondary">v1.1.0</span>
+<span class="px-1 py-0.2 bg-[#0EA5E9]/10 text-[#0EA5E9] text-[9px] rounded font-label-sm">FP16</span>
+<button class="hover:text-error transition-colors ml-1 text-secondary">
+<span class="material-symbols-outlined text-[12px]" data-icon="close">close</span>
+</button>
+</div>
+<!-- Model C: Candidate 2 -->
+<div class="flex items-center gap-1.5 px-2 py-1 bg-surface-container border border-[#F59E0B]/40 rounded text-label-md font-label-md text-on-surface">
+<span class="w-2 h-2 rounded-full bg-[#F59E0B]"></span>
+<span class="font-semibold text-on-surface">YOLO11m-Detect</span>
+<span class="text-label-sm text-secondary">v0.9.0</span>
+<span class="px-1 py-0.2 bg-[#F59E0B]/10 text-[#F59E0B] text-[9px] rounded font-label-sm">INT8</span>
+<button class="hover:text-error transition-colors ml-1 text-secondary">
+<span class="material-symbols-outlined text-[12px]" data-icon="close">close</span>
+</button>
+</div>
+<!-- Add Model Trigger -->
+<button class="h-6 px-2 border border-dashed border-outline text-secondary hover:text-primary hover:border-primary rounded text-label-sm font-label-sm flex items-center gap-1 transition-colors">
+<span class="material-symbols-outlined text-[13px]" data-icon="add">add</span>
+<span>添加模型</span>
+</button>
+</div>
+<!-- Baseline Switcher & Diff Mode Selector -->
+<div class="flex items-center gap-space-lg">
+<!-- Baseline Selector -->
+<div class="flex items-center gap-1.5">
+<span class="text-label-sm font-label-sm text-secondary">差量基准 (Baseline):</span>
+<div class="relative inline-block">
+<select class="h-7 text-label-md font-label-md bg-surface border border-outline-variant text-on-surface rounded pl-2 pr-7 py-0 focus:outline-none focus:border-primary">
+<option selected="">YOLO11n-Detect v1.0.0</option>
+<option>YOLO11s-Detect v1.1.0</option>
+<option>YOLO11m-Detect v0.9.0</option>
+</select>
+</div>
+</div>
+<div class="h-4 w-px bg-outline-variant"></div>
+<!-- Diff Mode Tabs -->
+<div class="flex items-center bg-surface border border-outline-variant rounded p-0.5">
+<button class="px-2 py-0.5 rounded text-label-sm font-label-sm bg-surface-container-high text-primary font-medium">综合全景</button>
+<button class="px-2 py-0.5 rounded text-label-sm font-label-sm text-secondary hover:text-on-surface transition-colors">仅看差异项 (Diff Only)</button>
+<button class="px-2 py-0.5 rounded text-label-sm font-label-sm text-secondary hover:text-on-surface transition-colors">精度优先</button>
+<button class="px-2 py-0.5 rounded text-label-sm font-label-sm text-secondary hover:text-on-surface transition-colors">边缘性能优先</button>
+</div>
+</div>
+</section>
+<!-- ================= Section 2: Split Visualizer (5:7 Ratio) ================= -->
+<div class="grid grid-cols-12 gap-space-md">
+<!-- 2.1 Left: Six-axis Radar Evaluation (5 cols) -->
+<div class="col-span-12 xl:col-span-5 bg-surface-container-lowest border border-outline-variant p-space-md rounded-DEFAULT flex flex-col justify-between">
+<div class="flex items-center justify-between border-b border-outline-variant pb-space-sm">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary text-[18px]" data-icon="polyline">polyline</span>
+<h3 class="text-headline-sm font-headline-sm text-on-surface">多模型综合能力六边形雷达图</h3>
+</div>
+<span class="text-label-sm font-label-sm text-secondary">归一化权衡指数 (0-100)</span>
+</div>
+<!-- Radar SVG Canvas -->
+<div class="relative py-2 flex items-center justify-center">
+<svg class="w-full max-w-[340px] h-[250px] overflow-visible" viewBox="-180 -140 360 280">
+<!-- Radar Background Hexagons (Level 25%, 50%, 75%, 100%) -->
+<!-- 6 axes angles: 90, 30, 330, 270, 210, 150 deg -> cos/sin -->
+<!-- Axes R=100: (0,-100), (86.6,-50), (86.6,50), (0,100), (-86.6,50), (-86.6,-50) -->
+<polygon fill="none" points="0,-100 86.6,-50 86.6,50 0,100 -86.6,50 -86.6,-50" stroke="#E6E9ED" stroke-width="1"></polygon>
+<polygon fill="none" points="0,-75 64.9,-37.5 64.9,37.5 0,75 -64.9,37.5 -64.9,-37.5" stroke="#E6E9ED" stroke-width="1"></polygon>
+<polygon fill="none" points="0,-50 43.3,-25 43.3,25 0,50 -43.3,25 -43.3,-25" stroke="#E6E9ED" stroke-width="1"></polygon>
+<polygon fill="none" points="0,-25 21.6,-12.5 21.6,12.5 0,25 -21.6,12.5 -21.6,-12.5" stroke="#E6E9ED" stroke-width="1"></polygon>
+<!-- Axis Lines -->
+<line stroke="#E6E9ED" stroke-width="1" x1="0" x2="0" y1="0" y2="-100"></line>
+<line stroke="#E6E9ED" stroke-width="1" x1="0" x2="86.6" y1="0" y2="-50"></line>
+<line stroke="#E6E9ED" stroke-width="1" x1="0" x2="86.6" y1="0" y2="50"></line>
+<line stroke="#E6E9ED" stroke-width="1" x1="0" x2="0" y1="0" y2="100"></line>
+<line stroke="#E6E9ED" stroke-width="1" x1="0" x2="-86.6" y1="0" y2="50"></line>
+<line stroke="#E6E9ED" stroke-width="1" x1="0" x2="-86.6" y1="0" y2="-50"></line>
+<!-- Dimension Labels -->
+<text class="text-[10px] fill-secondary font-label-sm font-medium" text-anchor="middle" x="0" y="-112">mAP@50 精度</text>
+<text class="text-[10px] fill-secondary font-label-sm font-medium" text-anchor="start" x="96" y="-55">推理吞吐 (FPS)</text>
+<text class="text-[10px] fill-secondary font-label-sm font-medium" text-anchor="start" x="96" y="55">边缘功耗效率</text>
+<text class="text-[10px] fill-secondary font-label-sm font-medium" text-anchor="middle" x="0" y="118">模型轻量/低参数</text>
+<text class="text-[10px] fill-secondary font-label-sm font-medium" text-anchor="end" x="-96" y="55">显存友好度</text>
+<text class="text-[10px] fill-secondary font-label-sm font-medium" text-anchor="end" x="-96" y="-55">微小缺陷召回</text>
+<!-- Polygon 1: YOLO11n (Indigo #4F46E5) -->
+<!-- scores: mAP:72, FPS:98, Power:95, Lightweight:98, VRAM:95, Recall:70 -->
+<polygon fill="#4F46E5" fill-opacity="0.12" points="0,-72 84.8,-49 82.2,47.5 0,98 -82.2,47.5 -60.6,-35" stroke="#4F46E5" stroke-width="1.8"></polygon>
+<!-- Polygon 2: YOLO11s (Sky Blue #0EA5E9) -->
+<!-- scores: mAP:88, FPS:85, Power:84, Lightweight:80, VRAM:82, Recall:89 -->
+<polygon fill="#0EA5E9" fill-opacity="0.15" points="0,-88 73.6,-42.5 72.7,42 0,80 -71.0,41 -77.0,-44.5" stroke="#0EA5E9" stroke-width="1.8"></polygon>
+<!-- Polygon 3: YOLO11m (Amber #F59E0B) -->
+<!-- scores: mAP:96, FPS:55, Power:60, Lightweight:50, VRAM:52, Recall:95 -->
+<polygon fill="#F59E0B" fill-opacity="0.12" points="0,-96 47.6,-27.5 51.9,30 0,50 -45.0,26 -82.2,-47.5" stroke="#F59E0B" stroke-width="1.8"></polygon>
+<!-- Point markers for Polygon 2 (YOLO11s Winner) -->
+<circle cx="0" cy="-88" fill="#0EA5E9" r="3" stroke="#fff" stroke-width="1"></circle>
+<circle cx="73.6" cy="-42.5" fill="#0EA5E9" r="3" stroke="#fff" stroke-width="1"></circle>
+<circle cx="72.7" cy="42" fill="#0EA5E9" r="3" stroke="#fff" stroke-width="1"></circle>
+<circle cx="0" cy="80" fill="#0EA5E9" r="3" stroke="#fff" stroke-width="1"></circle>
+<circle cx="-71.0" cy="41" fill="#0EA5E9" r="3" stroke="#fff" stroke-width="1"></circle>
+<circle cx="-77.0" cy="-44.5" fill="#0EA5E9" r="3" stroke="#fff" stroke-width="1"></circle>
+</svg>
+</div>
+<!-- Radar Legend & Operational Score Banner -->
+<div class="space-y-space-xs pt-space-xs border-t border-outline-variant">
+<!-- Model Legends -->
+<div class="grid grid-cols-3 gap-2 text-center text-label-sm font-label-sm">
+<div class="p-1 bg-surface rounded border border-[#4F46E5]/30">
+<span class="inline-block w-2 h-2 rounded-full bg-[#4F46E5] mr-1"></span>
+<span class="font-semibold text-on-surface">YOLO11n</span>: 88.6分
+              </div>
+<div class="p-1 bg-surface rounded border border-[#0EA5E9] shadow-sm">
+<span class="inline-block w-2 h-2 rounded-full bg-[#0EA5E9] mr-1"></span>
+<span class="font-bold text-on-surface">YOLO11s</span>: 91.4分
+                <span class="text-[9px] text-[#005c15] font-bold">★推荐</span>
+</div>
+<div class="p-1 bg-surface rounded border border-[#F59E0B]/30">
+<span class="inline-block w-2 h-2 rounded-full bg-[#F59E0B] mr-1"></span>
+<span class="font-semibold text-on-surface">YOLO11m</span>: 81.2分
+              </div>
+</div>
+<p class="text-[11px] text-secondary font-body-sm leading-tight text-center pt-1">
+              雷达权重基准：LINE-04 工位设定（微米级缺陷召回权重 40%，节拍延迟权重 35%，硬件功耗 25%）
+            </p>
+</div>
+</div>
+<!-- 2.2 Right: Delta KPI Comparison Cards (7 cols) -->
+<div class="col-span-12 xl:col-span-7 grid grid-cols-2 gap-space-md">
+<!-- Card 1: mAP@0.5 -->
+<div class="bg-surface-container-lowest border border-outline-variant p-space-md rounded-DEFAULT flex flex-col justify-between">
+<div class="flex items-center justify-between text-label-sm font-label-sm">
+<span class="text-secondary font-medium">精度指标 (mAP@50)</span>
+<span class="px-1.5 py-0.5 bg-surface-container text-primary rounded font-label-sm text-[10px]">越高越好</span>
+</div>
+<div class="my-2">
+<div class="flex items-baseline justify-between">
+<span class="text-headline-lg font-headline-lg text-on-surface">0.782</span>
+<span class="text-label-sm font-label-sm text-secondary">测试集 (5,200张)</span>
+</div>
+<div class="text-[11px] text-secondary font-label-sm mt-0.5">基准 YOLO11n-Detect: 0.698</div>
+</div>
+<!-- Delta Stack -->
+<div class="space-y-1.5 pt-2 border-t border-outline-variant font-label-sm text-[11px]">
+<div class="flex items-center justify-between">
+<span class="flex items-center gap-1.5">
+<span class="w-1.5 h-1.5 rounded-full bg-[#0EA5E9]"></span>
+<span>YOLO11s</span>
+</span>
+<span class="font-mono text-tertiary font-semibold">0.765 (Δ +6.7% vs基准)</span>
+</div>
+<div class="flex items-center justify-between">
+<span class="flex items-center gap-1.5">
+<span class="w-1.5 h-1.5 rounded-full bg-[#F59E0B]"></span>
+<span>YOLO11m</span>
+</span>
+<span class="font-mono text-tertiary font-semibold">0.782 (Δ +8.4% 峰值)</span>
+</div>
+</div>
+</div>
+<!-- Card 2: Inference Latency -->
+<div class="bg-surface-container-lowest border border-outline-variant p-space-md rounded-DEFAULT flex flex-col justify-between">
+<div class="flex items-center justify-between text-label-sm font-label-sm">
+<span class="text-secondary font-medium">端到端推理延迟 (TensorRT/FP16)</span>
+<span class="px-1.5 py-0.5 bg-surface-container text-primary rounded font-label-sm text-[10px]">节拍上限: 45ms</span>
+</div>
+<div class="my-2">
+<div class="flex items-baseline justify-between">
+<span class="text-headline-lg font-headline-lg text-primary">5.8<span class="text-label-md font-label-md font-normal ml-0.5">ms</span></span>
+<span class="text-label-sm font-label-sm text-tertiary bg-[#E8F5E9] px-1 py-0.5 rounded font-medium">符合节拍阈值</span>
+</div>
+<div class="text-[11px] text-secondary font-label-sm mt-0.5">基准 YOLO11n: 3.2ms (最快)</div>
+</div>
+<!-- Delta Stack -->
+<div class="space-y-1.5 pt-2 border-t border-outline-variant font-label-sm text-[11px]">
+<div class="flex items-center justify-between">
+<span class="flex items-center gap-1.5">
+<span class="w-1.5 h-1.5 rounded-full bg-[#0EA5E9]"></span>
+<span>YOLO11s</span>
+</span>
+<span class="font-mono text-on-surface">5.8ms (Δ +2.6ms)</span>
+</div>
+<div class="flex items-center justify-between">
+<span class="flex items-center gap-1.5">
+<span class="w-1.5 h-1.5 rounded-full bg-[#F59E0B]"></span>
+<span>YOLO11m</span>
+</span>
+<span class="font-mono text-error font-semibold">11.4ms (Δ +8.2ms)</span>
+</div>
+</div>
+</div>
+<!-- Card 3: Model Parameters & Storage -->
+<div class="bg-surface-container-lowest border border-outline-variant p-space-md rounded-DEFAULT flex flex-col justify-between">
+<div class="flex items-center justify-between text-label-sm font-label-sm">
+<span class="text-secondary font-medium">模型权重大小与计算量 (Flops)</span>
+<span class="px-1.5 py-0.5 bg-surface-container text-primary rounded font-label-sm text-[10px]">参数量</span>
+</div>
+<div class="my-2">
+<div class="flex items-baseline justify-between">
+<span class="text-headline-lg font-headline-lg text-on-surface">18.2<span class="text-label-md font-label-md font-normal ml-0.5">MB</span></span>
+<span class="text-label-sm font-label-sm text-secondary font-mono">9.4M Params</span>
+</div>
+<div class="text-[11px] text-secondary font-label-sm mt-0.5">基准 YOLO11n: 5.4MB (2.6M)</div>
+</div>
+<!-- Delta Stack -->
+<div class="space-y-1.5 pt-2 border-t border-outline-variant font-label-sm text-[11px]">
+<div class="flex items-center justify-between">
+<span class="flex items-center gap-1.5">
+<span class="w-1.5 h-1.5 rounded-full bg-[#0EA5E9]"></span>
+<span>YOLO11s GFLOPs</span>
+</span>
+<span class="font-mono text-on-surface">21.5 GFLOPs (Δ +15.0)</span>
+</div>
+<div class="flex items-center justify-between">
+<span class="flex items-center gap-1.5">
+<span class="w-1.5 h-1.5 rounded-full bg-[#F59E0B]"></span>
+<span>YOLO11m GFLOPs</span>
+</span>
+<span class="font-mono text-secondary font-semibold">68.0 GFLOPs (Δ +61.5)</span>
+</div>
+</div>
+</div>
+<!-- Card 4: VRAM Allocation -->
+<div class="bg-surface-container-lowest border border-outline-variant p-space-md rounded-DEFAULT flex flex-col justify-between">
+<div class="flex items-center justify-between text-label-sm font-label-sm">
+<span class="text-secondary font-medium">显存静态开销 (VRAM Allocation)</span>
+<span class="px-1.5 py-0.5 bg-surface-container text-primary rounded font-label-sm text-[10px]">工位显存上限: 4GB</span>
+</div>
+<div class="my-2">
+<div class="flex items-baseline justify-between">
+<span class="text-headline-lg font-headline-lg text-on-surface">860<span class="text-label-md font-label-md font-normal ml-0.5">MB</span></span>
+<span class="text-label-sm font-label-sm text-tertiary font-mono">利用率 21.5%</span>
+</div>
+<div class="text-[11px] text-secondary font-label-sm mt-0.5">基准 YOLO11n: 420MB (10.5%)</div>
+</div>
+<!-- Delta Stack -->
+<div class="space-y-1.5 pt-2 border-t border-outline-variant font-label-sm text-[11px]">
+<div class="flex items-center justify-between">
+<span class="flex items-center gap-1.5">
+<span class="w-1.5 h-1.5 rounded-full bg-[#0EA5E9]"></span>
+<span>YOLO11s 批次B=1</span>
+</span>
+<span class="font-mono text-tertiary">860 MB (安全裕度 78%)</span>
+</div>
+<div class="flex items-center justify-between">
+<span class="flex items-center gap-1.5">
+<span class="w-1.5 h-1.5 rounded-full bg-[#F59E0B]"></span>
+<span>YOLO11m 批次B=1</span>
+</span>
+<span class="font-mono text-on-surface">1,640 MB (安全裕度 59%)</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- ================= Section 3: Deep Diff Matrix Table ================= -->
+<section class="bg-surface-container-lowest border border-outline-variant rounded-DEFAULT overflow-hidden">
+<!-- Matrix Table Toolbar -->
+<div class="flex items-center justify-between px-space-md py-space-sm border-b border-outline-variant bg-[#F8F9FB]">
+<div class="flex items-center gap-space-md">
+<span class="text-headline-sm font-headline-sm text-on-surface">多模型全维度深度 Diff 对照矩阵</span>
+<div class="flex items-center gap-1 px-2 py-0.5 bg-surface-container-high rounded text-label-sm font-label-sm text-primary">
+<span>已对齐测试集: PCB_DEFECT_2024Q3 (100% 相同数据)</span>
+</div>
+</div>
+<div class="flex items-center gap-space-lg">
+<label class="flex items-center gap-1.5 cursor-pointer text-label-sm font-label-sm text-secondary hover:text-on-surface">
+<input checked="" class="rounded border-outline-variant text-primary focus:ring-0 w-3.5 h-3.5" type="checkbox">
+<span>高亮标出绝对优势指标</span>
+</label>
+<label class="flex items-center gap-1.5 cursor-pointer text-label-sm font-label-sm text-secondary hover:text-on-surface">
+<input class="rounded border-outline-variant text-primary focus:ring-0 w-3.5 h-3.5" type="checkbox">
+<span>折叠相同属性</span>
+</label>
+</div>
+</div>
+<!-- Table Structure -->
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse text-body-sm">
+<!-- Table Header -->
+<thead>
+<tr class="bg-[#F8F9FB] border-b border-outline-variant text-label-md font-label-md text-secondary">
+<th class="py-2 px-3 w-[260px]">对比维度 / 详细属性</th>
+<th class="py-2 px-3 w-[230px] border-l border-outline-variant bg-[#4F46E5]/5">
+<div class="flex items-center gap-1 text-[#4F46E5]">
+<span class="w-2 h-2 rounded-full bg-[#4F46E5]"></span>
+<span class="font-bold">YOLO11n-Detect (基准)</span>
+</div>
+</th>
+<th class="py-2 px-3 w-[230px] border-l border-outline-variant bg-[#0EA5E9]/5">
+<div class="flex items-center gap-1 text-[#0EA5E9]">
+<span class="w-2 h-2 rounded-full bg-[#0EA5E9]"></span>
+<span class="font-bold">YOLO11s-Detect (对比)</span>
+</div>
+</th>
+<th class="py-2 px-3 w-[230px] border-l border-outline-variant bg-[#F59E0B]/5">
+<div class="flex items-center gap-1 text-[#F59E0B]">
+<span class="w-2 h-2 rounded-full bg-[#F59E0B]"></span>
+<span class="font-bold">YOLO11m-Detect (对比)</span>
+</div>
+</th>
+<th class="py-2 px-3 border-l border-outline-variant">工程选型判定 (LINE-04 CAM-A)</th>
+</tr>
+</thead>
+<!-- Table Body -->
+<tbody class="divide-y divide-outline-variant font-label-md">
+<!-- Category 1: 架构与规格 -->
+<tr class="bg-surface-container-low/70">
+<td class="py-1 px-3 font-bold text-primary tracking-wide text-label-sm uppercase" colspan="5">
+                  【一、模型架构与规格】
+                </td>
+</tr>
+<tr class="hover:bg-surface-container-high/40 transition-colors">
+<td class="py-1.5 px-3 text-secondary">Backbone 骨干特征提取</td>
+<td class="py-1.5 px-3 border-l border-outline-variant font-mono">C3k2-CSP (n-depth: 0.50)</td>
+<td class="py-1.5 px-3 border-l border-outline-variant font-mono">C3k2-CSP (s-depth: 0.67)</td>
+<td class="py-1.5 px-3 border-l border-outline-variant font-mono">C3k2-CSP (m-depth: 1.00)</td>
+<td class="py-1.5 px-3 border-l border-outline-variant text-secondary text-body-sm">结构同构，网络深度逐级递增</td>
+</tr>
+<tr class="hover:bg-surface-container-high/40 transition-colors">
+<td class="py-1.5 px-3 text-secondary">输入分辨率 (Input Size)</td>
+<td class="py-1.5 px-3 border-l border-outline-variant font-mono">640 × 640 × 3</td>
+<td class="py-1.5 px-3 border-l border-outline-variant font-mono">640 × 640 × 3</td>
+<td class="py-1.5 px-3 border-l border-outline-variant font-mono">640 × 640 × 3</td>
+<td class="py-1.5 px-3 border-l border-outline-variant text-[#005c15] text-body-sm">三者完全一致，无需重构预处理管道</td>
+</tr>
+<tr class="hover:bg-surface-container-high/40 transition-colors">
+<td class="py-1.5 px-3 text-secondary">计算复杂度 (GFLOPs)</td>
+<td class="py-1.5 px-3 border-l border-outline-variant font-mono bg-[#E8F5E9]/50 text-[#2E7D32]">6.5 GFLOPs (极低)</td>
+<td class="py-1.5 px-3 border-l border-outline-variant font-mono">21.5 GFLOPs</td>
+<td class="py-1.5 px-3 border-l border-outline-variant font-mono text-error">68.0 GFLOPs</td>
+<td class="py-1.5 px-3 border-l border-outline-variant text-body-sm">YOLO11s 仅为 11m 复杂度的 31.6%</td>
+</tr>
+<!-- Category 2: 检测精度评估 -->
+<tr class="bg-surface-container-low/70">
+<td class="py-1 px-3 font-bold text-primary tracking-wide text-label-sm uppercase" colspan="5">
+                  【二、检测精度评估 (Metrics on Test Set)】
+                </td>
+</tr>
+<tr class="hover:bg-surface-container-high/40 transition-colors">
+<td class="py-1.5 px-3 text-secondary">mAP@50 (全类平均精度)</td>
+<td class="py-1.5 px-3 border-l border-outline-variant font-mono">0.698</td>
+<td class="py-1.5 px-3 border-l border-outline-variant font-mono bg-[#E8F5E9]/60 text-[#2E7D32] font-semibold">0.765 (+6.7%)</td>
+<td class="py-1.5 px-3 border-l border-outline-variant font-mono bg-[#E8F5E9]/90 text-[#2E7D32] font-bold">0.782 (+8.4% 最佳)</td>
+<td class="py-1.5 px-3 border-l border-outline-variant text-body-sm text-[#005c15]">YOLO11s/11m 均超越产线质检及格线 (0.750)</td>
+</tr>
+<tr class="hover:bg-surface-container-high/40 transition-colors">
+<td class="py-1.5 px-3 text-secondary">mAP@50-95 (严苛边界框重合)</td>
+<td class="py-1.5 px-3 border-l border-outline-variant font-mono">0.421</td>
+<td class="py-1.5 px-3 border-l border-outline-variant font-mono">0.492 (+7.1%)</td>
+<td class="py-1.5 px-3 border-l border-outline-variant font-mono font-semibold text-[#2E7D32]">0.528 (+10.7%)</td>
+<td class="py-1.5 px-3 border-l border-outline-variant text-body-sm">11m 轮廓重叠定位最优，但 11s 已足够精确定位</td>
+</tr>
+<tr class="hover:bg-surface-container-high/40 transition-colors">
+<td class="py-1.5 px-3 text-secondary">精密引脚漏检率 (Miss Rate)</td>
+<td class="py-1.5 px-3 border-l border-outline-variant font-mono text-error">4.82% (高危)</td>
+<td class="py-1.5 px-3 border-l border-outline-variant font-mono bg-[#E8F5E9]/60 text-[#2E7D32]">0.84% (达标安全)</td>
+<td class="py-1.5 px-3 border-l border-outline-variant font-mono bg-[#E8F5E9]/60 text-[#2E7D32]">0.62% (极致)</td>
+<td class="py-1.5 px-3 border-l border-outline-variant text-body-sm text-[#005c15]">YOLO11s 漏检率直降 82.5%，完全杜绝次品流出</td>
+</tr>
+<tr class="hover:bg-surface-container-high/40 transition-colors">
+<td class="py-1.5 px-3 text-secondary">虚警误报率 (False Alarm)</td>
+<td class="py-1.5 px-3 border-l border-outline-variant font-mono">3.15%</td>
+<td class="py-1.5 px-3 border-l border-outline-variant font-mono font-semibold">1.02%</td>
+<td class="py-1.5 px-3 border-l border-outline-variant font-mono">0.98%</td>
+<td class="py-1.5 px-3 border-l border-outline-variant text-body-sm">误报减少 67.6%，有效缩短人工复验停工时间</td>
+</tr>
+<!-- Category 3: 生产工位推理性能 -->
+<tr class="bg-surface-container-low/70">
+<td class="py-1 px-3 font-bold text-primary tracking-wide text-label-sm uppercase" colspan="5">
+                  【三、生产工位推理性能 (Inference Benchmarks)】
+                </td>
+</tr>
+<tr class="hover:bg-surface-container-high/40 transition-colors">
+<td class="py-1.5 px-3 text-secondary">TensorRT 10 (FP16 Engine)</td>
+<td class="py-1.5 px-3 border-l border-outline-variant font-mono bg-[#E8F5E9]/50 text-[#2E7D32]">3.2 ms</td>
+<td class="py-1.5 px-3 border-l border-outline-variant font-mono bg-[#E8F5E9]/50 text-[#2E7D32] font-semibold">5.8 ms</td>
+<td class="py-1.5 px-3 border-l border-outline-variant font-mono text-secondary">11.4 ms</td>
+<td class="py-1.5 px-3 border-l border-outline-variant text-body-sm text-[#005c15]">5.8ms 远低于工位 45ms 节拍，余量充沛</td>
+</tr>
+<tr class="hover:bg-surface-container-high/40 transition-colors">
+<td class="py-1.5 px-3 text-secondary">TensorRT 10 (INT8 标定量化)</td>
+<td class="py-1.5 px-3 border-l border-outline-variant font-mono">1.9 ms</td>
+<td class="py-1.5 px-3 border-l border-outline-variant font-mono">3.4 ms</td>
+<td class="py-1.5 px-3 border-l border-outline-variant font-mono">6.8 ms</td>
+<td class="py-1.5 px-3 border-l border-outline-variant text-body-sm">若未来启用 INT8，YOLO11s 可达 300+ FPS</td>
+</tr>
+<tr class="hover:bg-surface-container-high/40 transition-colors">
+<td class="py-1.5 px-3 text-secondary">连续吞吐能力 (FPS @ B=1)</td>
+<td class="py-1.5 px-3 border-l border-outline-variant font-mono text-[#2E7D32]">312 FPS</td>
+<td class="py-1.5 px-3 border-l border-outline-variant font-mono font-semibold">172 FPS</td>
+<td class="py-1.5 px-3 border-l border-outline-variant font-mono text-secondary">87 FPS</td>
+<td class="py-1.5 px-3 border-l border-outline-variant text-body-sm">CAM-A-TOP 相机上限 120 FPS，11s 可完全满帧运行</td>
+</tr>
+<!-- Category 4: 工位兼容性与资源占用 -->
+<tr class="bg-surface-container-low/70">
+<td class="py-1 px-3 font-bold text-primary tracking-wide text-label-sm uppercase" colspan="5">
+                  【四、工位兼容性与资源占用】
+                </td>
+</tr>
+<tr class="hover:bg-surface-container-high/40 transition-colors">
+<td class="py-1.5 px-3 text-secondary">工控机显卡 TDP 功耗开销</td>
+<td class="py-1.5 px-3 border-l border-outline-variant font-mono bg-[#E8F5E9]/50 text-[#2E7D32]">18 W (轻载)</td>
+<td class="py-1.5 px-3 border-l border-outline-variant font-mono font-semibold">32 W (稳态)</td>
+<td class="py-1.5 px-3 border-l border-outline-variant font-mono text-[#F59E0B]">68 W (发热高)</td>
+<td class="py-1.5 px-3 border-l border-outline-variant text-body-sm">YOLO11m 在密闭工控机柜下可能触发风扇高频降频</td>
+</tr>
+<tr class="hover:bg-surface-container-high/40 transition-colors">
+<td class="py-1.5 px-3 text-secondary">硬件适配性与工程推荐</td>
+<td class="py-1.5 px-3 border-l border-outline-variant">
+<span class="inline-block px-1.5 py-0.5 rounded text-[10px] bg-secondary-fixed text-on-secondary-fixed">边缘轻型合格</span>
+</td>
+<td class="py-1.5 px-3 border-l border-outline-variant bg-[#E8F5E9]/70">
+<span class="inline-block px-1.5 py-0.5 rounded text-[10px] bg-[#E8F5E9] text-[#2E7D32] font-bold border border-[#2E7D32]/30">
+                    ★ 最优生产适配 (Best Match)
+                  </span>
+</td>
+<td class="py-1.5 px-3 border-l border-outline-variant">
+<span class="inline-block px-1.5 py-0.5 rounded text-[10px] bg-[#FFEBEE] text-error font-medium">算力边际过剩</span>
+</td>
+<td class="py-1.5 px-3 border-l border-outline-variant font-medium text-[#2E7D32] text-body-sm">
+                  YOLO11s 在精度、延时、温升达成最佳帕累托前沿
+                </td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<!-- Spacing buffer for fixed footer -->
+<div class="h-12"></div>
+</main>
+<!-- ==================== 4. FIXED DECISION BAR & ACTION FOOTER ==================== -->
+<footer class="h-12 px-margin-desktop bg-surface-container-lowest border-t border-outline-variant fixed bottom-0 right-0 left-56 z-30 flex items-center justify-between shadow-sm">
+<!-- Left: Smart Suggestion Banner -->
+<div class="flex items-center gap-space-md">
+<div class="w-6 h-6 rounded bg-[#E8F5E9] text-[#2E7D32] flex items-center justify-center">
+<span class="material-symbols-outlined text-[16px]" data-icon="auto_awesome">auto_awesome</span>
+</div>
+<div class="text-body-sm">
+<span class="font-bold text-on-surface">工程选型决策结论：</span>
+<span class="text-secondary">工位 CAM-A-TOP (节拍 45ms)，推荐部署 </span>
+<span class="font-bold text-[#0EA5E9]">YOLO11s-Detect v1.1.0</span>
+<span class="text-secondary"> (mAP@50 达到 0.765 且延迟仅 5.8ms，帕累托综合评分 91.4分)。</span>
+</div>
+</div>
+<!-- Right: Action Buttons Group -->
+<div class="flex items-center gap-space-md">
+<button class="h-7 px-space-md bg-surface-container-lowest border border-outline-variant text-on-surface text-label-md font-label-md rounded flex items-center gap-1.5 hover:bg-surface-container-low transition-colors">
+<span class="material-symbols-outlined text-[14px]" data-icon="table_view">table_view</span>
+<span>导出完整 Diff 对比表</span>
+</button>
+<button class="h-7 px-space-md bg-surface-container-lowest border border-outline-variant text-on-surface text-label-md font-label-md rounded flex items-center gap-1.5 hover:bg-surface-container-low transition-colors">
+<span class="material-symbols-outlined text-[14px]" data-icon="save">save</span>
+<span>保存为选型评测报告</span>
+</button>
+<button class="h-7 px-space-md bg-[#005c15] text-on-primary text-label-md font-label-md rounded flex items-center gap-1.5 hover:bg-tertiary-container transition-colors shadow-none font-semibold">
+<span class="material-symbols-outlined text-[15px]" data-icon="check_circle">check_circle</span>
+<span>部署 YOLO11s 到工位 CAM-A-TOP (推荐)</span>
+</button>
+</div>
+</footer>
+</div>
+
+
+</body></html>

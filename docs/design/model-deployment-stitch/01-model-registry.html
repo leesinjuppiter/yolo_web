@@ -1,0 +1,704 @@
+<!DOCTYPE html><html class="h-full" lang="zh-CN"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>OPTI-METRIX - 模型仓库 (Model Registry)</title>
+<!-- Google Fonts: Hanken Grotesk & JetBrains Mono -->
+<link href="https://fonts.googleapis.com" rel="preconnect">
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect">
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:ital,wght@0,300..900;1,300..900&amp;family=JetBrains+Mono:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<!-- Material Symbols Outlined -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<!-- Tailwind CSS v3 with Plugins -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          "colors": {
+            "on-primary-fixed": "#001d35",
+            "on-tertiary-container": "#a5f99e",
+            "on-tertiary-fixed": "#002204",
+            "secondary-container": "#dbe0e5",
+            "on-error-container": "#93000a",
+            "outline-variant": "#c3c6ce",
+            "on-surface-variant": "#43474d",
+            "surface-tint": "#47607d",
+            "on-secondary-container": "#5e6368",
+            "secondary-fixed-dim": "#c2c7cc",
+            "on-primary": "#ffffff",
+            "on-primary-fixed-variant": "#2f4964",
+            "error-container": "#ffdad6",
+            "surface-variant": "#d8e3f9",
+            "surface": "#f8f9ff",
+            "on-surface": "#111c2b",
+            "on-tertiary-fixed-variant": "#005312",
+            "surface-dim": "#cfdbf0",
+            "on-secondary": "#ffffff",
+            "primary-fixed-dim": "#afc9ea",
+            "tertiary-container": "#25752b",
+            "on-primary-container": "#d5e6ff",
+            "on-error": "#ffffff",
+            "surface-container-high": "#dde9fe",
+            "on-secondary-fixed-variant": "#42474c",
+            "surface-container-lowest": "#ffffff",
+            "primary-fixed": "#d1e4ff",
+            "primary": "#37506c",
+            "surface-container-highest": "#d8e3f9",
+            "background": "#f8f9ff",
+            "error": "#ba1a1a",
+            "tertiary-fixed-dim": "#88d982",
+            "surface-container": "#e6eeff",
+            "inverse-primary": "#afc9ea",
+            "tertiary": "#005c15",
+            "secondary-fixed": "#dee3e8",
+            "secondary": "#595f63",
+            "inverse-on-surface": "#ebf1ff",
+            "outline": "#73777e",
+            "on-tertiary": "#ffffff",
+            "primary-container": "#4f6885",
+            "tertiary-fixed": "#a3f69c",
+            "on-secondary-fixed": "#171c20",
+            "surface-container-low": "#eff3ff",
+            "on-background": "#111c2b",
+            "inverse-surface": "#263141",
+            "surface-bright": "#f8f9ff"
+          },
+          "borderRadius": {
+            "DEFAULT": "0.125rem",
+            "lg": "0.25rem",
+            "xl": "0.5rem",
+            "full": "0.75rem"
+          },
+          "spacing": {
+            "gutter-desktop": "0.75rem",
+            "gutter": "0.5rem",
+            "margin": "0.75rem",
+            "space-md": "0.5rem",
+            "space-sm": "0.25rem",
+            "space-lg": "0.75rem",
+            "margin-desktop": "1rem",
+            "space-xl": "1rem",
+            "space-xs": "0.125rem"
+          },
+          "fontFamily": {
+            "headline-sm": ["Hanken Grotesk", "sans-serif"],
+            "body-sm": ["Hanken Grotesk", "sans-serif"],
+            "headline-md": ["Hanken Grotesk", "sans-serif"],
+            "headline-lg": ["Hanken Grotesk", "sans-serif"],
+            "body-md": ["Hanken Grotesk", "sans-serif"],
+            "body-lg": ["Hanken Grotesk", "sans-serif"],
+            "label-sm": ["JetBrains Mono", "monospace"],
+            "label-lg": ["JetBrains Mono", "monospace"],
+            "label-md": ["JetBrains Mono", "monospace"]
+          },
+          "fontSize": {
+            "headline-sm": ["15px", { "lineHeight": "20px", "fontWeight": "600" }],
+            "body-sm": ["12px", { "lineHeight": "16px", "fontWeight": "400" }],
+            "headline-md": ["18px", { "lineHeight": "24px", "letterSpacing": "-0.005em", "fontWeight": "600" }],
+            "headline-lg": ["24px", { "lineHeight": "32px", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+            "body-md": ["13px", { "lineHeight": "18px", "fontWeight": "400" }],
+            "body-lg": ["14px", { "lineHeight": "20px", "fontWeight": "400" }],
+            "label-sm": ["10px", { "lineHeight": "12px", "letterSpacing": "0.03em", "fontWeight": "400" }],
+            "label-lg": ["13px", { "lineHeight": "16px", "letterSpacing": "0.02em", "fontWeight": "500" }],
+            "label-md": ["11px", { "lineHeight": "14px", "letterSpacing": "0.02em", "fontWeight": "500" }]
+          }
+        }
+      }
+    }
+  </script>
+<style>
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+      font-size: 18px;
+      line-height: 1;
+      display: inline-block;
+      vertical-align: middle;
+    }
+    .custom-scroll::-webkit-scrollbar {
+      width: 5px;
+      height: 5px;
+    }
+    .custom-scroll::-webkit-scrollbar-track {
+      background: #f1f4f8;
+    }
+    .custom-scroll::-webkit-scrollbar-thumb {
+      background: #c3c6ce;
+      border-radius: 2px;
+    }
+    .custom-scroll::-webkit-scrollbar-thumb:hover {
+      background: #73777e;
+    }
+  </style>
+</head>
+<body class="bg-background text-on-surface antialiased font-body-md text-body-md h-full overflow-hidden select-none">
+<!-- Main Multi-Panel Shell Container -->
+<div class="flex h-screen w-screen overflow-hidden">
+<!-- ==================== 1. LEFT SIDE NAV (SideNavBar Shared Anchor) ==================== -->
+<aside class="w-56 fixed top-0 left-0 bottom-0 z-40 bg-surface-container-lowest dark:bg-inverse-surface border-r border-outline-variant dark:border-outline flex flex-col justify-between">
+<!-- Header / Logo -->
+<div>
+<div class="h-14 flex items-center px-space-xl border-b border-outline-variant dark:border-outline gap-space-md">
+<div class="w-7 h-7 bg-primary flex items-center justify-center rounded text-on-primary">
+<span class="material-symbols-outlined" style="font-size: 20px;">memory</span>
+</div>
+<div class="flex flex-col">
+<span class="text-headline-sm font-headline-sm font-bold text-on-surface dark:text-inverse-on-surface tracking-tight leading-none">OPTI-METRIX</span>
+<span class="text-label-sm font-label-sm text-secondary leading-tight mt-0.5">v4.2.0-CORE-STATION</span>
+</div>
+</div>
+<!-- Navigation Tab List -->
+<nav class="p-space-md flex flex-col gap-1">
+<!-- 1. 数据集 -->
+<a class="flex items-center gap-space-md px-space-lg py-space-sm text-on-surface-variant dark:text-outline-variant hover:bg-surface-container-low dark:hover:bg-surface-container-high rounded-DEFAULT transition-colors cursor-pointer select-none" href="#">
+<span class="material-symbols-outlined" data-icon="dataset">dataset</span>
+<span class="text-label-md font-label-md">数据集</span>
+</a>
+<!-- 2. 模型训练 -->
+<a class="flex items-center gap-space-md px-space-lg py-space-sm text-on-surface-variant dark:text-outline-variant hover:bg-surface-container-low dark:hover:bg-surface-container-high rounded-DEFAULT transition-colors cursor-pointer select-none" href="#">
+<span class="material-symbols-outlined" data-icon="model_training">model_training</span>
+<span class="text-label-md font-label-md">模型训练</span>
+</a>
+<!-- 3. 模型仓库 (ACTIVE - Exact Match to Prompt) -->
+<a class="flex items-center gap-space-md px-space-lg py-space-sm bg-surface-container-high dark:bg-surface-container text-primary dark:text-inverse-primary font-medium rounded-DEFAULT cursor-pointer select-none border-l-2 border-primary" href="#">
+<span class="material-symbols-outlined text-primary" data-icon="deployed_code" style="font-variation-settings: 'FILL' 1;">deployed_code</span>
+<span class="text-label-md font-label-md font-semibold text-primary">模型仓库</span>
+</a><a class="flex items-center gap-space-md px-space-lg py-space-sm text-on-surface-variant dark:text-outline-variant hover:bg-surface-container-low dark:hover:bg-surface-container-high rounded-DEFAULT transition-colors cursor-pointer select-none" href="#"><span class="material-symbols-outlined" data-icon="rocket_launch">rocket_launch</span><span class="text-label-md font-label-md">部署中心</span></a>
+<!-- 4. 智能体 -->
+<a class="flex items-center gap-space-md px-space-lg py-space-sm text-on-surface-variant dark:text-outline-variant hover:bg-surface-container-low dark:hover:bg-surface-container-high rounded-DEFAULT transition-colors cursor-pointer select-none" href="#">
+<span class="material-symbols-outlined" data-icon="smart_toy">smart_toy</span>
+<span class="text-label-md font-label-md">智能体</span>
+</a>
+<!-- 5. 审计日志 -->
+<a class="flex items-center gap-space-md px-space-lg py-space-sm text-on-surface-variant dark:text-outline-variant hover:bg-surface-container-low dark:hover:bg-surface-container-high rounded-DEFAULT transition-colors cursor-pointer select-none" href="#">
+<span class="material-symbols-outlined" data-icon="receipt_long">receipt_long</span>
+<span class="text-label-md font-label-md">审计日志</span>
+</a>
+<!-- 6. 系统设置 -->
+<a class="flex items-center gap-space-md px-space-lg py-space-sm text-on-surface-variant dark:text-outline-variant hover:bg-surface-container-low dark:hover:bg-surface-container-high rounded-DEFAULT transition-colors cursor-pointer select-none" href="#">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+<span class="text-label-md font-label-md">系统设置</span>
+</a>
+</nav>
+</div>
+<!-- Station Telemetry / Status Footer -->
+<div class="p-space-md border-t border-outline-variant dark:border-outline bg-surface-bright">
+<div class="px-space-md py-space-sm rounded bg-surface-container flex items-center justify-between">
+<div class="flex items-center gap-2 overflow-hidden">
+<span class="material-symbols-outlined text-tertiary" data-icon="check_circle" style="font-size: 15px; font-variation-settings: 'FILL' 1;">check_circle</span>
+<span class="text-label-sm font-label-sm text-on-surface truncate" title="本地工作台: 就绪 (0.4ms)">本地工作台: 就绪 (0.4ms)</span>
+</div>
+<span class="inline-block w-1.5 h-1.5 rounded-full bg-tertiary-container animate-pulse flex-shrink-0"></span>
+</div>
+</div>
+</aside>
+<!-- ==================== 2. MAIN COCKPIT VIEWPORT (Right of SideNavBar) ==================== -->
+<main class="ml-56 flex-1 flex flex-col h-screen overflow-hidden bg-background">
+<!-- TopNavBar Header (Shared Anchor) -->
+<header class="flex justify-between items-center h-12 px-margin-desktop w-full border-b border-outline-variant bg-surface-container-lowest sticky top-0 z-30 flex-shrink-0">
+<!-- Left Breadcrumbs & Workspace Scope -->
+<div class="flex items-center gap-2">
+<div class="flex items-center text-secondary font-label-md text-label-md gap-1.5">
+<span class="inline-flex items-center gap-1 font-semibold text-on-surface">
+<span class="material-symbols-outlined text-primary" style="font-size: 16px;">precision_manufacturing</span>
+              工作空间: LINE-04
+            </span>
+<span class="text-outline">/</span>
+<span class="text-secondary">模型资产管理</span>
+<span class="text-outline">/</span>
+<span class="text-primary font-semibold">模型仓库 (Registry)</span>
+</div>
+<span class="ml-2 px-1.5 py-0.5 rounded text-label-sm font-label-sm bg-surface-container text-primary font-medium border border-outline-variant/50">CAM-A-TOP</span>
+</div>
+<!-- Center / Trailing Actions Cluster -->
+<div class="flex items-center gap-3">
+<!-- Icon utility buttons -->
+<div class="flex items-center border-r border-outline-variant pr-3 gap-1">
+<button class="w-7 h-7 flex items-center justify-center rounded hover:bg-surface-container-low text-secondary hover:text-on-surface transition-colors" title="刷新状态">
+<span class="material-symbols-outlined" data-icon="refresh">refresh</span>
+</button>
+<button class="w-7 h-7 flex items-center justify-center rounded hover:bg-surface-container-low text-secondary hover:text-on-surface transition-colors" title="参数调谐">
+<span class="material-symbols-outlined" data-icon="tune">tune</span>
+</button>
+<button class="w-7 h-7 flex items-center justify-center rounded hover:bg-surface-container-low text-secondary hover:text-on-surface transition-colors" title="全屏视口">
+<span class="material-symbols-outlined" data-icon="fullscreen">fullscreen</span>
+</button>
+<button class="w-7 h-7 flex items-center justify-center rounded hover:bg-surface-container-low text-secondary hover:text-on-surface transition-colors" title="技术帮助手册">
+<span class="material-symbols-outlined" data-icon="help_outline">help_outline</span>
+</button>
+</div>
+<!-- Secondary & Primary Operational Buttons -->
+<button class="h-7 px-3 rounded bg-surface-container-lowest border border-outline-variant hover:bg-surface-container-low text-on-surface font-body-sm text-body-sm flex items-center gap-1.5 transition-colors">
+<span class="material-symbols-outlined" style="font-size: 15px;">file_upload</span>
+            导入外部模型
+          </button>
+<button class="h-7 px-3.5 rounded bg-primary-container text-on-primary hover:bg-primary font-body-sm text-body-sm font-medium flex items-center gap-1.5 transition-colors shadow-xs">
+<span class="material-symbols-outlined" style="font-size: 16px;">rocket_launch</span>
+            部署到工位
+          </button>
+<!-- User avatar badge -->
+<div class="flex items-center gap-1.5 pl-2 border-l border-outline-variant">
+<div class="w-6 h-6 rounded-full bg-primary-container text-on-primary flex items-center justify-center text-[10px] font-bold">
+              OP
+            </div>
+<span class="text-label-sm font-label-sm text-secondary hidden lg:inline">Metrology Lead</span>
+</div>
+</div>
+</header>
+<!-- Content Scrollable Body Area -->
+<div class="flex-1 overflow-y-auto custom-scroll p-4 flex flex-col gap-4">
+<!-- ==================== 3. TOP KPI METRICS BAR ==================== -->
+<section class="grid grid-cols-4 gap-3 flex-shrink-0">
+<!-- Card 1: 已纳管模型总数 -->
+<div class="bg-surface-container-lowest border border-outline-variant p-3 rounded flex items-center justify-between">
+<div class="flex flex-col">
+<span class="text-label-sm font-label-sm text-secondary uppercase">已纳管模型总数</span>
+<div class="flex items-baseline gap-1.5 mt-0.5">
+<span class="text-headline-lg font-headline-lg text-on-surface">8</span>
+<span class="text-body-sm font-body-sm text-secondary">个权重资产</span>
+</div>
+</div>
+<div class="w-9 h-9 rounded bg-surface-container flex items-center justify-center text-primary">
+<span class="material-symbols-outlined">inventory_2</span>
+</div>
+</div>
+<!-- Card 2: 生产就绪 -->
+<div class="bg-surface-container-lowest border border-outline-variant p-3 rounded flex items-center justify-between">
+<div class="flex flex-col">
+<span class="text-label-sm font-label-sm text-secondary uppercase">生产工位就绪</span>
+<div class="flex items-baseline gap-1.5 mt-0.5">
+<span class="text-headline-lg font-headline-lg text-tertiary">6</span>
+<span class="text-body-sm font-body-sm text-tertiary font-medium">个验证达标</span>
+</div>
+</div>
+<div class="w-9 h-9 rounded bg-emerald-50 text-tertiary flex items-center justify-center">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">verified</span>
+</div>
+</div>
+<!-- Card 3: 验证评估中 -->
+<div class="bg-surface-container-lowest border border-outline-variant p-3 rounded flex items-center justify-between">
+<div class="flex flex-col">
+<span class="text-label-sm font-label-sm text-secondary uppercase">验证评估中</span>
+<div class="flex items-baseline gap-1.5 mt-0.5">
+<span class="text-headline-lg font-headline-lg text-amber-600">2</span>
+<span class="text-body-sm font-body-sm text-amber-700">个排队推演</span>
+</div>
+</div>
+<div class="w-9 h-9 rounded bg-amber-50 text-amber-600 flex items-center justify-center">
+<span class="material-symbols-outlined">hourglass_top</span>
+</div>
+</div>
+<!-- Card 4: 存储占用 -->
+<div class="bg-surface-container-lowest border border-outline-variant p-3 rounded flex items-center justify-between">
+<div class="flex flex-col">
+<span class="text-label-sm font-label-sm text-secondary uppercase">存储占用 (本地 NVMe)</span>
+<div class="flex items-baseline gap-1.5 mt-0.5">
+<span class="text-headline-lg font-headline-lg text-on-surface">4.8</span>
+<span class="text-body-sm font-body-sm text-secondary">GB / 128 GB</span>
+</div>
+</div>
+<div class="w-9 h-9 rounded bg-surface-container flex items-center justify-center text-primary">
+<span class="material-symbols-outlined">hard_drive</span>
+</div>
+</div>
+</section>
+<!-- ==================== 4. FILTER & QUERY WORKBENCH TOOLBAR ==================== -->
+<section class="bg-surface-container-lowest border border-outline-variant rounded p-3 flex flex-col gap-2.5 flex-shrink-0">
+<div class="flex flex-wrap items-center justify-between gap-3">
+<!-- Search Input -->
+<div class="relative w-80">
+<span class="material-symbols-outlined absolute left-2.5 top-1.5 text-secondary" style="font-size: 16px;">search</span>
+<input class="w-full h-7 pl-8 pr-3 bg-surface-bright border border-outline-variant rounded text-body-sm font-body-sm placeholder:text-secondary focus:border-primary focus:ring-0 focus:outline-none transition-colors" placeholder="搜索模型名称、ID 或权重文件..." type="text">
+</div>
+<!-- Task Type Filter Pills -->
+<div class="flex items-center gap-1.5 bg-surface-container-low p-0.5 rounded border border-outline-variant/60">
+<button class="px-2.5 py-1 text-label-md font-label-md rounded bg-surface-container-lowest shadow-xs text-primary font-semibold">全部</button>
+<button class="px-2.5 py-1 text-label-md font-label-md rounded text-secondary hover:text-on-surface transition-colors">目标检测 (Detect)</button>
+<button class="px-2.5 py-1 text-label-md font-label-md rounded text-secondary hover:text-on-surface transition-colors">实例分割 (Segment)</button>
+<button class="px-2.5 py-1 text-label-md font-label-md rounded text-secondary hover:text-on-surface transition-colors">旋转框 (OBB)</button>
+<button class="px-2.5 py-1 text-label-md font-label-md rounded text-secondary hover:text-on-surface transition-colors">图像分类 (Classify)</button>
+</div>
+<!-- Action buttons: Diff and Export -->
+<div class="flex items-center gap-2">
+<span class="text-label-sm font-label-sm text-secondary mr-1">共 <strong class="text-on-surface">4</strong> 个匹配模型</span>
+<button class="h-7 px-2.5 rounded bg-surface-container-lowest border border-outline-variant hover:bg-surface-container-low text-on-surface text-label-md font-label-md flex items-center gap-1 transition-colors">
+<span class="material-symbols-outlined" style="font-size: 14px;">compare_arrows</span>
+                模型对比 (Diff)
+              </button>
+<button class="h-7 px-2.5 rounded bg-surface-container-lowest border border-outline-variant hover:bg-surface-container-low text-on-surface text-label-md font-label-md flex items-center gap-1 transition-colors">
+<span class="material-symbols-outlined" style="font-size: 14px;">download</span>
+                批量导出
+              </button>
+</div>
+</div>
+</section>
+<!-- ==================== 5. CORE MODEL REGISTRY TABLE / LIST (Strict Reference to IMAGE_2) ==================== -->
+<section class="bg-surface-container-lowest border border-outline-variant rounded flex-1 flex flex-col overflow-hidden min-h-[460px]">
+<!-- Strict Table Headers (IMAGE_2 Architecture) -->
+<div class="grid grid-cols-12 gap-2 px-4 py-2 bg-surface-container-low border-b border-outline-variant text-label-md font-label-md text-secondary tracking-wider items-center select-none">
+<div class="col-span-3 flex items-center gap-1.5">
+<span class="material-symbols-outlined text-primary" style="font-size: 16px;">deployed_code</span>
+<span>模型名称</span>
+</div>
+<div class="col-span-1 flex items-center gap-1">
+<span class="material-symbols-outlined text-primary" style="font-size: 15px;">sell</span>
+<span>版本</span>
+</div>
+<div class="col-span-1 flex items-center gap-1">
+<span class="material-symbols-outlined text-primary" style="font-size: 15px;">target</span>
+<span>任务类型</span>
+</div>
+<div class="col-span-2 flex items-center gap-1">
+<span class="material-symbols-outlined text-primary" style="font-size: 15px;">database</span>
+<span>来源数据集</span>
+</div>
+<div class="col-span-3 flex items-center gap-1">
+<span class="material-symbols-outlined text-primary" style="font-size: 15px;">analytics</span>
+<span>核心指标</span>
+</div>
+<div class="col-span-1 flex items-center gap-1">
+<span class="material-symbols-outlined text-primary" style="font-size: 15px;">check_circle</span>
+<span>状态</span>
+</div>
+<div class="col-span-1 flex items-center justify-end gap-1">
+<span class="material-symbols-outlined text-primary" style="font-size: 15px;">bolt</span>
+<span>操作</span>
+</div>
+</div>
+<!-- Table Body Rows Container -->
+<div class="divide-y divide-outline-variant/60 overflow-y-auto custom-scroll flex-1">
+<!-- ================= ROW 1: YOLO11n-Detect ================= -->
+<div class="grid grid-cols-12 gap-2 px-4 py-3 items-center hover:bg-surface-container-low/70 transition-colors group">
+<!-- 模型名称 -->
+<div class="col-span-3 flex items-center gap-3">
+<!-- Purple/Dark Blue Cube Avatar -->
+<div class="w-9 h-9 rounded bg-indigo-50 border border-indigo-200 text-indigo-600 flex items-center justify-center flex-shrink-0 group-hover:scale-105 transition-transform">
+<span class="material-symbols-outlined" style="font-size: 22px; font-variation-settings: 'FILL' 1;">view_in_ar</span>
+</div>
+<div class="flex flex-col min-w-0">
+<span class="font-headline-sm text-headline-sm text-on-surface font-semibold truncate group-hover:text-primary transition-colors">YOLO11n-Detect</span>
+<span class="font-label-sm text-label-sm text-secondary tracking-normal font-mono truncate">model_20250621_001</span>
+</div>
+</div>
+<!-- 版本 -->
+<div class="col-span-1 flex flex-col justify-center">
+<span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-label-sm font-label-sm bg-blue-50 text-blue-700 border border-blue-200 w-max font-medium">
+<span class="material-symbols-outlined" style="font-size: 11px;">arrow_downward</span>
+                  v1.0.0
+                </span>
+<span class="font-label-sm text-label-sm text-secondary mt-1">2025-06-21</span>
+</div>
+<!-- 任务类型 -->
+<div class="col-span-1 flex flex-col justify-center">
+<span class="inline-block px-1.5 py-0.5 rounded text-label-sm font-label-sm bg-slate-100 text-slate-700 border border-slate-200 w-max font-mono">detect</span>
+<span class="text-body-sm font-body-sm text-secondary mt-1">目标检测</span>
+</div>
+<!-- 来源数据集 -->
+<div class="col-span-2 flex flex-col justify-center pr-2">
+<a class="text-label-md font-label-md text-primary hover:underline font-semibold flex items-center gap-1" href="#">
+<span class="text-cyan-700">dataset_001</span>
+</a>
+<span class="text-body-sm font-body-sm text-secondary truncate mt-0.5">工业零件检测数据集 · 5,231 张</span>
+</div>
+<!-- 核心指标 (IMAGE_2 3-Metric Cell) -->
+<div class="col-span-3">
+<div class="grid grid-cols-3 gap-1.5 bg-surface-bright p-1.5 rounded border border-outline-variant/70">
+<div class="flex flex-col items-center justify-center p-1 rounded bg-white border border-outline-variant/40">
+<span class="text-[9px] font-label-sm text-secondary">mAP50</span>
+<span class="font-label-md text-label-md font-bold text-cyan-700">0.782</span>
+</div>
+<div class="flex flex-col items-center justify-center p-1 rounded bg-white border border-outline-variant/40">
+<span class="text-[9px] font-label-sm text-secondary">mAP50-95</span>
+<span class="font-label-md text-label-md font-bold text-indigo-700">0.501</span>
+</div>
+<div class="flex flex-col items-center justify-center p-1 rounded bg-white border border-outline-variant/40">
+<span class="text-[9px] font-label-sm text-secondary">Precision</span>
+<span class="font-label-md text-label-md font-bold text-emerald-700">0.845</span>
+</div>
+</div>
+</div>
+<!-- 状态 -->
+<div class="col-span-1 flex flex-col justify-center">
+<div class="flex items-center gap-1.5">
+<span class="inline-block w-2 h-2 rounded-full bg-emerald-500"></span>
+<span class="text-body-sm font-body-sm text-emerald-800 font-semibold">可用</span>
+</div>
+<span class="text-label-sm font-label-sm text-secondary mt-0.5">已验证通过</span>
+</div>
+<!-- 操作 (4 Buttons) -->
+<div class="col-span-1 flex items-center justify-end gap-1">
+<button class="w-7 h-7 rounded border border-outline-variant bg-white hover:bg-surface-container-low text-secondary hover:text-primary flex items-center justify-center transition-colors" title="详情">
+<span class="material-symbols-outlined" style="font-size: 15px;">format_list_bulleted</span>
+</button>
+<button class="w-7 h-7 rounded bg-indigo-50 border border-indigo-200 hover:bg-indigo-100 text-indigo-600 flex items-center justify-center transition-colors" title="推理测试">
+<span class="material-symbols-outlined" style="font-size: 16px; font-variation-settings: 'FILL' 1;">play_arrow</span>
+</button>
+<button class="w-7 h-7 rounded border border-outline-variant bg-white hover:bg-surface-container-low text-secondary hover:text-on-surface flex items-center justify-center transition-colors" title="导出模型">
+<span class="material-symbols-outlined" style="font-size: 15px;">cloud_download</span>
+</button>
+<button class="w-7 h-7 rounded border border-outline-variant bg-white hover:bg-surface-container-low text-secondary hover:text-amber-700 flex items-center justify-center transition-colors" title="归档">
+<span class="material-symbols-outlined" style="font-size: 15px;">archive</span>
+</button>
+</div>
+</div>
+<!-- ================= ROW 2: YOLO11s-Detect ================= -->
+<div class="grid grid-cols-12 gap-2 px-4 py-3 items-center hover:bg-surface-container-low/70 transition-colors group">
+<!-- 模型名称 -->
+<div class="col-span-3 flex items-center gap-3">
+<!-- Blue Cube Avatar -->
+<div class="w-9 h-9 rounded bg-blue-50 border border-blue-200 text-blue-600 flex items-center justify-center flex-shrink-0 group-hover:scale-105 transition-transform">
+<span class="material-symbols-outlined" style="font-size: 22px; font-variation-settings: 'FILL' 1;">view_in_ar</span>
+</div>
+<div class="flex flex-col min-w-0">
+<span class="font-headline-sm text-headline-sm text-on-surface font-semibold truncate group-hover:text-primary transition-colors">YOLO11s-Detect</span>
+<span class="font-label-sm text-label-sm text-secondary tracking-normal font-mono truncate">model_20250618_003</span>
+</div>
+</div>
+<!-- 版本 -->
+<div class="col-span-1 flex flex-col justify-center">
+<span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-label-sm font-label-sm bg-blue-50 text-blue-700 border border-blue-200 w-max font-medium">
+<span class="material-symbols-outlined" style="font-size: 11px;">arrow_downward</span>
+                  v1.1.0
+                </span>
+<span class="font-label-sm text-label-sm text-secondary mt-1">2025-06-18</span>
+</div>
+<!-- 任务类型 -->
+<div class="col-span-1 flex flex-col justify-center">
+<span class="inline-block px-1.5 py-0.5 rounded text-label-sm font-label-sm bg-slate-100 text-slate-700 border border-slate-200 w-max font-mono">detect</span>
+<span class="text-body-sm font-body-sm text-secondary mt-1">目标检测</span>
+</div>
+<!-- 来源数据集 -->
+<div class="col-span-2 flex flex-col justify-center pr-2">
+<a class="text-label-md font-label-md text-primary hover:underline font-semibold flex items-center gap-1" href="#">
+<span class="text-cyan-700">dataset_001</span>
+</a>
+<span class="text-body-sm font-body-sm text-secondary truncate mt-0.5">工业零件检测数据集 · 5,231 张</span>
+</div>
+<!-- 核心指标 -->
+<div class="col-span-3">
+<div class="grid grid-cols-3 gap-1.5 bg-surface-bright p-1.5 rounded border border-outline-variant/70">
+<div class="flex flex-col items-center justify-center p-1 rounded bg-white border border-outline-variant/40">
+<span class="text-[9px] font-label-sm text-secondary">mAP50</span>
+<span class="font-label-md text-label-md font-bold text-cyan-700">0.765</span>
+</div>
+<div class="flex flex-col items-center justify-center p-1 rounded bg-white border border-outline-variant/40">
+<span class="text-[9px] font-label-sm text-secondary">mAP50-95</span>
+<span class="font-label-md text-label-md font-bold text-indigo-700">0.503</span>
+</div>
+<div class="flex flex-col items-center justify-center p-1 rounded bg-white border border-outline-variant/40">
+<span class="text-[9px] font-label-sm text-secondary">Precision</span>
+<span class="font-label-md text-label-md font-bold text-emerald-700">0.832</span>
+</div>
+</div>
+</div>
+<!-- 状态 -->
+<div class="col-span-1 flex flex-col justify-center">
+<div class="flex items-center gap-1.5">
+<span class="inline-block w-2 h-2 rounded-full bg-emerald-500"></span>
+<span class="text-body-sm font-body-sm text-emerald-800 font-semibold">可用</span>
+</div>
+<span class="text-label-sm font-label-sm text-secondary mt-0.5">已验证通过</span>
+</div>
+<!-- 操作 -->
+<div class="col-span-1 flex items-center justify-end gap-1">
+<button class="w-7 h-7 rounded border border-outline-variant bg-white hover:bg-surface-container-low text-secondary hover:text-primary flex items-center justify-center transition-colors" title="详情">
+<span class="material-symbols-outlined" style="font-size: 15px;">format_list_bulleted</span>
+</button>
+<button class="w-7 h-7 rounded bg-indigo-50 border border-indigo-200 hover:bg-indigo-100 text-indigo-600 flex items-center justify-center transition-colors" title="推理测试">
+<span class="material-symbols-outlined" style="font-size: 16px; font-variation-settings: 'FILL' 1;">play_arrow</span>
+</button>
+<button class="w-7 h-7 rounded border border-outline-variant bg-white hover:bg-surface-container-low text-secondary hover:text-on-surface flex items-center justify-center transition-colors" title="导出模型">
+<span class="material-symbols-outlined" style="font-size: 15px;">cloud_download</span>
+</button>
+<button class="w-7 h-7 rounded border border-outline-variant bg-white hover:bg-surface-container-low text-secondary hover:text-amber-700 flex items-center justify-center transition-colors" title="归档">
+<span class="material-symbols-outlined" style="font-size: 15px;">archive</span>
+</button>
+</div>
+</div>
+<!-- ================= ROW 3: YOLO11n-Segment ================= -->
+<div class="grid grid-cols-12 gap-2 px-4 py-3 items-center hover:bg-surface-container-low/70 transition-colors group">
+<!-- 模型名称 -->
+<div class="col-span-3 flex items-center gap-3">
+<!-- Cyan Cube Avatar -->
+<div class="w-9 h-9 rounded bg-teal-50 border border-teal-200 text-teal-600 flex items-center justify-center flex-shrink-0 group-hover:scale-105 transition-transform">
+<span class="material-symbols-outlined" style="font-size: 22px; font-variation-settings: 'FILL' 1;">view_in_ar</span>
+</div>
+<div class="flex flex-col min-w-0">
+<span class="font-headline-sm text-headline-sm text-on-surface font-semibold truncate group-hover:text-primary transition-colors">YOLO11n-Segment</span>
+<span class="font-label-sm text-label-sm text-secondary tracking-normal font-mono truncate">model_20250617_002</span>
+</div>
+</div>
+<!-- 版本 -->
+<div class="col-span-1 flex flex-col justify-center">
+<span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-label-sm font-label-sm bg-blue-50 text-blue-700 border border-blue-200 w-max font-medium">
+<span class="material-symbols-outlined" style="font-size: 11px;">arrow_downward</span>
+                  v1.0.0
+                </span>
+<span class="font-label-sm text-label-sm text-secondary mt-1">2025-06-17</span>
+</div>
+<!-- 任务类型 -->
+<div class="col-span-1 flex flex-col justify-center">
+<span class="inline-block px-1.5 py-0.5 rounded text-label-sm font-label-sm bg-teal-50 text-teal-700 border border-teal-200 w-max font-mono">segment</span>
+<span class="text-body-sm font-body-sm text-secondary mt-1">实例分割</span>
+</div>
+<!-- 来源数据集 -->
+<div class="col-span-2 flex flex-col justify-center pr-2">
+<a class="text-label-md font-label-md text-primary hover:underline font-semibold flex items-center gap-1" href="#">
+<span class="text-cyan-700">dataset_002</span>
+</a>
+<span class="text-body-sm font-body-sm text-secondary truncate mt-0.5">零件分割数据集 · 3,842 张</span>
+</div>
+<!-- 核心指标 -->
+<div class="col-span-3">
+<div class="grid grid-cols-3 gap-1.5 bg-surface-bright p-1.5 rounded border border-outline-variant/70">
+<div class="flex flex-col items-center justify-center p-1 rounded bg-white border border-outline-variant/40">
+<span class="text-[9px] font-label-sm text-secondary">mAP50</span>
+<span class="font-label-md text-label-md font-bold text-cyan-700">0.731</span>
+</div>
+<div class="flex flex-col items-center justify-center p-1 rounded bg-white border border-outline-variant/40">
+<span class="text-[9px] font-label-sm text-secondary">mAP50-95</span>
+<span class="font-label-md text-label-md font-bold text-indigo-700">0.467</span>
+</div>
+<div class="flex flex-col items-center justify-center p-1 rounded bg-white border border-outline-variant/40">
+<span class="text-[9px] font-label-sm text-secondary">Precision</span>
+<span class="font-label-md text-label-md font-bold text-emerald-700">0.799</span>
+</div>
+</div>
+</div>
+<!-- 状态 -->
+<div class="col-span-1 flex flex-col justify-center">
+<div class="flex items-center gap-1.5">
+<span class="inline-block w-2 h-2 rounded-full bg-emerald-500"></span>
+<span class="text-body-sm font-body-sm text-emerald-800 font-semibold">可用</span>
+</div>
+<span class="text-label-sm font-label-sm text-secondary mt-0.5">已验证通过</span>
+</div>
+<!-- 操作 -->
+<div class="col-span-1 flex items-center justify-end gap-1">
+<button class="w-7 h-7 rounded border border-outline-variant bg-white hover:bg-surface-container-low text-secondary hover:text-primary flex items-center justify-center transition-colors" title="详情">
+<span class="material-symbols-outlined" style="font-size: 15px;">format_list_bulleted</span>
+</button>
+<button class="w-7 h-7 rounded bg-indigo-50 border border-indigo-200 hover:bg-indigo-100 text-indigo-600 flex items-center justify-center transition-colors" title="推理测试">
+<span class="material-symbols-outlined" style="font-size: 16px; font-variation-settings: 'FILL' 1;">play_arrow</span>
+</button>
+<button class="w-7 h-7 rounded border border-outline-variant bg-white hover:bg-surface-container-low text-secondary hover:text-on-surface flex items-center justify-center transition-colors" title="导出模型">
+<span class="material-symbols-outlined" style="font-size: 15px;">cloud_download</span>
+</button>
+<button class="w-7 h-7 rounded border border-outline-variant bg-white hover:bg-surface-container-low text-secondary hover:text-amber-700 flex items-center justify-center transition-colors" title="归档">
+<span class="material-symbols-outlined" style="font-size: 15px;">archive</span>
+</button>
+</div>
+</div>
+<!-- ================= ROW 4: YOLO11m-Detect ================= -->
+<div class="grid grid-cols-12 gap-2 px-4 py-3 items-center hover:bg-surface-container-low/70 transition-colors group">
+<!-- 模型名称 -->
+<div class="col-span-3 flex items-center gap-3">
+<!-- Orange Cube Avatar -->
+<div class="w-9 h-9 rounded bg-amber-50 border border-amber-200 text-amber-600 flex items-center justify-center flex-shrink-0 group-hover:scale-105 transition-transform">
+<span class="material-symbols-outlined" style="font-size: 22px; font-variation-settings: 'FILL' 1;">view_in_ar</span>
+</div>
+<div class="flex flex-col min-w-0">
+<span class="font-headline-sm text-headline-sm text-on-surface font-semibold truncate group-hover:text-primary transition-colors">YOLO11m-Detect</span>
+<span class="font-label-sm text-label-sm text-secondary tracking-normal font-mono truncate">model_20250610_004</span>
+</div>
+</div>
+<!-- 版本 -->
+<div class="col-span-1 flex flex-col justify-center">
+<span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-label-sm font-label-sm bg-purple-50 text-purple-700 border border-purple-200 w-max font-medium">
+<span class="material-symbols-outlined" style="font-size: 11px;">arrow_downward</span>
+                  v0.9.0
+                </span>
+<span class="font-label-sm text-label-sm text-secondary mt-1">2025-06-10</span>
+</div>
+<!-- 任务类型 -->
+<div class="col-span-1 flex flex-col justify-center">
+<span class="inline-block px-1.5 py-0.5 rounded text-label-sm font-label-sm bg-slate-100 text-slate-700 border border-slate-200 w-max font-mono">detect</span>
+<span class="text-body-sm font-body-sm text-secondary mt-1">目标检测</span>
+</div>
+<!-- 来源数据集 -->
+<div class="col-span-2 flex flex-col justify-center pr-2">
+<a class="text-label-md font-label-md text-primary hover:underline font-semibold flex items-center gap-1" href="#">
+<span class="text-cyan-700">dataset_003</span>
+</a>
+<span class="text-body-sm font-body-sm text-secondary truncate mt-0.5">焊缝缺陷数据集 · 4,120 张</span>
+</div>
+<!-- 核心指标 -->
+<div class="col-span-3">
+<div class="grid grid-cols-3 gap-1.5 bg-surface-bright p-1.5 rounded border border-outline-variant/70">
+<div class="flex flex-col items-center justify-center p-1 rounded bg-white border border-outline-variant/40">
+<span class="text-[9px] font-label-sm text-secondary">mAP50</span>
+<span class="font-label-md text-label-md font-bold text-cyan-700">0.698</span>
+</div>
+<div class="flex flex-col items-center justify-center p-1 rounded bg-white border border-outline-variant/40">
+<span class="text-[9px] font-label-sm text-secondary">mAP50-95</span>
+<span class="font-label-md text-label-md font-bold text-indigo-700">0.448</span>
+</div>
+<div class="flex flex-col items-center justify-center p-1 rounded bg-white border border-outline-variant/40">
+<span class="text-[9px] font-label-sm text-secondary">Precision</span>
+<span class="font-label-md text-label-md font-bold text-emerald-700">0.776</span>
+</div>
+</div>
+</div>
+<!-- 状态 (待评估 / 验证中) -->
+<div class="col-span-1 flex flex-col justify-center">
+<div class="flex items-center gap-1.5">
+<span class="inline-block w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
+<span class="text-body-sm font-body-sm text-amber-800 font-semibold">验证中</span>
+</div>
+<span class="text-label-sm font-label-sm text-secondary mt-0.5">待评估</span>
+</div>
+<!-- 操作 -->
+<div class="col-span-1 flex items-center justify-end gap-1">
+<button class="w-7 h-7 rounded border border-outline-variant bg-white hover:bg-surface-container-low text-secondary hover:text-primary flex items-center justify-center transition-colors" title="详情">
+<span class="material-symbols-outlined" style="font-size: 15px;">format_list_bulleted</span>
+</button>
+<button class="w-7 h-7 rounded bg-indigo-50 border border-indigo-200 hover:bg-indigo-100 text-indigo-600 flex items-center justify-center transition-colors" title="推理测试">
+<span class="material-symbols-outlined" style="font-size: 16px; font-variation-settings: 'FILL' 1;">play_arrow</span>
+</button>
+<button class="w-7 h-7 rounded border border-outline-variant bg-white hover:bg-surface-container-low text-secondary hover:text-on-surface flex items-center justify-center transition-colors" title="导出模型">
+<span class="material-symbols-outlined" style="font-size: 15px;">cloud_download</span>
+</button>
+<button class="w-7 h-7 rounded border border-outline-variant bg-white hover:bg-surface-container-low text-secondary hover:text-amber-700 flex items-center justify-center transition-colors" title="归档">
+<span class="material-symbols-outlined" style="font-size: 15px;">archive</span>
+</button>
+</div>
+</div>
+</div>
+<!-- ================= 6. PAGINATION & METROLOGY SUMMARY FOOTER ================= -->
+<footer class="h-10 px-4 bg-surface-container-low border-t border-outline-variant flex items-center justify-between flex-shrink-0 text-label-sm font-label-sm text-secondary">
+<div class="flex items-center gap-2">
+<span class="inline-block w-2 h-2 rounded-full bg-tertiary"></span>
+<span>显示 1 - 4 / 共 4 个已纳管模型权重 (本地存储总览)</span>
+</div>
+<!-- Pagination Navigator Controls -->
+<div class="flex items-center gap-1.5">
+<span class="text-secondary mr-2">每页 10 条</span>
+<button class="w-6 h-6 rounded border border-outline-variant bg-white text-secondary flex items-center justify-center disabled:opacity-40" disabled="">
+<span class="material-symbols-outlined" style="font-size: 13px;">chevron_left</span>
+</button>
+<button class="w-6 h-6 rounded bg-primary-container text-on-primary font-bold flex items-center justify-center text-xs">
+                1
+              </button>
+<button class="w-6 h-6 rounded border border-outline-variant bg-white text-secondary flex items-center justify-center disabled:opacity-40" disabled="">
+<span class="material-symbols-outlined" style="font-size: 13px;">chevron_right</span>
+</button>
+</div>
+</footer>
+</section>
+</div>
+</main>
+</div>
+<script>
+    // Lightweight micro-interactions for model testing and selection
+    document.querySelectorAll('button[title="推理测试"]').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        const row = e.target.closest('.group');
+        const modelName = row.querySelector('.font-headline-sm').innerText;
+        alert(`正在为 [${modelName}] 加载 CAM-A-TOP 实时视频流推理管线...`);
+      });
+    });
+  </script>
+
+
+</body></html>
