@@ -2,6 +2,7 @@
 import { computed, onActivated, onDeactivated, onUnmounted, ref, watch } from 'vue'
 import { listTraining } from '../api/training'
 import DeleteTrainingButton from '../components/training/DeleteTrainingButton.vue'
+import CpuBrandIcon from '../components/training/CpuBrandIcon.vue'
 import { selectableDatasetTasks, taskLabels } from '../domain'
 import type { SelectableDatasetTask } from '../domain'
 import { terminalTrainingStates, trainingStatusLabels } from '../types/training'
@@ -37,7 +38,21 @@ try {
 const architectures = computed(() => overview.value?.architectures ?? [])
 const statusCounts = computed(() => overview.value?.statusCounts ?? {})
 const taskCount = computed(() => Object.values(statusCounts.value).reduce((sum, count) => sum + count, 0))
-const devices = computed(() => overview.value?.devices.map(device => device.name).join('、'))
+const cpu = computed(() => overview.value?.devices.find(device => device.kind === 'cpu'))
+const gpus = computed(() => overview.value?.devices.filter(device => device.kind === 'cuda') ?? [])
+const runningTask = computed(() => visibleTasks.value.find(task => task.status === 'running'))
+const workerReady = computed(() => overview.value?.workerAvailable === true && overview.value?.workerStatus?.state === 'live')
+const environmentVersions = computed(() => {
+  const versions = overview.value?.workerStatus?.versions
+  return [versions?.cuda ? `CUDA ${versions.cuda}` : '', versions?.torch ? `PyTorch ${versions.torch}` : ''].filter(Boolean).join(' · ')
+})
+const elapsedDisplay = computed(() => {
+  const seconds = overview.value?.elapsedTotal
+  if (seconds == null || !Number.isFinite(seconds)) return { value: '—', unit: '' }
+  if (seconds >= 3600) return { value: (seconds / 3600).toFixed(1), unit: '小时' }
+  return seconds >= 60 ? { value: String(Math.floor(seconds / 60)), unit: '分钟' }
+    : { value: String(Math.floor(seconds)), unit: '秒' }
+})
 
 const qualityMetrics = {
   detect: ['map50_95', 'mAP@50–95'],
@@ -182,28 +197,61 @@ function canRetrain(task: TrainingTask) {
     </header>
 
     <div v-if="overview" class="training-overview" aria-label="训练统计">
-      <div class="summary-card">
-        <p>计算设备</p>
-        <strong>{{ devices || '暂无设备信息' }}</strong>
-        <small>{{ overview.workerAvailable === false ? '训练执行器未启动' : '单任务执行' }}</small>
-      </div>
-      <div class="summary-card">
-        <p>活跃训练任务</p>
-        <strong>{{ statusCounts.running ?? 0 }}</strong><span> 运行中</span>
-        <strong class="queued-total">{{ statusCounts.queued ?? 0 }}</strong><span> 排队中</span>
-        <small>任务总数 {{ taskCount }} · {{ statusCounts.created ?? 0 }} 准备中</small>
-      </div>
-      <div class="summary-card">
-        <p>评估比较口径</p>
-        <strong>同条件比较</strong>
-        <small>比较前需核对验证数据、类别映射与评估参数。</small>
-        <small>任务列表不汇总跨数据集平均精度。</small>
-      </div>
-      <div class="summary-card">
-        <p>累计训练耗时</p>
-        <strong>{{ formatDuration(overview.elapsedTotal) }}</strong>
-        <small>已记录的任务耗时合计</small>
-      </div>
+      <article class="summary-card compute-summary">
+        <header class="summary-header">
+          <h2><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="5" width="14" height="14" rx="1"/><path d="M9 9h6v6H9zM9 2v3M15 2v3M9 19v3M15 19v3M2 9h3M2 15h3M19 9h3M19 15h3"/></svg>计算设备</h2>
+          <span class="summary-badge" :data-ready="workerReady">{{ workerReady ? '在线 · 就绪' : '执行器未就绪' }}</span>
+        </header>
+        <div class="summary-content">
+          <div class="device-row"><CpuBrandIcon :vendor="cpu?.vendor"/><strong>{{ cpu?.name ?? 'CPU 型号待采集' }}</strong></div>
+          <div v-for="gpu in gpus" :key="gpu.id" class="device-row"><span class="gpu-symbol" aria-hidden="true">GPU</span><strong>{{ gpu.name }}</strong><small v-if="gpu.memoryBytes != null">{{ (gpu.memoryBytes / 1024 ** 3).toFixed(1) }} GiB</small></div>
+          <p v-if="!gpus.length" class="summary-description">{{ overview.workerStatus?.state === 'live' ? '当前执行环境仅提供 CPU 训练' : '等待执行器发布 GPU 信息' }}</p>
+          <dl class="summary-details">
+            <div><dt>CPU 架构</dt><dd>{{ cpu?.architecture ?? '—' }}</dd></div>
+            <div><dt>调度方式</dt><dd>单任务执行</dd></div>
+          </dl>
+        </div>
+        <footer class="summary-footer environment-versions" :title="environmentVersions">{{ environmentVersions || '训练环境版本待采集' }}</footer>
+      </article>
+      <article class="summary-card activity-summary">
+        <header class="summary-header">
+          <h2><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6a8 8 0 0 0-13 6M6 18a8 8 0 0 0 13-6M18 2v4h-4M6 22v-4h4"/><circle cx="12" cy="12" r="3"/></svg>活跃训练任务</h2>
+          <span class="summary-badge">任务总数 {{ taskCount }}</span>
+        </header>
+        <div class="summary-content">
+          <div class="activity-counts"><div><strong>{{ statusCounts.running ?? 0 }}</strong><span>运行中</span></div><i aria-hidden="true">/</i><div><b>{{ statusCounts.queued ?? 0 }}</b><span>排队中</span></div><i aria-hidden="true">/</i><div><b>{{ statusCounts.created ?? 0 }}</b><span>准备中</span></div></div>
+          <div class="active-task-preview">
+            <template v-if="runningTask"><div><strong :title="runningTask.config.name">{{ runningTask.config.name }}</strong><span>Epoch {{ runningTask.epoch }}/{{ runningTask.config.epochs }}</span></div><progress :value="progress(runningTask)" max="100" aria-label="活跃训练任务进度"/></template>
+            <span v-else>{{ statusCounts.running ? '训练任务运行中，详见训练中列表' : '当前无运行中的训练任务' }}</span>
+          </div>
+          <div class="scheduler-slot"><span>调度槽位</span><strong>{{ statusCounts.running ?? 0 }} / 1 占用</strong><span class="slot-indicator" :data-busy="!!statusCounts.running" aria-hidden="true"/></div>
+        </div>
+        <footer class="summary-footer"><span>已完成 {{ statusCounts.succeeded ?? 0 }} · 已取消 {{ statusCounts.canceled ?? 0 }} · 失败 {{ statusCounts.failed ?? 0 }}</span></footer>
+      </article>
+      <article class="summary-card comparison-summary">
+        <header class="summary-header">
+          <h2><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h8M4 12h8M4 18h8m3-13 2 2 4-4m-6 8 6 6m0-6-6 6"/></svg>评估比较口径</h2>
+          <span class="summary-badge">比较前核对</span>
+        </header>
+        <div class="summary-content">
+          <strong class="comparison-title">同条件比较</strong>
+          <p class="summary-description">比较前需核对验证数据、类别映射与评估参数。</p>
+          <div class="comparison-checks"><span>验证数据与划分</span><span>类别与索引映射</span><span>评估参数</span></div>
+        </div>
+        <footer class="summary-footer">不汇总跨数据集平均精度</footer>
+      </article>
+      <article class="summary-card elapsed-summary">
+        <header class="summary-header">
+          <h2><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 6v6l4 2"/></svg>累计训练耗时</h2>
+          <span class="summary-badge">全部记录</span>
+        </header>
+        <div class="summary-content">
+          <div class="elapsed-value"><strong>{{ elapsedDisplay.value }}</strong><span>{{ elapsedDisplay.unit }}</span></div>
+          <p class="summary-description">已记录的任务耗时合计</p>
+          <dl class="summary-details"><div><dt>累计时长</dt><dd>{{ formatDuration(overview.elapsedTotal) }}</dd></div><div><dt>已完成任务</dt><dd>{{ statusCounts.succeeded ?? 0 }} 项</dd></div></dl>
+        </div>
+        <footer class="summary-footer">统计范围：全部已记录任务</footer>
+      </article>
     </div>
 
     <div v-if="error" class="training-error" role="alert">{{ error }}</div>
@@ -359,12 +407,48 @@ function canRetrain(task: TrainingTask) {
   border: 1px solid var(--line);
   border-radius: 10px;
 }
-.summary-card { padding: 14px; }
-.summary-card p { margin: 0 0 6px; color: var(--muted); font-size: 12px; }
-.summary-card strong { color: #152035; font-size: 19px; font-variant-numeric: tabular-nums; }
-.summary-card span, .summary-card small { color: var(--muted); }
-.summary-card small { display: block; margin-top: 7px; overflow-wrap: anywhere; }
-.queued-total { margin-left: 10px; }
+.summary-card { display: flex; flex-direction: column; min-height: 270px; border-color: #cbd2dc; border-radius: 3px; box-shadow: 0 1px 3px #36415208; }
+.summary-header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 7px; min-height: 46px; margin: 0 12px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.summary-header h2 { display: flex; align-items: center; gap: 7px; margin: 0; font-size: 12px; font-weight: 600; }
+.summary-header svg { flex-shrink: 0; width: 16px; height: 16px; fill: none; stroke: #37506c; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.summary-badge { padding: 3px 5px; border: 1px solid #e1e7f1; border-radius: 2px; background: #eef3fc; color: #37506c; font-size: 10px; white-space: nowrap; }
+.summary-badge[data-ready="true"] { color: #167553; background: #edf9f3; border-color: #c4e7d8; }
+.summary-badge[data-ready="false"] { color: #83530e; background: #fff6e8; border-color: #eadbc2; }
+.summary-content { display: grid; align-content: start; gap: 12px; padding: 12px; min-width: 0; }
+.summary-card strong, .summary-card b { color: #152035; font-variant-numeric: tabular-nums; }
+.summary-description { margin: 0; color: var(--muted); font-size: 11px; line-height: 1.6; }
+.summary-footer { display: flex; align-items: center; min-height: 34px; margin-top: auto; padding: 8px 12px; border-top: 1px solid var(--line); background: #f7f8fc; color: var(--muted); font-size: 10px; line-height: 1.5; }
+.environment-versions { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: Consolas, monospace; }
+.device-row { display: flex; align-items: center; gap: 7px; min-width: 0; }
+.device-row strong { min-width: 0; font-size: 12px; line-height: 1.5; overflow-wrap: anywhere; }
+.device-row small { flex-shrink: 0; margin-left: auto; color: var(--muted); font: 10px Consolas, monospace; }
+.gpu-symbol { display: grid; place-items: center; flex-shrink: 0; width: 21px; height: 21px; color: #557e16; background: #eef5e3; border: 1px solid #d3e3bb; border-radius: 3px; font: 700 8px Arial, sans-serif; }
+.summary-details { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin: 0; }
+.summary-details > div { min-width: 0; padding: 8px; border: 1px solid #e3e8f1; background: #f6f8fd; }
+.summary-details dt { color: var(--muted); font-size: 10px; }
+.summary-details dd { margin: 6px 0 0; overflow-wrap: anywhere; color: #263b53; font: 600 12px/1.5 Consolas, 'Microsoft YaHei UI', monospace; }
+.activity-counts { display: flex; align-items: center; justify-content: space-between; gap: 9px; }
+.activity-counts > div { display: flex; align-items: baseline; gap: 5px; }
+.activity-counts strong { font: 700 31px/1.2 Consolas, monospace; color: #37506c; }
+.activity-counts b { font: 600 16px Consolas, monospace; }
+.activity-counts span { color: var(--muted); font-size: 10px; }
+.activity-counts i { color: #cbd2dc; font-size: 13px; font-style: normal; }
+.active-task-preview { min-width: 0; padding: 10px; border: 1px solid #e1e8ef; background: #f4f9fc; color: var(--muted); font-size: 11px; }
+.active-task-preview > div { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.active-task-preview strong { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; }
+.active-task-preview span { flex-shrink: 0; }
+.active-task-preview progress { color: #4f6885; height: 5px; margin-top: 8px; }
+.scheduler-slot { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 10px; }
+.scheduler-slot strong { margin-left: auto; font-size: 11px; font-weight: 500; }
+.slot-indicator { width: 15px; height: 7px; border: 1px solid #cbd2dc; background: #e6eaf0; }
+.slot-indicator[data-busy="true"] { background: #37506c; border-color: #37506c; }
+.comparison-title { font-size: 17px; }
+.comparison-checks { display: grid; gap: 6px; }
+.comparison-checks span { display: flex; align-items: center; gap: 7px; padding: 6px 8px; border: 1px solid #e1e7f1; background: #f6f8fd; color: #526176; font-size: 10px; }
+.comparison-checks span::before { content: ''; width: 4px; height: 4px; background: #8c9bb0; }
+.elapsed-value { display: flex; align-items: baseline; gap: 7px; }
+.elapsed-value strong { font: 700 34px/1.1 Consolas, monospace; }
+.elapsed-value span { color: var(--muted); font-size: 12px; }
 progress {
   display: block; width: 100%; height: 7px; margin-top: 5px; border: 0; border-radius: 5px;
   appearance: none; overflow: hidden; background: #e8eef6; color: var(--home-accent, #245ad6);
@@ -428,6 +512,7 @@ progress::-moz-progress-bar { background: currentColor; border-radius: 5px; }
 .training-environment strong { margin-left: 6px; color: var(--text); }
 .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 @media (max-width: 1120px) { .training-overview { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 600px) { .training-overview { grid-template-columns: minmax(0, 1fr); } }
 @media (max-width: 960px) { .task-grid { grid-template-columns: minmax(0, 1fr); } }
 @media (max-width: 440px) {
   .view-toggle { margin-left: 0; }

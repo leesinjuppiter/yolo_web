@@ -10,7 +10,7 @@ from app.models.training_versions import ModelVersion
 from app.models.sources import model_options, resolve_version_model
 from app.training import catalog, dataset_options, repository, resume as resume_service
 from app.training.artifact_archive import build_archive
-from app.training.devices import available_devices, device_description, validate_device
+from app.training.devices import available_devices, capabilities, device_description, validate_device
 from app.training.errors import PreflightError
 from app.training.models import TrainingMetric, TrainingTask
 from app.training.resources import resource_status
@@ -126,8 +126,9 @@ def create(db: Session, config: TrainingConfig, key: str | None) -> dict:
 
 def overview(db: Session, **filters) -> dict:
     rows, summary = repository.training_overview(db, **filters)
+    worker = capabilities()
     return {**summary, "tasks": [task_response(task, version) for task, version in rows],
-            "devices": available_devices(), "engine": catalog.engine_name(),
+            "devices": worker["devices"], "workerStatus": worker["workerStatus"], "engine": catalog.engine_name(),
             "workerAvailable": repository.worker_available(db)}
 
 

@@ -10,8 +10,8 @@ from pathlib import Path
 from time import monotonic
 
 from app.core.config import data_dir
+from app.training.cpu import CPU, cpu_device
 
-CPU = {"id": "cpu", "name": "本机 CPU", "kind": "cpu"}
 _last_publish = -float("inf")
 _cached_probe: dict | None = None
 _STALE_SECONDS = 20
@@ -29,7 +29,7 @@ def normalize_gpu_uuid(value: object) -> str:
 
 
 def probe_devices() -> dict:
-    result = {"devices": [CPU], "versions": {"python": sys.version.split()[0]}}
+    result = {"devices": [cpu_device()], "versions": {"python": sys.version.split()[0]}}
     try:
         import torch
 

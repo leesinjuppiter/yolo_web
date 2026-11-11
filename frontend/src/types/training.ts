@@ -58,6 +58,8 @@ export interface TrainingDevice {
   id: string
   name: string
   kind: 'cpu' | 'cuda'
+  vendor?: 'amd' | 'intel' | 'unknown'
+  architecture?: string
   memoryBytes?: number
   uuid?: string
   logicalIndex?: number
