@@ -41,8 +41,9 @@ def available_models() -> list[ModelOption]:
     except (OSError, ValueError, KeyError):
         official = {}
     for task in TASK_TYPES:
-        base = "yolo11n" + _SUFFIX[task]
-        models.append(ModelOption(base, f"{base} · 从零训练", "YOLO11", task, base + ".yaml", False))
+        for scale in "nsmlx":
+            base = "yolo11" + scale + _SUFFIX[task]
+            models.append(ModelOption(base, f"{base} · 从零训练", "YOLO11", task, base + ".yaml", False))
         if root is not None:
             for scale in "nsmlx":
                 name = "yolo11" + scale + _SUFFIX[task]

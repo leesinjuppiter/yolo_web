@@ -1,0 +1,162 @@
+[
+  {
+    "modelId": "yolo11n",
+    "task": "detect",
+    "scale": "n",
+    "parameters": 2624080,
+    "pretrained": false,
+    "finiteForward": true
+  },
+  {
+    "modelId": "yolo11s",
+    "task": "detect",
+    "scale": "s",
+    "parameters": 9458752,
+    "pretrained": false,
+    "finiteForward": true
+  },
+  {
+    "modelId": "yolo11m",
+    "task": "detect",
+    "scale": "m",
+    "parameters": 20114688,
+    "pretrained": false,
+    "finiteForward": true
+  },
+  {
+    "modelId": "yolo11l",
+    "task": "detect",
+    "scale": "l",
+    "parameters": 25372160,
+    "pretrained": false,
+    "finiteForward": true
+  },
+  {
+    "modelId": "yolo11x",
+    "task": "detect",
+    "scale": "x",
+    "parameters": 56966176,
+    "pretrained": false,
+    "finiteForward": true
+  },
+  {
+    "modelId": "yolo11n-seg",
+    "task": "segment",
+    "scale": "n",
+    "parameters": 2876848,
+    "pretrained": false,
+    "finiteForward": true
+  },
+  {
+    "modelId": "yolo11s-seg",
+    "task": "segment",
+    "scale": "s",
+    "parameters": 10113248,
+    "pretrained": false,
+    "finiteForward": true
+  },
+  {
+    "modelId": "yolo11m-seg",
+    "task": "segment",
+    "scale": "m",
+    "parameters": 22420896,
+    "pretrained": false,
+    "finiteForward": true
+  },
+  {
+    "modelId": "yolo11l-seg",
+    "task": "segment",
+    "scale": "l",
+    "parameters": 27678368,
+    "pretrained": false,
+    "finiteForward": true
+  },
+  {
+    "modelId": "yolo11x-seg",
+    "task": "segment",
+    "scale": "x",
+    "parameters": 62142656,
+    "pretrained": false,
+    "finiteForward": true
+  },
+  {
+    "modelId": "yolo11n-obb",
+    "task": "obb",
+    "scale": "n",
+    "parameters": 2695747,
+    "pretrained": false,
+    "finiteForward": true
+  },
+  {
+    "modelId": "yolo11s-obb",
+    "task": "obb",
+    "scale": "s",
+    "parameters": 9744931,
+    "pretrained": false,
+    "finiteForward": true
+  },
+  {
+    "modelId": "yolo11m-obb",
+    "task": "obb",
+    "scale": "m",
+    "parameters": 20963523,
+    "pretrained": false,
+    "finiteForward": true
+  },
+  {
+    "modelId": "yolo11l-obb",
+    "task": "obb",
+    "scale": "l",
+    "parameters": 26220995,
+    "pretrained": false,
+    "finiteForward": true
+  },
+  {
+    "modelId": "yolo11x-obb",
+    "task": "obb",
+    "scale": "x",
+    "parameters": 58875331,
+    "pretrained": false,
+    "finiteForward": true
+  },
+  {
+    "modelId": "yolo11n-cls",
+    "task": "classify",
+    "scale": "n",
+    "parameters": 2812104,
+    "pretrained": false,
+    "finiteForward": true
+  },
+  {
+    "modelId": "yolo11s-cls",
+    "task": "classify",
+    "scale": "s",
+    "parameters": 6724008,
+    "pretrained": false,
+    "finiteForward": true
+  },
+  {
+    "modelId": "yolo11m-cls",
+    "task": "classify",
+    "scale": "m",
+    "parameters": 11634216,
+    "pretrained": false,
+    "finiteForward": true
+  },
+  {
+    "modelId": "yolo11l-cls",
+    "task": "classify",
+    "scale": "l",
+    "parameters": 14115624,
+    "pretrained": false,
+    "finiteForward": true
+  },
+  {
+    "modelId": "yolo11x-cls",
+    "task": "classify",
+    "scale": "x",
+    "parameters": 29637064,
+    "pretrained": false,
+    "finiteForward": true
+  }
+]

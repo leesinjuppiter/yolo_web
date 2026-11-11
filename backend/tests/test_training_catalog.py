@@ -20,7 +20,10 @@ def test_official_pretrained_choices_cover_five_sizes_and_four_tasks(monkeypatch
                               "url": "https://github.com/ultralytics/assets/releases/download/v8.4.0/" + name}
     (tmp_path / "official-yolo11.json").write_text(json.dumps({"models": manifest}))
     choices = available_models()
-    assert len([model for model in choices if not model.pretrained]) == 4
+    scratch = [model for model in choices if not model.pretrained]
+    assert len(scratch) == 20
+    for task in ("detect", "segment", "obb", "classify"):
+        assert len([model for model in scratch if model.task == task]) == 5
     pretrained = [model for model in choices if model.pretrained]
     assert len(pretrained) == 20
     for task in ("detect", "segment", "obb", "classify"):
@@ -61,3 +64,24 @@ def test_official_weight_size_and_execution_digest_are_checked(monkeypatch, tmp_
         _copy_model(task, another, lambda: None)
     weight.write_bytes(b"wrong size")
     assert "yolo11n.pt" not in [model.id for model in available_models()]
+
+
+@pytest.mark.parametrize("task,suffix", [("detect", ""), ("segment", "-seg"), ("obb", "-obb"), ("classify", "-cls")])
+@pytest.mark.parametrize("scale", list("nsmlx"))
+def test_scratch_sizes_copy_shared_yaml_without_losing_scale(monkeypatch, tmp_path, task, suffix, scale):
+    monkeypatch.delenv("WORKBENCH_TRAINING_WEIGHTS_DIR", raising=False)
+    package = tmp_path / "ultralytics"
+    configurations = package / "cfg/models/11"
+    configurations.mkdir(parents=True)
+    yaml = configurations / f"yolo11{suffix}.yaml"
+    yaml.write_bytes(b"shared-scaled-architecture")
+    monkeypatch.setattr("app.training.worker.find_spec", lambda _: SimpleNamespace(origin=str(package / "__init__.py")))
+    identifier = f"yolo11{scale}{suffix}"
+    option = resolve_model(identifier)
+    assert option.task == task and not option.pretrained
+    directory = tmp_path / "task"
+    directory.mkdir()
+    copied, _, pretrained = _copy_model(SimpleNamespace(config={"modelId": identifier}, snapshot=None), directory, lambda: None)
+    assert copied.name == identifier + ".yaml"
+    assert copied.read_bytes() == yaml.read_bytes()
+    assert not pretrained

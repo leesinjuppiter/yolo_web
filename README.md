@@ -38,7 +38,7 @@ Set-Location 'C:\Users\13480\Desktop\codex_\PythonProject'
 
 执行器使用 `YoloWebAgentStarter` 环境中的 Ultralytics 和 PyTorch。打开「模型训练」，选择任务类型、已保存 train/val 分集的数据集以及基础模型，即可提交。执行器一次处理一个任务，关闭浏览器或重启 API 后仍可继续运行。CPU 模式关闭 AMP。
 
-- 默认提供 YOLO11n 的检测、分割、旋转框和分类结构，可从零开始训练。要使用已有权重，可在 API 和执行器窗口中将 `WORKBENCH_TRAINING_WEIGHTS_DIR` 指向可信本地目录，使用对应文件名 `yolo11n.pt`、`yolo11n-seg.pt`、`yolo11n-obb.pt`、`yolo11n-cls.pt`。
+- 默认提供 YOLO11 n、s、m、l、x 五种规模的检测、分割、旋转框和分类结构，可从零开始训练。要使用已有权重，可在 API 和执行器窗口中将 `WORKBENCH_TRAINING_WEIGHTS_DIR` 指向可信本地目录，使用对应文件名 `yolo11n.pt`、`yolo11n-seg.pt`、`yolo11n-obb.pt`、`yolo11n-cls.pt` 等；五种规模均可识别。
 - 任务详情可查看日志、指标、失败阶段和产物。成功后点击「注册模型版本」，可保存任务、数据快照与最优权重的来源关系。独立评估结果尚未登记时，版本显示「待独立验证」。
 - 每次训练在数据目录的 `training/<任务 ID>` 中保留输入快照、实际参数、日志与输出。快照包括图片副本，训练前应预留足够磁盘空间。
 

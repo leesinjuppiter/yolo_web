@@ -2,6 +2,7 @@
 
 import json
 import logging
+import re
 import signal
 import sys
 from contextlib import contextmanager
@@ -155,7 +156,7 @@ def _copy_model(task: TrainingTask, directory: Path, check) -> tuple[Path, str, 
         package = find_spec("ultralytics")
         if not package or not package.origin:
             raise ValueError("当前训练环境缺少 Ultralytics")
-        source = Path(package.origin).parent / "cfg" / "models" / "11" / source.name.replace("11n", "11")
+        source = Path(package.origin).parent / "cfg" / "models" / "11" / re.sub(r"^yolo11[nsmlx]", "yolo11", source.name)
     model_directory = directory / "model"
     model_directory.mkdir(exist_ok=True)
     model = model_directory / Path(option.source).name
