@@ -296,7 +296,7 @@ names: [coal, gangue]</pre>
           <h2 id="exchange-title">数据集交换<span v-if="dataset"> · {{ dataset.name }}</span></h2>
           <span class="mode-tag">YOLO ZIP</span>
         </div>
-        <p>导入数据集或导出 YOLO ZIP，保留图片分集和类别标注。</p>
+        <p>导出 YOLO ZIP，保留图片分集和类别标注。</p>
       </div>
       <button class="close-exchange" type="button" aria-label="关闭数据集交换" :disabled="busy" @click="close">×</button>
     </header>
@@ -306,9 +306,6 @@ names: [coal, gangue]</pre>
         <div class="exchange-switch" role="group" aria-label="交换方式">
           <button type="button" aria-pressed="true" :disabled="busy">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M4 15v5h16v-5"/></svg>导出
-          </button>
-          <button type="button" aria-pressed="false" :disabled="busy" @click="mode = 'import'">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V3m-4 4 4-4 4 4M4 15v5h16v-5"/></svg>导入
           </button>
         </div>
 
@@ -424,7 +421,7 @@ names: [coal, gangue]</pre>
 .exchange-results { background: var(--soft); }
 .exchange-switch {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: 1fr;
   gap: 4px;
   padding: 4px;
   margin-bottom: 18px;
