@@ -148,17 +148,6 @@ async function finetuneRegisteredModel(model: ModelVersion) {
   }
 }
 
-async function adjustTrainingSplits(datasetId: string) {
-  try {
-    const dataset = await getDataset(datasetId)
-    if (!datasets.value.some(item => item.id === dataset.id)) datasets.value = [...datasets.value, dataset]
-    else replaceDataset(dataset)
-    openDialog('splits', dataset)
-  } catch (error) {
-    showNotice(message(error))
-  }
-}
-
 function openTrainingTask(id: string, tab?: 'logs') {
   trainingDraft.value = undefined
   void router.push({ name: 'training-detail', params: { taskId: id }, query: tab ? { tab } : {} })
@@ -609,7 +598,6 @@ async function deleteImage(imageId: string) {
     :initial-config="trainingDraft.config"
     @close="trainingDraft = undefined"
     @created="openTrainingTask"
-    @adjust-splits="adjustTrainingSplits"
   />
   <DatasetExchangeDialog
     v-if="dialog === 'import' || dialog === 'export'"

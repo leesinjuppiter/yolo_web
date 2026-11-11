@@ -14,7 +14,6 @@ const props = defineProps<{
 const emit = defineEmits<{
   close: []
   created: [id: string]
-  'adjust-splits': [datasetId: string]
 }>()
 
 const dialog = ref<HTMLDialogElement>()
@@ -288,7 +287,6 @@ async function submit() {
             <template v-if="dataset">
               <div class="dataset-summary">
                 <span>{{ splitSummary.total }} 张可用图片 · {{ dataset.classCount }} 个类别</span>
-                <button type="button" class="button" @click="emit('adjust-splits', dataset.id)">调整分集</button>
               </div>
               <p v-if="datasetError" class="dataset-error" role="status">{{ datasetError }}</p>
             </template>
@@ -481,7 +479,6 @@ input:not([type='checkbox']), select {
 .option-card strong, .option-card small { overflow-wrap: anywhere; }
 .dataset-summary, .error-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .dataset-summary { padding: 6px 8px; border: 1px solid var(--line); border-radius: 5px; background: var(--selected); font-size: 12px; }
-.dataset-summary .button { flex: none; }
 .dataset-error { margin: 0; color: var(--danger); font-size: 13px; }
 .split-bar { display: flex; height: 12px; background: var(--soft); border: 1px solid var(--line); border-radius: 4px; overflow: hidden; }
 .split-legend { display: flex; flex-wrap: wrap; column-gap: 12px; row-gap: 3px; font-size: 12px; }
