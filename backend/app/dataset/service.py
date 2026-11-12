@@ -194,3 +194,9 @@ def image_path(db: Session, dataset_id: str, image_id: str) -> Path:
     if not path.is_file():
         raise repository.NotFound("图片文件不存在")
     return path
+
+
+def image_thumbnail(db: Session, dataset_id: str, image_id: str) -> Path:
+    from app.dataset.thumbnails import thumbnail_path
+
+    return thumbnail_path(image_path(db, dataset_id, image_id))

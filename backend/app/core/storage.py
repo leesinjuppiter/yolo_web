@@ -89,5 +89,6 @@ def remove_images(paths: Iterable[str]) -> None:
     for path in paths:
         try:
             resolve_image(path).unlink(missing_ok=True)
+            (data_dir() / "thumbnails" / f"{Path(path).stem}.jpg").unlink(missing_ok=True)
         except (OSError, ValueError):
             log.exception("无法清理图片文件 %s", path)

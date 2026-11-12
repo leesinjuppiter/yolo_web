@@ -102,4 +102,11 @@ def save_annotations(dataset_id: UUID, image_id: UUID, request: schemas.Annotati
 
 @router.get("/{dataset_id}/images/{image_id}/content", response_class=FileResponse)
 def image_content(dataset_id: UUID, image_id: UUID, db: Database):
-    return FileResponse(service.image_path(db, str(dataset_id), str(image_id)))
+    return FileResponse(service.image_path(db, str(dataset_id), str(image_id)),
+                        headers={"Cache-Control": "private, max-age=3600"})
+
+
+@router.get("/{dataset_id}/images/{image_id}/thumbnail", response_class=FileResponse)
+def image_thumbnail(dataset_id: UUID, image_id: UUID, db: Database):
+    return FileResponse(TOOLS["dataset.thumbnail"](db, str(dataset_id), str(image_id)),
+                        media_type="image/jpeg", headers={"Cache-Control": "private, max-age=3600"})

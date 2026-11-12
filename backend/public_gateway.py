@@ -5,6 +5,7 @@ import binascii
 import hmac
 import json
 import os
+import re
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -63,7 +64,10 @@ async def forward(request: Request, path: str):
         return Response("Workbench upstream unavailable", status_code=502)
     excluded_response = HOP_HEADERS | {item.strip().lower() for item in upstream.headers.get("connection", "").split(",")}
     response_headers = {key: value for key, value in upstream.headers.items() if key.lower() not in excluded_response}
-    response_headers["Cache-Control"] = "no-store"
+    image_response = (request.method in ("GET", "HEAD") and upstream.status_code == 200
+                      and upstream.headers.get("content-type", "").startswith("image/")
+                      and re.fullmatch(r"api/datasets/[^/]+/images/[^/]+/(content|thumbnail)", path))
+    response_headers["cache-control"] = upstream.headers.get("cache-control", "no-store") if image_response else "no-store"
     response_headers["X-Content-Type-Options"] = "nosniff"
     return StreamingResponse(upstream.aiter_raw(), status_code=upstream.status_code,
                              headers=response_headers, background=BackgroundTask(upstream.aclose))

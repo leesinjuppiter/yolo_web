@@ -10,6 +10,8 @@ export type AnnotationTool = 'select' | 'draw' | 'pan' | 'keypoint'
 
 const props = defineProps<{
   image?: DatasetImage
+  raster?: HTMLImageElement
+  sourceState: 'loading' | 'ready' | 'error'
   annotations: Annotation[]
   hiddenAnnotationIds: ReadonlySet<string>
   classes: DatasetClass[]
@@ -41,8 +43,8 @@ type ShapeNode = { key: string; component: typeof Rect | typeof Circle | typeof 
 
 const holder = ref<HTMLDivElement>()
 const stage = shallowRef<VueKonvaRef<Konva.Stage>>()
-const raster = shallowRef<HTMLImageElement>()
-const sourceState = ref<'loading' | 'ready' | 'error'>('loading')
+const raster = computed(() => props.raster)
+const sourceState = computed(() => props.sourceState)
 const viewport = ref({ width: 1, height: 1 })
 const zoom = ref(1)
 const center = ref<Point>({ x: 0, y: 0 })
@@ -64,20 +66,11 @@ const selectedPolygon = computed(() => props.annotations.find(
   item => item.type === 'polygon' && item.id === props.selectedId && !props.hiddenAnnotationIds.has(item.id),
 ))
 
-watch([() => props.image?.id, () => props.image?.src], (_, previous, onCleanup) => {
+watch([() => props.image?.id, () => props.image?.src], (_, previous) => {
   if (props.image?.id !== previous?.[0]) {
     cancelDraft()
     fit()
   }
-  const src = props.image?.src
-  raster.value = undefined
-  sourceState.value = 'loading'
-  if (!src) return
-  const element = new window.Image()
-  element.onload = () => { raster.value = element; sourceState.value = 'ready' }
-  element.onerror = () => { sourceState.value = 'error' }
-  element.src = src.startsWith('images/') ? import.meta.env.BASE_URL + src : src
-  onCleanup(() => { element.onload = null; element.onerror = null })
 }, { immediate: true })
 
 watch(() => props.tool, () => cancelDraft())

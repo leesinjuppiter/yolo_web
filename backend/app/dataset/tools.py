@@ -4,6 +4,7 @@ from app.quality.review import apply_review
 
 TOOLS = {
     "dataset.list": service.list_datasets,
+    "dataset.thumbnail": service.image_thumbnail,
     "dataset.summary": service.dataset_summary,
     "dataset.create": service.create_dataset,
     "dataset.delete": service.delete_dataset,

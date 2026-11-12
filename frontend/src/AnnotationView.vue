@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref, shallowRef, watch } from 'vue'
 import { taskLabels, type Annotation, type AnnotationStatus, type Dataset, type DatasetClass, type DatasetImage } from './domain'
 import AnnotationCanvas, { type AnnotationTool } from './annotation/AnnotationCanvas.vue'
 import { createUuid } from './utils/id'
+import { AnnotationImageCache, nearbyImages, thumbnailUrl } from './annotation/image-cache'
 
 const props = defineProps<{
   dataset: Dataset
@@ -56,6 +57,42 @@ let confirmResult: ((confirmed: boolean) => void) | undefined
 const images = computed(() => props.dataset.images.filter(image => split.value === 'all' || (image.split ?? 'unassigned') === split.value))
 const image = computed(() => props.dataset.images.find(item => item.id === imageId.value))
 const imageIndex = computed(() => images.value.findIndex(item => item.id === imageId.value))
+const imageCache = new AnnotationImageCache()
+const raster = shallowRef<HTMLImageElement>()
+const imageState = ref<'loading' | 'ready' | 'error'>('loading')
+const cacheProgress = ref({ loaded: 0, total: 0, failed: 0 })
+const cacheRevision = ref(0)
+const cacheCandidates = computed(() => nearbyImages(images.value, imageIndex.value))
+const imageSource = (src: string) => src.startsWith('images/') ? import.meta.env.BASE_URL + src : src
+watch([() => cacheCandidates.value.map(item => item.src).join('\n'), cacheRevision], (_, __, onCleanup) => {
+  let active = true
+  onCleanup(() => { active = false })
+  const candidates = cacheCandidates.value.map(item => imageSource(item.src!))
+  const current = candidates[0]
+  imageCache.retain(candidates)
+  raster.value = current ? imageCache.ready(current) : undefined
+  imageState.value = raster.value ? 'ready' : 'loading'
+  cacheProgress.value = { loaded: 0, total: candidates.length, failed: 0 }
+  if (!current) return
+  async function load(src: string, foreground: boolean) {
+    try {
+      const result = await imageCache.load(src, foreground ? 'high' : 'low')
+      if (!active) return
+      if (foreground) { raster.value = result; imageState.value = 'ready' }
+      cacheProgress.value.loaded++
+    } catch {
+      if (!active) return
+      if (foreground) imageState.value = 'error'
+      cacheProgress.value.failed++
+    }
+  }
+  void (async () => {
+    await load(current, true)
+    if (active) await Promise.all(candidates.slice(1).map(src => load(src, false)))
+  })()
+}, { immediate: true })
+onUnmounted(() => imageCache.clear())
+
 const selected = computed(() => annotations.value.find(item => item.id === selectedId.value))
 const selectedHidden = computed(() => hiddenAnnotationIds.value.has(selectedId.value))
 const polygonSelection = computed(() => !selectedHidden.value && selected.value?.type === 'polygon' ? selected.value : undefined)
@@ -426,6 +463,12 @@ onUnmounted(() => {
     </header>
     <p v-if="error" class="save-error" role="alert">{{ error }}</p>
 
+    <div v-if="image" class="image-cache-status" role="status">
+      <span>{{ imageState === 'loading' ? '正在加载原图…' : cacheProgress.failed ? '部分图片缓存失败' : cacheProgress.loaded === cacheProgress.total ? '原图及相邻图片已缓存' : '正在缓存相邻图片…' }}</span>
+      <progress :value="imageState === 'loading' ? undefined : cacheProgress.loaded" :max="cacheProgress.total || 1" aria-label="标注图片缓存进度"/>
+      <span class="technical">{{ cacheProgress.loaded }} / {{ cacheProgress.total }} 张</span>
+      <button v-if="cacheProgress.failed" class="button" type="button" @click="cacheRevision++">重试图片加载</button>
+    </div>
     <div class="annotation-body">
       <aside class="image-rail" aria-label="数据集图片">
         <div class="image-filters">
@@ -438,7 +481,7 @@ onUnmounted(() => {
             class="image-entry" :class="{ active: item.id === imageId }">
             <button type="button" class="image-item" :aria-current="item.id === imageId ? 'true' : undefined"
               @click="selectImage(item)">
-              <img v-if="item.src" :src="item.src" alt="" loading="lazy">
+              <img v-if="item.src" :src="thumbnailUrl(item.src)" alt="" loading="lazy" decoding="async" fetchpriority="low">
               <span v-else class="image-placeholder" aria-hidden="true">▧</span>
               <span class="image-meta">
                 <span class="image-name technical" :title="item.name">{{ item.name }}</span>
@@ -499,7 +542,7 @@ onUnmounted(() => {
         </div>
         <div v-else-if="tool === 'keypoint' && activeKeypoint" class="canvas-hint">在图片上点击放置「{{ activeKeypoint }}」</div>
         <div class="canvas-area">
-          <AnnotationCanvas ref="canvas" :image="image" :annotations="annotations" :hidden-annotation-ids="hiddenAnnotationIds" :classes="classes"
+          <AnnotationCanvas ref="canvas" :image="image" :raster="raster" :source-state="imageState" :annotations="annotations" :hidden-annotation-ids="hiddenAnnotationIds" :classes="classes"
             :task="dataset.task" :tool="tool" :selected-id="selectedId" :active-vertex="activeVertex" :active-class-id="activeClassId"
             :active-keypoint="activeKeypoint" :active-visibility="activeVisibility" :keypoint-names="dataset.keypointNames" :busy="busy"
             @select="selectObject" @create="add" @update="update" @vertex="activeVertex = $event" @keypoint="focusKeypoint"
@@ -633,6 +676,9 @@ onUnmounted(() => {
 .save-status.negative { color:#8b4c13; background:#fff8e7; border-color:#f0d799; }
 .save-status.dirty { color:#8b4c13; background:#fff8e7; border-color:#f0d799; }
 .save-error { margin:0; padding:7px 16px; color:#a32a22; background:#fff0ef; border-bottom:1px solid #efccc8; }
+.image-cache-status { display:flex; align-items:center; gap:10px; min-height:30px; padding:4px 16px; border-bottom:1px solid var(--line,#c3c6ce); color:var(--muted,#5c6775); font-size:12px; }
+.image-cache-status progress { flex:1; max-width:220px; height:5px; accent-color:var(--primary,#4f6885); }
+.image-cache-status .button { padding:2px 6px; font-size:11px; }
 .annotation-body { flex:1; min-height:0; display:grid; grid-template-columns:minmax(155px, 17%) minmax(260px, 1fr) minmax(220px, 21%); }
 .image-rail, .object-rail { min-width:0; min-height:0; display:flex; flex-direction:column; background:var(--surface,#fff); }
 .image-rail { border-right:1px solid var(--line,#c3c6ce); }
