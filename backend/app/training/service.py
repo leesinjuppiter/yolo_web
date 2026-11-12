@@ -60,7 +60,8 @@ def task_response(task: TrainingTask, version: ModelVersion | None = None) -> di
         "artifacts": [_public_artifact(task, item) for item in task.artifacts],
         "previews": [
             {"id": item["id"], "name": item["name"], "url": _artifact_url(task, item["artifactId"]),
-             "groundTruthUrl": _artifact_url(task, item["groundTruthArtifactId"])}
+             "groundTruthUrl": _artifact_url(task, item["groundTruthArtifactId"]),
+             "width": item.get("width"), "height": item.get("height")}
             for item in task.previews
         ],
         "device": task.environment.get("device")

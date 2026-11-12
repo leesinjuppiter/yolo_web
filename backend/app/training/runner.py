@@ -118,6 +118,13 @@ def _run(config: dict, emit) -> None:
             thread.join(timeout=5)
     if result is not None:
         emit("final_metrics", values=_values(result.results_dict))
+    emit("phase", phase="archiving")
+    from app.training.previews import generate_previews
+
+    try:
+        generate_previews(Path(config["directory"]), device=device)
+    except Exception as exc:
+        print(f"WARNING: 单张验证预览生成失败，保留训练结果：{exc}", flush=True)
 
 
 def _watch_parent() -> None:

@@ -22,6 +22,7 @@ from app.core.database import engine
 from app.training.catalog import expand_arguments, resolve_model
 from app.training.devices import DeviceUnavailableError, publish_capabilities, validate_device
 from app.training.models import TrainingLog, TrainingMetric, TrainingTask
+from app.training.previews import read_previews
 from app.training.repository import task_dir, WORKER_LOCK
 from app.training.resources import ResourceSampler
 from app.training.runner_io import artifact_manifest, failure_for, OutputCapture
@@ -240,7 +241,11 @@ def _train(task: TrainingTask, directory: Path, stop: Event, check) -> None:
     required = {"best.pt", "last.pt", "metrics.csv", "training.log"}
     with _edit(task) as (_, row):
         row.artifacts = artifacts
-        if "preview-prediction" in {item["id"] for item in artifacts}:
+        previews = read_previews(directory)
+        artifact_ids = {item["id"] for item in artifacts}
+        if previews:
+            row.previews = [item for item in previews if {item["artifactId"], item["groundTruthArtifactId"]} <= artifact_ids]
+        elif "preview-prediction" in artifact_ids:
             row.previews = [{"id": "validation-batch", "name": "验证集样本 · 最优权重",
                              "artifactId": "preview-prediction", "groundTruthArtifactId": "preview-labels"}]
         if required - {item["name"] for item in artifacts} or row.epoch == 0:

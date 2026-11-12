@@ -403,7 +403,7 @@ dd { min-width: 0; margin: 0; font-size: 12px; font-weight: 600; overflow-wrap: 
 .monitor-tabs button[aria-pressed="true"] { border-bottom-color: var(--primary); background: var(--selected); color: #294562; font-weight: 650; }
 .monitor-panels, .monitor-grid { min-width: 0; }
 .monitor-grid { display: grid; gap: 10px; }
-.monitor-grid.with-preview { grid-template-columns: minmax(0, 1fr) minmax(260px, .62fr); }
+.monitor-grid.with-preview { grid-template-columns: minmax(0, 1fr); }
 .notice { color: var(--muted); font-size: 13px; }
 .notice.error { color: var(--danger); background: #fff6f6; border-color: #e8b9bd; }
 .task-header .notice { margin-top: 12px; }

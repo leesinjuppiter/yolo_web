@@ -9,6 +9,7 @@ from zipfile import BadZipFile, ZipFile
 from PIL import Image
 
 from app.training.runner_process import OutputTail
+from app.training.previews import read_previews
 
 
 ANSI = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
@@ -48,6 +49,15 @@ def _checkpoint(path: Path) -> bool:
 def artifact_manifest(directory: Path, *, check=lambda: None) -> list[dict]:
     artifacts = []
     files = ARTIFACTS | PREVIEWS if all(_jpeg(directory / path) for path in PREVIEWS) else ARTIFACTS
+    for preview in read_previews(directory):
+        match = re.fullmatch(r"validation-(\d{3})", preview["id"])
+        if not match:
+            continue
+        stem = match[1]
+        for suffix, key in (("pred", "artifactId"), ("labels", "groundTruthArtifactId")):
+            relative = f"output/previews/{stem}_{suffix}.jpg"
+            if _jpeg(directory / relative):
+                files = {**files, relative: (preview[key], f"{stem}_{suffix}.jpg", "preview")}
     for relative, (key, name, kind) in files.items():
         path = directory / relative
         if not path.is_file() or path.stat().st_size == 0:
