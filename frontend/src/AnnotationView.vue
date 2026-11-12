@@ -4,6 +4,8 @@ import { taskLabels, type Annotation, type AnnotationStatus, type Dataset, type 
 import AnnotationCanvas, { type AnnotationTool } from './annotation/AnnotationCanvas.vue'
 import { createUuid } from './utils/id'
 import { AnnotationImageCache, nearbyImages, thumbnailUrl } from './annotation/image-cache'
+import { ForwardImageCache } from './annotation/forward-cache'
+import type { CacheProgress } from './annotation/forward-cache'
 
 const props = defineProps<{
   dataset: Dataset
@@ -58,16 +60,23 @@ const images = computed(() => props.dataset.images.filter(image => split.value =
 const image = computed(() => props.dataset.images.find(item => item.id === imageId.value))
 const imageIndex = computed(() => images.value.findIndex(item => item.id === imageId.value))
 const imageCache = new AnnotationImageCache()
+const forwardCache = new ForwardImageCache()
+const forwardStarted = ref(false)
+const forwardProgress = ref<CacheProgress>({ loaded: 0, total: 0, failed: 0, done: false })
 const raster = shallowRef<HTMLImageElement>()
 const imageState = ref<'loading' | 'ready' | 'error'>('loading')
 const cacheProgress = ref({ loaded: 0, total: 0, failed: 0 })
 const cacheRevision = ref(0)
 const cacheCandidates = computed(() => nearbyImages(images.value, imageIndex.value))
 const imageSource = (src: string) => src.startsWith('images/') ? import.meta.env.BASE_URL + src : src
-watch([() => cacheCandidates.value.map(item => item.src).join('\n'), cacheRevision], (_, __, onCleanup) => {
+watch([() => cacheCandidates.value.map(item => item.src).join('\n'),
+  () => images.value.slice(imageIndex.value + 1).map(item => item.src).join('\n'), cacheRevision], (_, __, onCleanup) => {
   let active = true
-  onCleanup(() => { active = false })
+  onCleanup(() => { active = false; forwardCache.stop() })
+  forwardStarted.value = false
+  forwardProgress.value = { loaded: 0, total: 0, failed: 0, done: false }
   const candidates = cacheCandidates.value.map(item => imageSource(item.src!))
+  const following = images.value.slice(imageIndex.value + 1).filter(item => item.src).map(item => imageSource(item.src!))
   const current = candidates[0]
   imageCache.retain(candidates)
   raster.value = current ? imageCache.ready(current) : undefined
@@ -77,6 +86,7 @@ watch([() => cacheCandidates.value.map(item => item.src).join('\n'), cacheRevisi
   async function load(src: string, foreground: boolean) {
     try {
       const result = await imageCache.load(src, foreground ? 'high' : 'low')
+      forwardCache.markReady(src)
       if (!active) return
       if (foreground) { raster.value = result; imageState.value = 'ready' }
       cacheProgress.value.loaded++
@@ -89,9 +99,13 @@ watch([() => cacheCandidates.value.map(item => item.src).join('\n'), cacheRevisi
   void (async () => {
     await load(current, true)
     if (active) await Promise.all(candidates.slice(1).map(src => load(src, false)))
+    if (active && !cacheProgress.value.failed && following.length) {
+      forwardStarted.value = true
+      await forwardCache.warm(following, progress => { if (active) forwardProgress.value = progress })
+    }
   })()
 }, { immediate: true })
-onUnmounted(() => imageCache.clear())
+onUnmounted(() => { forwardCache.stop(); imageCache.clear() })
 
 const selected = computed(() => annotations.value.find(item => item.id === selectedId.value))
 const selectedHidden = computed(() => hiddenAnnotationIds.value.has(selectedId.value))
@@ -464,10 +478,17 @@ onUnmounted(() => {
     <p v-if="error" class="save-error" role="alert">{{ error }}</p>
 
     <div v-if="image" class="image-cache-status" role="status">
-      <span>{{ imageState === 'loading' ? '正在加载原图…' : cacheProgress.failed ? '部分图片缓存失败' : cacheProgress.loaded === cacheProgress.total ? '原图及相邻图片已缓存' : '正在缓存相邻图片…' }}</span>
-      <progress :value="imageState === 'loading' ? undefined : cacheProgress.loaded" :max="cacheProgress.total || 1" aria-label="标注图片缓存进度"/>
-      <span class="technical">{{ cacheProgress.loaded }} / {{ cacheProgress.total }} 张</span>
-      <button v-if="cacheProgress.failed" class="button" type="button" @click="cacheRevision++">重试图片加载</button>
+      <template v-if="forwardStarted">
+        <span>{{ !forwardProgress.done ? '正在顺序缓存后续图片…' : forwardProgress.failed ? '后续图片缓存完成，部分失败' : '后续图片已缓存' }}</span>
+        <progress :value="forwardProgress.loaded" :max="forwardProgress.total || 1" aria-label="后续图片缓存进度"/>
+        <span class="technical">{{ forwardProgress.loaded }} / {{ forwardProgress.total }} 张</span>
+      </template>
+      <template v-else>
+        <span>{{ imageState === 'loading' ? '正在加载原图…' : cacheProgress.failed ? '部分图片缓存失败' : cacheProgress.loaded === cacheProgress.total ? '原图及相邻图片已缓存' : '正在缓存相邻图片…' }}</span>
+        <progress :value="imageState === 'loading' ? undefined : cacheProgress.loaded" :max="cacheProgress.total || 1" aria-label="标注图片缓存进度"/>
+        <span class="technical">{{ cacheProgress.loaded }} / {{ cacheProgress.total }} 张</span>
+      </template>
+      <button v-if="cacheProgress.failed || forwardProgress.failed" class="button" type="button" @click="cacheRevision++">重试图片加载</button>
     </div>
     <div class="annotation-body">
       <aside class="image-rail" aria-label="数据集图片">
