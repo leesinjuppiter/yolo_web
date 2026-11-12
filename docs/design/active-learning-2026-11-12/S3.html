@@ -1,0 +1,750 @@
+<!DOCTYPE html>
+
+<html class="h-full" lang="zh-CN"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>OPTI-METRIX · 主动学习推荐任务详情</title>
+<!-- Material Symbols Outlined -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Fonts: JetBrains Mono & Hanken Grotesk -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:ital,wght@0,300..900;1,300..900&amp;family=JetBrains+Mono:ital,wght@0,400..700;1,400..700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          "colors": {
+            "on-tertiary-fixed-variant": "#005312",
+            "tertiary-container": "#25752b",
+            "secondary-fixed-dim": "#c2c7cc",
+            "surface-container-low": "#eff3ff",
+            "error-container": "#ffdad6",
+            "on-primary": "#ffffff",
+            "inverse-primary": "#afc9ea",
+            "surface-bright": "#f8f9ff",
+            "outline": "#73777e",
+            "on-secondary-container": "#5e6368",
+            "on-error": "#ffffff",
+            "surface-container": "#e6eeff",
+            "on-background": "#111c2b",
+            "primary-fixed": "#d1e4ff",
+            "background": "#f8f9ff",
+            "on-primary-container": "#d5e6ff",
+            "secondary-container": "#dbe0e5",
+            "inverse-surface": "#263141",
+            "surface-dim": "#cfdbf0",
+            "on-secondary-fixed": "#171c20",
+            "tertiary-fixed": "#a3f69c",
+            "on-surface-variant": "#43474d",
+            "outline-variant": "#c3c6ce",
+            "on-tertiary-container": "#a5f99e",
+            "secondary-fixed": "#dee3e8",
+            "error": "#ba1a1a",
+            "inverse-on-surface": "#ebf1ff",
+            "on-secondary": "#ffffff",
+            "on-tertiary": "#ffffff",
+            "on-secondary-fixed-variant": "#42474c",
+            "primary-container": "#4f6885",
+            "surface-container-highest": "#d8e3f9",
+            "surface": "#f8f9ff",
+            "on-error-container": "#93000a",
+            "tertiary-fixed-dim": "#88d982",
+            "primary": "#37506c",
+            "on-tertiary-fixed": "#002204",
+            "on-primary-fixed": "#001d35",
+            "tertiary": "#005c15",
+            "surface-container-lowest": "#ffffff",
+            "surface-tint": "#47607d",
+            "surface-container-high": "#dde9fe",
+            "surface-variant": "#d8e3f9",
+            "on-surface": "#111c2b",
+            "secondary": "#595f63",
+            "primary-fixed-dim": "#afc9ea",
+            "on-primary-fixed-variant": "#2f4964"
+          },
+          "borderRadius": {
+            "DEFAULT": "0.125rem",
+            "lg": "0.25rem",
+            "xl": "0.5rem",
+            "full": "0.75rem"
+          },
+          "spacing": {
+            "space-xs": "0.125rem",
+            "space-lg": "0.75rem",
+            "gutter": "0.5rem",
+            "margin": "0.75rem",
+            "margin-desktop": "1rem",
+            "gutter-desktop": "0.75rem",
+            "space-xl": "1rem",
+            "space-md": "0.5rem",
+            "space-sm": "0.25rem"
+          },
+          "fontFamily": {
+            "label-lg": ["JetBrains Mono"],
+            "body-md": ["Hanken Grotesk"],
+            "body-lg": ["Hanken Grotesk"],
+            "headline-md": ["Hanken Grotesk"],
+            "headline-sm": ["Hanken Grotesk"],
+            "label-md": ["JetBrains Mono"],
+            "body-sm": ["Hanken Grotesk"],
+            "headline-lg": ["Hanken Grotesk"],
+            "label-sm": ["JetBrains Mono"]
+          },
+          "fontSize": {
+            "label-lg": ["13px", {"lineHeight": "16px", "letterSpacing": "0.02em", "fontWeight": "500"}],
+            "body-md": ["13px", {"lineHeight": "18px", "fontWeight": "400"}],
+            "body-lg": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+            "headline-md": ["18px", {"lineHeight": "24px", "letterSpacing": "-0.005em", "fontWeight": "600"}],
+            "headline-sm": ["15px", {"lineHeight": "20px", "fontWeight": "600"}],
+            "label-md": ["11px", {"lineHeight": "14px", "letterSpacing": "0.02em", "fontWeight": "500"}],
+            "body-sm": ["12px", {"lineHeight": "16px", "fontWeight": "400"}],
+            "headline-lg": ["24px", {"lineHeight": "32px", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+            "label-sm": ["10px", {"lineHeight": "12px", "letterSpacing": "0.03em", "fontWeight": "400"}]
+          }
+        }
+      }
+    }
+  </script>
+<style>
+    /* 1px Hairline System & Metrology Rules */
+    .hairline-border {
+      border: 1px solid #E6E9ED;
+    }
+    .hairline-b {
+      border-bottom: 1px solid #E6E9ED;
+    }
+    .hairline-r {
+      border-right: 1px solid #E6E9ED;
+    }
+    .hairline-t {
+      border-top: 1px solid #E6E9ED;
+    }
+    .hairline-l {
+      border-left: 1px solid #E6E9ED;
+    }
+    /* Technical crosshair & target overlays */
+    .crosshair-grid {
+      background-size: 20px 20px;
+      background-image: 
+        linear-gradient(to right, rgba(230, 233, 237, 0.4) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(230, 233, 237, 0.4) 1px, transparent 1px);
+    }
+    /* Precision Scrollbar */
+    ::-webkit-scrollbar {
+      width: 4px;
+      height: 4px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #F8F9FB;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #c3c6ce;
+      border-radius: 2px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #73777e;
+    }
+  </style>
+</head>
+<body class="h-full bg-background text-on-surface antialiased font-body-md text-body-md overflow-hidden flex">
+<!-- ===================================================================== -->
+<!-- 1. LEFT SIDE NAV (From Shared Components JSON)                         -->
+<!-- ===================================================================== -->
+<aside class="docked left top-0 bottom-0 h-screen w-64 flex flex-col shrink-0 bg-surface-container-lowest hairline-r z-20">
+<!-- Header Brand Aperture -->
+<div class="h-11 px-4 flex items-center gap-2.5 hairline-b shrink-0 bg-surface-container-lowest">
+<div class="w-5 h-5 rounded-DEFAULT bg-primary text-on-primary flex items-center justify-center font-label-md text-label-md">
+<span class="material-symbols-outlined text-[15px]" data-icon="lens_blur">lens_blur</span>
+</div>
+<div class="flex flex-col">
+<span class="text-headline-sm font-headline-sm font-semibold tracking-tight text-on-surface uppercase leading-none">OPTI-METRIX</span>
+<span class="font-label-sm text-label-sm text-outline tracking-wider mt-0.5">Vision Workstation v4.2</span>
+</div>
+</div>
+<!-- Navigation Items Cluster -->
+<nav class="w-64 h-full p-3 flex flex-col justify-between select-none overflow-y-auto">
+<div class="flex flex-col space-y-1">
+<!-- 1. 数据集 -->
+<a class="flex items-center gap-3 px-3 py-1.5 text-on-surface-variant font-normal hover:bg-surface-container-low transition-colors duration-100 ease-in-out rounded-DEFAULT" href="#">
+<span class="material-symbols-outlined text-[18px] text-outline" data-icon="folder_open">folder_open</span>
+<span class="font-body-md text-body-md">数据集</span>
+</a>
+<!-- 2. 模型训练 -->
+<a class="flex items-center gap-3 px-3 py-1.5 text-on-surface-variant font-normal hover:bg-surface-container-low transition-colors duration-100 ease-in-out rounded-DEFAULT" href="#">
+<span class="material-symbols-outlined text-[18px] text-outline" data-icon="model_training">model_training</span>
+<span class="font-body-md text-body-md">模型训练</span>
+</a>
+<!-- 3. 模型仓库 -->
+<a class="flex items-center gap-3 px-3 py-1.5 text-on-surface-variant font-normal hover:bg-surface-container-low transition-colors duration-100 ease-in-out rounded-DEFAULT" href="#">
+<span class="material-symbols-outlined text-[18px] text-outline" data-icon="inventory_2">inventory_2</span>
+<span class="font-body-md text-body-md">模型仓库</span>
+</a>
+<!-- 4. 主动学习 (ACTIVE) -->
+<a class="flex items-center gap-3 px-3 py-1.5 bg-surface-container text-primary font-medium rounded-DEFAULT border-l-2 border-primary transition-colors duration-100 ease-in-out" href="#">
+<span class="material-symbols-outlined text-[18px] text-primary" data-icon="psychology">psychology</span>
+<span class="font-body-md text-body-md font-semibold">主动学习</span>
+<span class="ml-auto font-label-sm text-label-sm px-1.5 py-0.2 rounded-DEFAULT bg-primary-fixed text-on-primary-fixed">REC</span>
+</a>
+<!-- 5. 部署中心 -->
+<a class="flex items-center gap-3 px-3 py-1.5 text-on-surface-variant font-normal hover:bg-surface-container-low transition-colors duration-100 ease-in-out rounded-DEFAULT" href="#">
+<span class="material-symbols-outlined text-[18px] text-outline" data-icon="precision_manufacturing">precision_manufacturing</span>
+<span class="font-body-md text-body-md">部署中心</span>
+</a>
+<!-- 6. 智能体 -->
+<a class="flex items-center gap-3 px-3 py-1.5 text-on-surface-variant font-normal hover:bg-surface-container-low transition-colors duration-100 ease-in-out rounded-DEFAULT" href="#">
+<span class="material-symbols-outlined text-[18px] text-outline" data-icon="smart_toy">smart_toy</span>
+<span class="font-body-md text-body-md">智能体</span>
+</a>
+<!-- 7. 审计日志 -->
+<a class="flex items-center gap-3 px-3 py-1.5 text-on-surface-variant font-normal hover:bg-surface-container-low transition-colors duration-100 ease-in-out rounded-DEFAULT" href="#">
+<span class="material-symbols-outlined text-[18px] text-outline" data-icon="history_toggle_off">history_toggle_off</span>
+<span class="font-body-md text-body-md">审计日志</span>
+</a>
+<!-- 8. 系统设置 -->
+<a class="flex items-center gap-3 px-3 py-1.5 text-on-surface-variant font-normal hover:bg-surface-container-low transition-colors duration-100 ease-in-out rounded-DEFAULT" href="#">
+<span class="material-symbols-outlined text-[18px] text-outline" data-icon="settings">settings</span>
+<span class="font-body-md text-body-md">系统设置</span>
+</a>
+</div>
+<!-- Dock Telemetry Footer -->
+<div class="pt-3 hairline-t space-y-1.5">
+<div class="flex items-center justify-between px-2.5 py-1 text-on-surface-variant font-label-sm text-label-sm bg-surface-bright rounded-DEFAULT">
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[14px] text-tertiary" data-icon="sensors">sensors</span>
+<span>Node: LINE-04 (Online)</span>
+</div>
+<span class="w-1.5 h-1.5 rounded-full bg-tertiary"></span>
+</div>
+<div class="flex items-center justify-between px-2.5 py-1 text-on-surface-variant font-label-sm text-label-sm bg-surface-bright rounded-DEFAULT">
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[14px] text-outline" data-icon="wifi_tethering">wifi_tethering</span>
+<span>Sync: Latency 14ms</span>
+</div>
+<span class="font-label-sm text-outline">STABLE</span>
+</div>
+</div>
+</nav>
+</aside>
+<!-- ===================================================================== -->
+<!-- 2. MAIN WORKSPACE / TOP-BAR & WORKFLOW CANVAS                        -->
+<!-- ===================================================================== -->
+<div class="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
+<!-- Top System Global Navigation -->
+<header class="docked top-0 left-0 right-0 w-full h-11 bg-surface-container-lowest hairline-b shrink-0 flex justify-between items-center px-4 z-10">
+<div class="flex items-center gap-3">
+<!-- Return / Breadcrumb Entrance -->
+<a class="flex items-center gap-1 text-primary hover:text-on-surface transition-colors font-body-sm text-body-sm px-2 py-1 -ml-1 rounded-DEFAULT hover:bg-surface-container-low" href="#">
+<span class="material-symbols-outlined text-[16px]" data-icon="arrow_back">arrow_back</span>
+<span class="font-medium">返回主动学习</span>
+</a>
+<span class="text-outline-variant font-label-sm">/</span>
+<span class="text-body-md font-label-md font-medium text-on-surface-variant">工作空间检测系统工作台 / 主动学习</span>
+<span class="text-outline-variant font-label-sm">/</span>
+<span class="text-on-surface font-semibold font-body-sm">LINE-04 / CAM-A-TOP</span>
+</div>
+<!-- Trailing Action Controls -->
+<div class="flex items-center gap-2">
+<button class="h-7 px-2.5 flex items-center gap-1.5 text-on-surface hairline-border bg-surface-container-lowest hover:bg-surface-container-low rounded-DEFAULT text-body-sm font-medium transition-colors">
+<span class="material-symbols-outlined text-[14px]" data-icon="file_download">file_download</span>
+<span>导出标注清单</span>
+</button>
+<button class="h-7 px-2.5 flex items-center gap-1.5 bg-primary hover:bg-[#3F536B] text-on-primary rounded-DEFAULT text-body-sm font-medium transition-colors">
+<span class="material-symbols-outlined text-[14px]" data-icon="rocket_launch">rocket_launch</span>
+<span>开始增量学习</span>
+</button>
+<div class="h-4 w-px bg-outline-variant mx-1"></div>
+<button class="w-7 h-7 flex items-center justify-center text-outline hover:text-on-surface hover:bg-surface-container-low rounded-DEFAULT transition-colors" title="刷新">
+<span class="material-symbols-outlined text-[16px]" data-icon="refresh">refresh</span>
+</button>
+<button class="w-7 h-7 flex items-center justify-center text-outline hover:text-on-surface hover:bg-surface-container-low rounded-DEFAULT transition-colors" title="同步数据">
+<span class="material-symbols-outlined text-[16px]" data-icon="sync">sync</span>
+</button>
+</div>
+</header>
+<!-- Task Meta Ribbon & Progress Telemetry -->
+<div class="bg-surface-container-lowest hairline-b px-5 py-3 shrink-0">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-3">
+<span class="font-label-md text-label-sm px-1.5 py-0.5 rounded-DEFAULT bg-primary text-on-primary font-bold tracking-wide">TASK-20250621-01</span>
+<h1 class="text-headline-sm font-headline-sm font-bold text-on-surface tracking-tight">混煤高湿工况下长铁丝与角铁漏检改善</h1>
+<span class="px-2 py-0.5 rounded-DEFAULT bg-surface-container text-primary font-label-md text-label-sm font-semibold">迭代 03 (ITER-20250621-03)</span>
+<span class="px-2 py-0.5 rounded-DEFAULT hairline-border text-on-surface-variant font-label-md text-label-sm">模型: YOLO11s-OBB-v3</span>
+<span class="px-2 py-0.5 rounded-DEFAULT hairline-border text-on-surface-variant font-label-md text-label-sm">策略: 混合推荐 (Hybrid Active Sampling)</span>
+</div>
+<!-- Task Status Indicators -->
+<div class="flex items-center gap-3">
+<div class="flex items-center gap-2 px-2.5 py-1 bg-[#E8F5E9] text-[#2E7D32] rounded-DEFAULT hairline-border border-[#C8E6C9] font-label-md text-label-sm font-medium">
+<span class="w-2 h-2 rounded-full bg-tertiary animate-pulse"></span>
+<span>已完成挖掘推荐 (已处理 1,000 / 1,000 帧)</span>
+</div>
+<button class="h-6 px-2 text-outline hover:text-error hover:bg-error-container text-label-sm font-label-md rounded-DEFAULT transition-colors">
+            取消任务
+          </button>
+</div>
+</div>
+<!-- Sub-tabs Switcher -->
+<div class="flex items-center gap-6 mt-3 pt-2 hairline-t">
+<button class="flex items-center gap-2 pb-1.5 text-on-surface-variant hover:text-on-surface font-body-md text-body-md transition-colors relative">
+<span>问题参考</span>
+<span class="font-label-sm text-label-sm px-1.5 py-0.2 rounded-full bg-surface-container-high text-on-surface-variant">44 张</span>
+</button>
+<button class="flex items-center gap-2 pb-1.5 text-primary font-semibold font-body-md text-body-md relative">
+<span>训练候选</span>
+<span class="font-label-sm text-label-sm px-1.5 py-0.2 rounded-full bg-primary-container text-on-primary font-bold">84 张</span>
+<span class="absolute bottom-0 left-0 right-0 h-0.5 bg-primary"></span>
+</button>
+<div class="ml-auto flex items-center gap-2 text-outline font-label-sm text-label-sm">
+<span class="material-symbols-outlined text-[14px]" data-icon="database">database</span>
+<span>采样本池大小: 12.8 GB</span>
+<span class="mx-1">·</span>
+<span>推理耗时: 8.42s</span>
+</div>
+</div>
+</div>
+<!-- ===================================================================== -->
+<!-- 3. WORKSPACE CORE: GRID VIEWPORT & RIGHT INSPECTION DRAWER           -->
+<!-- ===================================================================== -->
+<div class="flex-1 flex min-h-0 bg-background overflow-hidden relative">
+<!-- LEFT: CANDIDATES GRID CANVAS -->
+<main class="flex-1 flex flex-col min-w-0 overflow-hidden">
+<!-- Filter & Sort Control Toolbar -->
+<div class="h-10 px-4 bg-surface-container-lowest hairline-b flex items-center justify-between shrink-0">
+<div class="flex items-center gap-3">
+<!-- Filter Group: 推荐原因 -->
+<div class="flex items-center gap-1.5">
+<span class="font-label-sm text-label-sm text-outline">推荐原因:</span>
+<select class="h-6 text-label-sm font-label-md bg-surface-bright hairline-border rounded-DEFAULT px-2 py-0 text-on-surface focus:border-primary focus:ring-0">
+<option selected="">全部原因</option>
+<option>低置信度</option>
+<option>长细比异物</option>
+<option>无预测结果待检查</option>
+</select>
+</div>
+<!-- Filter Group: 预测类别 -->
+<div class="flex items-center gap-1.5">
+<span class="font-label-sm text-label-sm text-outline">预测类别:</span>
+<select class="h-6 text-label-sm font-label-md bg-surface-bright hairline-border rounded-DEFAULT px-2 py-0 text-on-surface focus:border-primary focus:ring-0">
+<option selected="">全部类别</option>
+<option>wire_metal</option>
+<option>gangue</option>
+<option>coal</option>
+</select>
+</div>
+<!-- Filter Group: 选择状态 -->
+<div class="flex items-center gap-1.5">
+<span class="font-label-sm text-label-sm text-outline">选择状态:</span>
+<select class="h-6 text-label-sm font-label-md bg-surface-bright hairline-border rounded-DEFAULT px-2 py-0 text-on-surface focus:border-primary focus:ring-0">
+<option>全部</option>
+<option>未选择</option>
+<option selected="">已选择 (18)</option>
+</select>
+</div>
+</div>
+<div class="flex items-center gap-3">
+<div class="flex items-center gap-1.5">
+<span class="font-label-sm text-label-sm text-outline">排序方式:</span>
+<select class="h-6 text-label-sm font-label-md bg-surface-bright hairline-border rounded-DEFAULT px-2 py-0 text-on-surface focus:border-primary focus:ring-0">
+<option selected="">按推荐优先级降序</option>
+<option>按预测置信度升序</option>
+</select>
+</div>
+<div class="h-3.5 w-px bg-outline-variant"></div>
+<div class="flex items-center gap-1">
+<button class="w-6 h-6 flex items-center justify-center bg-surface-container text-primary rounded-DEFAULT" title="网格平铺">
+<span class="material-symbols-outlined text-[15px]" data-icon="grid_view">grid_view</span>
+</button>
+<button class="w-6 h-6 flex items-center justify-center text-outline hover:bg-surface-container-low rounded-DEFAULT" title="列表视图">
+<span class="material-symbols-outlined text-[15px]" data-icon="view_list">view_list</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Scrollable Candidate Image Cards Grid -->
+<div class="flex-1 overflow-y-auto p-4 space-y-4">
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-3.5 pb-20">
+<!-- CARD 1 (Selected & Active Inspector Target) -->
+<div class="bg-surface-container-lowest rounded-DEFAULT hairline-border ring-1 ring-primary flex flex-col transition-all cursor-pointer">
+<!-- Thumbnail Frame with Bounding Box Overlay -->
+<div class="relative h-44 bg-[#111C2B] overflow-hidden group">
+<img class="w-full h-full object-cover opacity-85" data-alt="Industrial conveyor belt camera top view capturing rapid motion of crushed wet raw coal chunks and rocks, with a subtle thin elongated metallic wire barely discernible among the dark lustrous coal dust under harsh optical industrial halogen illumination." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCstoF2zlVZ4bVhwZKFAjsvNqr3jPEthWk4PIP7iEzOWvwPhnBWVYJZU0plLbN-zfGEX2y7MVcuWZggU2Qe0iWASq3xi_sMnBlM7r6bVp2cDMHu9kDaWC1sJCYBu5dRp8QUChSHzJnpFCDgQaxT36wM1i1OxHdxOPenCxUIfTxboQ1fIN57vtqSktO71SNl8EJXsYFSksQFuAP9eFyKcOXeXvSromQ7HikiwnvU355q"/>
+<!-- Simulated Machine Inference Bounding Box (wire_metal) -->
+<div class="absolute inset-0 pointer-events-none p-4">
+<div class="absolute left-8 top-10 w-28 h-14 border border-dashed border-[#FFB74D] bg-[#FFB74D]/10 rounded-DEFAULT">
+<span class="absolute -top-3 left-0 bg-[#FFB74D] text-[#111C2B] font-label-sm text-[9px] px-1 font-bold">wire_metal 0.412</span>
+</div>
+</div>
+<!-- Card Checkbox -->
+<div class="absolute top-2 left-2 z-10">
+<input checked="" class="w-4 h-4 rounded-DEFAULT text-primary border-outline focus:ring-0 cursor-pointer" type="checkbox"/>
+</div>
+<div class="absolute top-2 right-2 bg-inverse-surface/80 backdrop-blur-sm text-inverse-on-surface font-label-sm text-[10px] px-1.5 py-0.5 rounded-DEFAULT">
+                  FRAME_0482
+                </div>
+</div>
+<!-- Card Metadata -->
+<div class="p-2.5 flex flex-col space-y-1.5">
+<div class="flex items-center justify-between">
+<span class="font-label-md text-label-md text-primary font-semibold">预测类别: wire_metal · 虚线图层</span>
+<span class="font-label-sm text-label-sm px-1.5 py-0.2 rounded-DEFAULT bg-[#FFEBEE] text-error font-medium">边缘决策</span>
+</div>
+<div class="flex items-center justify-between font-label-sm text-label-sm text-on-surface-variant">
+<span>置信度: <strong class="text-on-surface font-bold">0.412</strong></span>
+<span>低置信度目标数: 1</span>
+</div>
+<div class="pt-1.5 hairline-t flex items-center justify-between font-label-sm text-label-sm text-outline">
+<div class="flex items-center gap-1 text-primary">
+<span class="material-symbols-outlined text-[13px]" data-icon="link">link</span>
+<span>关联问题参考 #REF-0482 (漏检铁丝)</span>
+</div>
+</div>
+</div>
+</div>
+<!-- CARD 2 (Unchecked) -->
+<div class="bg-surface-container-lowest rounded-DEFAULT hairline-border hover:border-outline transition-all flex flex-col cursor-pointer">
+<!-- Thumbnail Frame -->
+<div class="relative h-44 bg-[#111C2B] overflow-hidden group">
+<img class="w-full h-full object-cover opacity-85" data-alt="Overhead optical metrology feed showing wet mixed coal stream with heavy shale and dark gangue blocks moving quickly on an industrial steel conveyor, under focused industrial inspection lighting with realistic mechanical surface glare." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBvb11bY3oEs4GAw1fPEu2_qMTW3naaQzgDY3spEAnw0wRLAGNSbm7Hyb1dbiSlkMNM47KsLjXuWYrJDtS15qhuiG5emqtIovwMwApLUzaxgj1kXqesjk9DhmnJtGL0o_VhJcsi0wMpiO0PoUUZbIojByIyQlmb0liNXaMp6IYsQxuGk4ev9AP4LJZOLCboJpLIJWOVEbkh_iNxvMyWc0KVuYWl-b52_UOesyD_gO7E"/>
+<!-- Bounding Box Overlays -->
+<div class="absolute inset-0 pointer-events-none p-3">
+<div class="absolute right-10 bottom-6 w-20 h-16 border border-dashed border-[#64B5F6] bg-[#64B5F6]/10 rounded-DEFAULT">
+<span class="absolute -top-3 left-0 bg-[#64B5F6] text-[#111C2B] font-label-sm text-[9px] px-1 font-bold">gangue 0.380</span>
+</div>
+<div class="absolute left-6 top-8 w-14 h-12 border border-dashed border-[#64B5F6] bg-[#64B5F6]/10 rounded-DEFAULT"></div>
+</div>
+<!-- Checkbox -->
+<div class="absolute top-2 left-2 z-10">
+<input class="w-4 h-4 rounded-DEFAULT text-primary border-outline focus:ring-0 cursor-pointer" type="checkbox"/>
+</div>
+<div class="absolute top-2 right-2 bg-inverse-surface/80 backdrop-blur-sm text-inverse-on-surface font-label-sm text-[10px] px-1.5 py-0.5 rounded-DEFAULT">
+                  FRAME_0483
+                </div>
+</div>
+<!-- Metadata -->
+<div class="p-2.5 flex flex-col space-y-1.5">
+<div class="flex items-center justify-between">
+<span class="font-label-md text-label-md text-on-surface font-semibold">预测类别: gangue · 虚线图层</span>
+<span class="font-label-sm text-label-sm px-1.5 py-0.2 rounded-DEFAULT bg-surface-container text-on-surface-variant font-medium">常规低分</span>
+</div>
+<div class="flex items-center justify-between font-label-sm text-label-sm text-on-surface-variant">
+<span>置信度: <strong class="text-on-surface font-bold">0.380</strong></span>
+<span>低置信度目标数: 2</span>
+</div>
+<div class="pt-1.5 hairline-t flex items-center justify-between font-label-sm text-label-sm text-outline">
+<div class="flex items-center gap-1">
+<span class="material-symbols-outlined text-[13px]" data-icon="search">search</span>
+<span>特征: 大块异物反光异常</span>
+</div>
+</div>
+</div>
+</div>
+<!-- CARD 3 (Special Investigation: Completely Missing Prediction) -->
+<div class="bg-surface-container-lowest rounded-DEFAULT hairline-border border-[#FFCDD2] hover:border-error transition-all flex flex-col cursor-pointer bg-[#FFFBFB]">
+<!-- Thumbnail Frame -->
+<div class="relative h-44 bg-[#111C2B] overflow-hidden group">
+<img class="w-full h-full object-cover opacity-75" data-alt="Dense foggy industrial coal washery transfer chute with intense coal dust aerosol partially obscuring view of wet high-sulfur coal moving rapidly under mechanical vibration and diffuse industrial floodlights." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCyXD_hntyERHdD2nQAPR5OEWM_hv0OvJbQu2LSGetjpj85-F5HSVms46RXIW0_UB_rAey2geIMMducuVRkNmjNUSz7dBpJp_4NRIek38Zi0XAsJ0iQ21yQmw9jzE7B6CBlwXh2EMW2HwWkrzcy0lT0m07K9-NWdU-ah8pleEhyS3wrY1NKLfVZv6kUWlpeVWq2KKiJXTOXVtLFOue6W-JEaDTXNIPjHAgVQVPqdlpl"/>
+<div class="absolute inset-0 bg-error/5 flex items-center justify-center pointer-events-none">
+<div class="px-2 py-1 bg-error-container/90 rounded-DEFAULT border border-error/20 flex items-center gap-1.5">
+<span class="material-symbols-outlined text-error text-[15px]" data-icon="warning">warning</span>
+<span class="font-label-sm text-error font-bold text-[10px]">无预测目标检出</span>
+</div>
+</div>
+<!-- Checkbox -->
+<div class="absolute top-2 left-2 z-10">
+<input class="w-4 h-4 rounded-DEFAULT text-primary border-outline focus:ring-0 cursor-pointer" type="checkbox"/>
+</div>
+<div class="absolute top-2 right-2 bg-error text-on-error font-label-sm text-[10px] px-1.5 py-0.5 rounded-DEFAULT font-bold">
+                  FRAME_0484
+                </div>
+</div>
+<!-- Metadata -->
+<div class="p-2.5 flex flex-col space-y-1.5">
+<div class="flex items-center justify-between">
+<span class="font-label-md text-label-md text-error font-bold flex items-center gap-1">
+<span class="material-symbols-outlined text-[13px]" data-icon="priority_high">priority_high</span>
+                    无预测结果，建议检查
+                  </span>
+<span class="font-label-sm text-label-sm px-1.5 py-0.2 rounded-DEFAULT bg-error-container text-on-error-container font-semibold">完全漏检排查</span>
+</div>
+<div class="flex items-center justify-between font-label-sm text-label-sm text-on-surface-variant">
+<span>置信度: <strong class="text-outline font-normal">--</strong></span>
+<span class="text-error">疑似粉尘重度遮挡</span>
+</div>
+<div class="pt-1.5 hairline-t flex items-center justify-between font-label-sm text-label-sm text-outline">
+<div class="flex items-center gap-1 text-on-surface-variant">
+<span class="material-symbols-outlined text-[13px]" data-icon="air">air</span>
+<span>能见度评分: &lt; 32% (极差)</span>
+</div>
+</div>
+</div>
+</div>
+<!-- CARD 4 (Selected: wire_metal candidate) -->
+<div class="bg-surface-container-lowest rounded-DEFAULT hairline-border ring-1 ring-primary flex flex-col transition-all cursor-pointer">
+<!-- Thumbnail Frame -->
+<div class="relative h-44 bg-[#111C2B] overflow-hidden group">
+<img class="w-full h-full object-cover opacity-85" data-alt="Industrial conveyor belt camera snapshot displaying dark fractured wet anthracite coal lumps with a thin bent rusted rebar metal rod entangled between stones, high contrast precision industrial camera imagery." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAQU5vLGk9sYXrRQbE3c31JdSQeMPr9PPtvz350lrCr4-jdfkL9yRtGhW9pSyqU6ojzO0T3fpTWziFVOYqMD9V7_DIzfI6vmVNuYrP3E4PpsyUOgH1rsiwqWGaCX3OfW3deMBR0vQBA6U-5EuaBgrd1TJN8g1a2OtNydsvrTbEZ9zmQgCCGqiTVFfrO8Sj-5qShXNWed8AKOpLkewIoxMxYVINNS3IKVYJ8H-iPi5ME"/>
+<!-- Bounding Box -->
+<div class="absolute inset-0 pointer-events-none p-4">
+<div class="absolute right-6 top-12 w-32 h-10 border border-dashed border-[#FFB74D] bg-[#FFB74D]/10 rounded-DEFAULT">
+<span class="absolute -top-3 left-0 bg-[#FFB74D] text-[#111C2B] font-label-sm text-[9px] px-1 font-bold">wire_metal 0.450</span>
+</div>
+</div>
+<!-- Checkbox -->
+<div class="absolute top-2 left-2 z-10">
+<input checked="" class="w-4 h-4 rounded-DEFAULT text-primary border-outline focus:ring-0 cursor-pointer" type="checkbox"/>
+</div>
+<div class="absolute top-2 right-2 bg-inverse-surface/80 backdrop-blur-sm text-inverse-on-surface font-label-sm text-[10px] px-1.5 py-0.5 rounded-DEFAULT">
+                  FRAME_0485
+                </div>
+</div>
+<!-- Metadata -->
+<div class="p-2.5 flex flex-col space-y-1.5">
+<div class="flex items-center justify-between">
+<span class="font-label-md text-label-md text-primary font-semibold">预测类别: wire_metal</span>
+<span class="font-label-sm text-label-sm px-1.5 py-0.2 rounded-DEFAULT bg-[#FFEBEE] text-error font-medium">长宽比超标</span>
+</div>
+<div class="flex items-center justify-between font-label-sm text-label-sm text-on-surface-variant">
+<span>置信度: <strong class="text-on-surface font-bold">0.450</strong></span>
+<span>低置信度目标数: 1</span>
+</div>
+<div class="pt-1.5 hairline-t flex items-center justify-between font-label-sm text-label-sm text-outline">
+<div class="flex items-center gap-1 text-on-surface-variant">
+<span class="material-symbols-outlined text-[13px]" data-icon="straighten">straighten</span>
+<span>长细比: 14.8:1 (几何特征采样)</span>
+</div>
+</div>
+</div>
+</div>
+<!-- CARD 5 (Default Candidate) -->
+<div class="bg-surface-container-lowest rounded-DEFAULT hairline-border hover:border-outline transition-all flex flex-col cursor-pointer">
+<div class="relative h-44 bg-[#111C2B] overflow-hidden group">
+<img class="w-full h-full object-cover opacity-85" data-alt="Top view industrial perspective of raw wet coal chunks on sorting conveyor, black mineral chunks with sharp edges illuminated by directional linear optical inspection lamps." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDsF4I2cD4fbNmDcj_b8lcRwIFAsGSTyZyS-27YvCY2RmkILXSP-JkTsWUUEC0eJtUmeZk--T7pJeMwpocFXtyX49B2q2RwAg0oQ3r905Kr7zjBtZfMwGpeYL8d2Qb8vxsy3CdIikVZ1mn16YiKsSMC0lMifRfuupS7QvEu7tVqX487NSSh8oqZQJHoKpyje25iEu7lhvW0e1zUvCq-JeU9diHSjQb2B0opykwJdWr1"/>
+<div class="absolute top-2 left-2 z-10">
+<input class="w-4 h-4 rounded-DEFAULT text-primary border-outline focus:ring-0 cursor-pointer" type="checkbox"/>
+</div>
+<div class="absolute top-2 right-2 bg-inverse-surface/80 backdrop-blur-sm text-inverse-on-surface font-label-sm text-[10px] px-1.5 py-0.5 rounded-DEFAULT">
+                  FRAME_0486
+                </div>
+</div>
+<div class="p-2.5 flex flex-col space-y-1.5">
+<div class="flex items-center justify-between">
+<span class="font-label-md text-label-md text-on-surface font-semibold">预测类别: coal · 密集堆叠</span>
+<span class="font-label-sm text-label-sm px-1.5 py-0.2 rounded-DEFAULT bg-surface-container text-on-surface-variant font-medium">多目标模糊</span>
+</div>
+<div class="flex items-center justify-between font-label-sm text-label-sm text-on-surface-variant">
+<span>置信度: <strong class="text-on-surface font-bold">0.408</strong></span>
+<span>低置信度目标数: 4</span>
+</div>
+<div class="pt-1.5 hairline-t flex items-center justify-between font-label-sm text-label-sm text-outline">
+<div class="flex items-center gap-1">
+<span class="material-symbols-outlined text-[13px]" data-icon="grain">grain</span>
+<span>堆叠遮挡率: 42%</span>
+</div>
+</div>
+</div>
+</div>
+<!-- CARD 6 (Default Candidate) -->
+<div class="bg-surface-container-lowest rounded-DEFAULT hairline-border hover:border-outline transition-all flex flex-col cursor-pointer">
+<div class="relative h-44 bg-[#111C2B] overflow-hidden group">
+<img class="w-full h-full object-cover opacity-85" data-alt="Industrial conveyor carrying wet coal and minerals under harsh inspection light, fine wire scrap tangled in wet coal fines with razor sharp industrial sensor fidelity." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCunlEHMrRYVHdz-zYbXZBOuxfQu6xrOTXSD6ScuWCjLHYMgT3Gw1C9W94pERXMCS6B09BH98kndZLxXDRPEPRungFJ7gaRR---RaIpyRBKDr236pkCIYXl8cSZCJiDOcd9-ZyTKcDNn72-wB1mhuHs4nuItxFEC0L2kvnas2DDx1euSTSxgHAnroibvmxM5tQGTvWAyC6yeJ11WfkkDAneJVFOGWgU2btEsqJH1uGU"/>
+<div class="absolute top-2 left-2 z-10">
+<input class="w-4 h-4 rounded-DEFAULT text-primary border-outline focus:ring-0 cursor-pointer" type="checkbox"/>
+</div>
+<div class="absolute top-2 right-2 bg-inverse-surface/80 backdrop-blur-sm text-inverse-on-surface font-label-sm text-[10px] px-1.5 py-0.5 rounded-DEFAULT">
+                  FRAME_0487
+                </div>
+</div>
+<div class="p-2.5 flex flex-col space-y-1.5">
+<div class="flex items-center justify-between">
+<span class="font-label-md text-label-md text-on-surface font-semibold">预测类别: wire_metal</span>
+<span class="font-label-sm text-label-sm px-1.5 py-0.2 rounded-DEFAULT bg-[#FFEBEE] text-error font-medium">角铁疑似</span>
+</div>
+<div class="flex items-center justify-between font-label-sm text-label-sm text-on-surface-variant">
+<span>置信度: <strong class="text-on-surface font-bold">0.429</strong></span>
+<span>低置信度目标数: 1</span>
+</div>
+<div class="pt-1.5 hairline-t flex items-center justify-between font-label-sm text-label-sm text-outline">
+<div class="flex items-center gap-1">
+<span class="material-symbols-outlined text-[13px]" data-icon="category">category</span>
+<span>边缘角点特征: 8 个特征点</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- FLOATING BOTTOM BATCH ACTION BAR (Triggered by Checked Items) -->
+<div class="absolute bottom-5 left-1/2 transform -translate-x-1/2 z-30 flex items-center gap-4 bg-inverse-surface text-inverse-on-surface px-5 py-2.5 rounded-DEFAULT shadow-lg hairline-border border-outline">
+<div class="flex items-center gap-2 font-label-md text-label-md">
+<span class="w-2 h-2 rounded-full bg-primary-fixed"></span>
+<span>已选择 <strong class="text-primary-fixed font-bold text-label-lg">18</strong> 张候选图片</span>
+</div>
+<div class="h-4 w-px bg-outline"></div>
+<button class="text-label-sm font-label-md text-inverse-primary hover:text-on-primary transition-colors underline underline-offset-2">
+            清空选择
+          </button>
+<button class="h-7 px-3.5 flex items-center gap-1.5 bg-[#4F6885] hover:bg-[#3F536B] text-on-primary rounded-DEFAULT text-body-sm font-medium transition-colors shadow-sm">
+<span class="material-symbols-outlined text-[16px]" data-icon="playlist_add_check">playlist_add_check</span>
+<span>加入复核队列 (18) 并进入复核</span>
+</button>
+</div>
+</main>
+<!-- ===================================================================== -->
+<!-- 4. RIGHT PANEL: SAMPLE INSPECTION DRAWER (380px Fixed Width)         -->
+<!-- ===================================================================== -->
+<aside class="w-[380px] h-full bg-surface-container-lowest hairline-l shrink-0 flex flex-col z-20 overflow-hidden shadow-none">
+<!-- Drawer Header -->
+<div class="h-11 px-4 hairline-b flex items-center justify-between shrink-0 bg-surface-container-lowest">
+<div class="flex items-center gap-2 overflow-hidden">
+<span class="material-symbols-outlined text-[16px] text-primary" data-icon="center_focus_strong">center_focus_strong</span>
+<div class="flex flex-col truncate">
+<span class="font-label-md text-label-md font-bold text-on-surface truncate">FRAME_20250621_0482.raw</span>
+<span class="font-label-sm text-[10px] text-outline leading-none">2448×2048 · LINE-04 采样本池</span>
+</div>
+</div>
+<div class="flex items-center gap-1">
+<button class="w-6 h-6 flex items-center justify-center text-outline hover:text-on-surface rounded-DEFAULT hover:bg-surface-container-low transition-colors" title="全屏视口检视">
+<span class="material-symbols-outlined text-[15px]" data-icon="open_in_full">open_in_full</span>
+</button>
+<button class="w-6 h-6 flex items-center justify-center text-outline hover:text-on-surface rounded-DEFAULT hover:bg-surface-container-low transition-colors" title="收起抽屉">
+<span class="material-symbols-outlined text-[15px]" data-icon="close">close</span>
+</button>
+</div>
+</div>
+<!-- Scrollable Inspection Content -->
+<div class="flex-1 overflow-y-auto p-4 space-y-4">
+<!-- Viewport Large Inspector Canvas -->
+<div class="relative bg-[#0F1722] rounded-DEFAULT hairline-border overflow-hidden flex flex-col">
+<!-- Inspection Canvas Overlays and Tool Strip -->
+<div class="relative h-64 overflow-hidden crosshair-grid flex items-center justify-center">
+<img class="w-full h-full object-cover" data-alt="High-resolution industrial machine vision camera capture of conveyor belt transporting damp fragmented coal with a subtle rust iron wire highlighted with precision sub-pixel measurement overlay." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDFArI7wN479johSoUXyNL4l3CBMjCEBNltS592dAB4k7vjYlDISu86wZbG9XkZBIpcSkzhNF8Ki2RNILl__OgNT5XaNzzL5Hh6biLGbRunD68uELPC0zeMwd08re-KABJTeyHFx8xinq1wML_3KmYK4BqdkHRQNqt5m5_ubKI-JvdeAGeocI6jBQi1pWA7hgZ4gowW69VrMRFNEsYFuM1dauO39hPxRCEbbAT7Xl00"/>
+<!-- Dashed Inference Wire Box -->
+<div class="absolute left-12 top-16 w-48 h-20 border-2 border-dashed border-[#FFB74D] bg-[#FFB74D]/15 rounded-DEFAULT pointer-events-none flex flex-col justify-between p-1">
+<div class="flex items-center justify-between">
+<span class="bg-[#FFB74D] text-[#111C2B] font-label-sm text-[9px] px-1 font-bold">pred: wire_metal · 0.4128</span>
+<span class="text-[#FFB74D] font-label-sm text-[9px] px-1 bg-black/60 rounded">12.4:1</span>
+</div>
+<div class="flex justify-end">
+<span class="font-label-sm text-[8px] text-white/90 bg-black/70 px-1">未人工确认</span>
+</div>
+</div>
+<!-- HUD Zoom/Pan Controls -->
+<div class="absolute bottom-2 right-2 flex items-center gap-1 bg-black/70 backdrop-blur-sm p-1 rounded-DEFAULT hairline-border border-outline/40">
+<button class="w-5 h-5 flex items-center justify-center text-white hover:bg-white/20 rounded-DEFAULT" title="放大">
+<span class="material-symbols-outlined text-[12px]" data-icon="zoom_in">zoom_in</span>
+</button>
+<button class="w-5 h-5 flex items-center justify-center text-white hover:bg-white/20 rounded-DEFAULT" title="缩小">
+<span class="material-symbols-outlined text-[12px]" data-icon="zoom_out">zoom_out</span>
+</button>
+<button class="w-5 h-5 flex items-center justify-center text-white hover:bg-white/20 rounded-DEFAULT" title="复位 1:1">
+<span class="material-symbols-outlined text-[12px]" data-icon="fit_screen">fit_screen</span>
+</button>
+<span class="text-white/80 font-label-sm text-[9px] px-1">100%</span>
+</div>
+</div>
+<!-- Layer Control Switcher Strip -->
+<div class="p-2 bg-surface-bright hairline-t flex flex-col space-y-1.5">
+<span class="font-label-sm text-label-sm text-outline font-semibold">图层显示控制 (Layer Inspector):</span>
+<div class="grid grid-cols-1 gap-1 font-label-sm text-label-sm">
+<label class="flex items-center gap-2 px-2 py-1 rounded-DEFAULT bg-surface-container-lowest hairline-border cursor-pointer">
+<input checked="" class="w-3.5 h-3.5 rounded-DEFAULT text-primary border-outline focus:ring-0" type="checkbox"/>
+<span class="text-on-surface">原图图层 (Original RAW Optical)</span>
+</label>
+<label class="flex items-center gap-2 px-2 py-1 rounded-DEFAULT bg-surface-container-lowest hairline-border cursor-pointer">
+<input checked="" class="w-3.5 h-3.5 rounded-DEFAULT text-primary border-outline focus:ring-0" type="checkbox"/>
+<div class="flex items-center justify-between flex-1">
+<span class="text-primary font-medium">模型预测图层 (虚线框)</span>
+<span class="text-[9px] text-outline italic">未经人工确认</span>
+</div>
+</label>
+<label class="flex items-center gap-2 px-2 py-1 rounded-DEFAULT bg-surface-container-lowest hairline-border opacity-70 cursor-not-allowed">
+<input class="w-3.5 h-3.5 rounded-DEFAULT text-outline border-outline focus:ring-0" disabled="" type="checkbox"/>
+<span class="text-outline">人工真值标注图层 (待录入)</span>
+</label>
+</div>
+</div>
+</div>
+<!-- Deep Telemetry & Reasoning Panel -->
+<div class="space-y-3">
+<div class="flex items-center justify-between pb-1 hairline-b">
+<span class="font-label-md text-label-md text-on-surface font-bold uppercase tracking-wider">样本推荐归因分析</span>
+<span class="font-label-sm text-label-sm text-primary bg-surface-container px-1.5 py-0.2 rounded-DEFAULT">算法判定: 优先审核</span>
+</div>
+<!-- Recommendation Reason Details -->
+<div class="p-2.5 bg-surface-bright rounded-DEFAULT hairline-border space-y-2">
+<div class="flex items-start gap-2">
+<span class="material-symbols-outlined text-[16px] text-error shrink-0 mt-0.5" data-icon="troubleshoot">troubleshoot</span>
+<div>
+<div class="font-label-md text-label-md font-semibold text-on-surface">推荐原因</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant mt-0.5 leading-relaxed">
+                    低置信度 (<span class="font-label-sm font-bold text-on-surface">0.4128</span>) + 几何特征长细比 &gt; <span class="font-label-sm font-bold text-on-surface">12:1</span> 疑似细长铁丝。模型在此区间的几何特征敏感度较低。
+                  </p>
+</div>
+</div>
+</div>
+<!-- Associated Problem Reference -->
+<div class="p-2.5 bg-surface-bright rounded-DEFAULT hairline-border space-y-2">
+<div class="flex items-start gap-2">
+<span class="material-symbols-outlined text-[16px] text-primary shrink-0 mt-0.5" data-icon="compare_arrows">compare_arrows</span>
+<div class="flex-1">
+<div class="flex items-center justify-between">
+<span class="font-label-md text-label-md font-semibold text-on-surface">关联问题参考</span>
+<a class="font-label-sm text-label-sm text-primary hover:underline" href="#">查看比对</a>
+</div>
+<div class="mt-1 flex items-center gap-1.5 font-label-sm text-label-sm text-on-surface">
+<span class="w-1.5 h-1.5 rounded-full bg-error"></span>
+<span>关联验证集报错样本 <strong class="font-bold text-on-surface">Val_Batch4_0192</strong></span>
+</div>
+<p class="font-body-sm text-body-sm text-outline mt-0.5">历史漏检案例：同属高湿度混煤背景下 3mm 镀锌铁丝</p>
+</div>
+</div>
+</div>
+<!-- Metrology Metrics Spec Sheet -->
+<div class="hairline-border rounded-DEFAULT overflow-hidden">
+<div class="bg-surface-container-low px-2.5 py-1.5 hairline-b font-label-md text-label-sm font-semibold text-on-surface-variant uppercase tracking-wider">
+                物理元数据与特征指标
+              </div>
+<div class="divide-y divide-[#E6E9ED] bg-surface-container-lowest font-label-sm text-label-sm">
+<div class="px-2.5 py-1.5 flex justify-between">
+<span class="text-outline">目标候选 ID</span>
+<span class="text-on-surface font-mono">TGT-0482-A</span>
+</div>
+<div class="px-2.5 py-1.5 flex justify-between">
+<span class="text-outline">边界框像素尺寸</span>
+<span class="text-on-surface font-mono">312px × 26px</span>
+</div>
+<div class="px-2.5 py-1.5 flex justify-between">
+<span class="text-outline">长细比 (Aspect Ratio)</span>
+<span class="text-on-surface font-mono">12.00 : 1</span>
+</div>
+<div class="px-2.5 py-1.5 flex justify-between">
+<span class="text-outline">背景湿度估计</span>
+<span class="text-on-surface font-mono">88.4% RH</span>
+</div>
+<div class="px-2.5 py-1.5 flex justify-between">
+<span class="text-outline">传感器曝光时间</span>
+<span class="text-on-surface font-mono">1/3200s</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Drawer Bottom Action Footer -->
+<div class="p-3 hairline-t bg-surface-container-lowest shrink-0 space-y-2">
+<button class="w-full h-8 flex items-center justify-center gap-1.5 bg-primary hover:bg-[#3F536B] text-on-primary rounded-DEFAULT text-body-sm font-medium transition-colors">
+<span class="material-symbols-outlined text-[16px]" data-icon="add_task">add_task</span>
+<span>加入复核队列</span>
+</button>
+<button class="w-full h-7 flex items-center justify-center gap-1 text-on-surface-variant hover:text-error hover:bg-error-container hairline-border bg-surface-container-lowest rounded-DEFAULT text-body-sm font-normal transition-colors">
+<span class="material-symbols-outlined text-[14px]" data-icon="delete_sweep">delete_sweep</span>
+<span>移出候选池</span>
+</button>
+</div>
+</aside>
+</div>
+</div>
+</body></html>

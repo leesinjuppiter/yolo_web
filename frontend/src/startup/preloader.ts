@@ -1,4 +1,4 @@
-export type ModuleKey = 'datasets' | 'training' | 'models' | 'deployments'
+export type ModuleKey = 'datasets' | 'training' | 'models' | 'deployments' | 'active-learning'
 export type PreloadStep = { key: ModuleKey; label: string; load: (signal: AbortSignal) => Promise<unknown> }
 export type StepState = { key: ModuleKey; label: string; status: 'waiting' | 'loading' | 'ready' | 'failed'; error: string }
 type Entry = { value: unknown; stale: boolean }

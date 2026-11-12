@@ -97,9 +97,15 @@ def lifecycle(db: Session, version_id: str, archived: bool) -> dict:
 
 def delete_version(db: Session, version_id: str) -> None:
     with db.begin():
+        from app.active_learning.models import Iteration
+
         version = db.get(ModelVersion, version_id, with_for_update=True)
         if version is None:
             raise NotFound("模型版本不存在")
+        if db.scalar(select(Iteration.id).where(
+                (Iteration.baseline_version_id == version_id)
+                | (Iteration.result["versionId"].astext == version_id)).limit(1)):
+            raise Conflict("该模型已有主动学习迭代引用，无法删除；可归档保留追溯。")
         references = (
             (EvaluationRun, EvaluationRun.version_id, "评估记录"),
             (ExportTask, ExportTask.version_id, "导出或部署包记录"),

@@ -16,8 +16,9 @@ from sqlalchemy.orm import Session
 from app.core.database import engine
 from app.evaluation.models import EvaluationRun
 from app.evaluation.repository import evaluation_dir, get_run, log
-from app.evaluation.snapshot import prepare_test_snapshot
+from app.evaluation.snapshot import prepare_snapshot, validate_source
 from app.models.sources import registered_asset
+from app.training.repository import get_task
 
 LOCK = 154026221043
 MODEL_COMPUTE_LOCK = 154026221042
@@ -52,19 +53,26 @@ def _execute(run_id: str, stop: Event):
     with Session(engine()) as db:
         row = get_run(db, run_id)
         version, task, _, model_path = registered_asset(db, "version:" + row.version_id)
-        snapshot = prepare_test_snapshot(task, folder / "input")
+        source = get_task(db, row.config["sourceTaskId"]) if row.config.get("sourceTaskId") else task
+        purpose = row.config.get("purpose", "final")
+        split = "val" if purpose == "diagnostic" else "test"
+        validate_source(task, source, split)
+        snapshot = prepare_snapshot(source, folder / "input", split)
         frozen_model = folder / "model.pt"
         shutil.copyfile(model_path, frozen_model)
         with frozen_model.open("rb") as checkpoint:
             if file_digest(checkpoint, "sha256").hexdigest() != version.sha256:
                 raise ValueError("复制期间模型权重已变化")
         job = {"directory": str(folder), "modelPath": str(frozen_model), "modelSha256": version.sha256,
-               "snapshot": snapshot, "taskType": task.config["task"], "imgsz": row.config["imgsz"]}
+               "snapshot": snapshot, "taskType": task.config["task"], "imgsz": row.config["imgsz"],
+               "purpose": purpose, "sourceTaskId": source.id,
+               "diagnosticConf": row.config.get("diagnosticConf", 0.25),
+               "diagnosticIou": row.config.get("diagnosticIou", 0.5)}
     (folder / "job.json").write_text(json.dumps(job), encoding="utf-8")
     with Session(engine()) as db, db.begin():
         row = get_run(db, run_id, True)
         row.phase = "evaluating"
-        log(row, "test 快照已冻结并校验；在 CPU 上执行独立评估")
+        log(row, f"{split} 快照已冻结并校验；在 CPU 上执行评估")
     environment = {**os.environ, "CUDA_VISIBLE_DEVICES": "-1", "YOLO_AUTOINSTALL": "False"}
     with (folder / "stdout.log").open("wb") as output:
         child = subprocess.Popen([sys.executable, "-m", "app.evaluation.runner", str(folder / "job.json")],

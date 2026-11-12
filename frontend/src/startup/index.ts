@@ -3,6 +3,7 @@ import { listTraining } from '../api/training'
 import { listModels } from '../api/models'
 import { listModelJobs } from '../api/deployment'
 import { listEvaluations } from '../api/evaluation'
+import { activeOverview, listIterations } from '../api/active-learning'
 import type { JobList } from '../types/models'
 import type { Change } from '../api/changes'
 import { PagePreloader } from './preloader'
@@ -10,6 +11,11 @@ import type { ModuleKey } from './preloader'
 
 export type DeploymentPage = [JobList, JobList, JobList]
 export const startup = new PagePreloader([
+  { key: 'active-learning', label: '主动学习', load: async signal => {
+    const [, overview, iterations] = await Promise.all([import('../pages/ActiveLearningView.vue'),
+      activeOverview(signal), listIterations(new URLSearchParams({ page: '1', page_size: '10' }), signal)])
+    return { overview, iterations }
+  } },
   { key: 'datasets', label: '数据集', load: async signal => {
     const [, value] = await Promise.all([import('../DatasetsView.vue'), listDatasets(signal)])
     return value
@@ -38,7 +44,8 @@ export function invalidateStartup(change: Change | null) {
     datasets: ['datasets', 'training', 'models'], training: ['training'], worker: ['training'],
     models: ['models', 'training'], evaluations: ['models', 'deployments'],
     exports: ['deployments'], packages: ['deployments'],
+    active_learning: ['active-learning'], iterations: ['active-learning'],
   }
-  if (!change) startup.invalidate(['datasets', 'training', 'models', 'deployments'])
+  if (!change) startup.invalidate(['datasets', 'training', 'models', 'deployments', 'active-learning'])
   else if (change.table !== 'training_logs' && change.table !== 'training_metrics') startup.invalidate(keys[change.topic] ?? [])
 }

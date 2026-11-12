@@ -46,3 +46,11 @@ test('checks benchmark fields when a paired report includes timings', () => {
   report.benchmark.inputSize = ['640']
   assert.throws(() => validateReport(report), /输入尺寸/)
 })
+
+test('accepts separate box and mask metrics for a fixed val diagnostic', () => {
+  const report={...independent(),purpose:'diagnostic',snapshot:{digest:'fixed-val',sampleCount:10,split:'val'},
+    metrics:{map50_95:.7,maskMap50_95:.4},perClass:[{classIndex:0,name:'煤',map50_95:.7,maskMap50_95:.4}]}
+  validateReport(report)
+  assert.notEqual(report.perClass[0].map50_95,report.perClass[0].maskMap50_95)
+  assert.throws(()=>validateReport({...report,perClass:[{...report.perClass[0],maskMap50_95:'0.4'}]}),/maskMap50_95/)
+})

@@ -24,6 +24,7 @@ const TrainingView = defineAsyncComponent(() => import('./pages/TrainingView.vue
 const ModelRegistryView = defineAsyncComponent(() => import('./pages/ModelRegistryView.vue'))
 const ModelCompareView = defineAsyncComponent(() => import('./pages/ModelCompareView.vue'))
 const DeploymentCenterView = defineAsyncComponent(() => import('./pages/DeploymentCenterView.vue'))
+const ActiveLearningView = defineAsyncComponent(() => import('./pages/ActiveLearningView.vue'))
 
 const startupReady = ref(false)
 const startupRunning = ref(false)
@@ -32,8 +33,9 @@ const route = useRoute()
 const router = useRouter()
 const inTraining = computed(() => route.name === 'training' || route.name === 'training-detail')
 const inDatasets = computed(() => route.name === 'datasets' || route.name === 'annotation')
-const activeSection = computed(() => inTraining.value ? 'training' : route.name === 'model-compare' ? 'models' : String(route.name))
-const sectionTitle = computed(() => activeSection.value === 'training' ? '模型训练' : activeSection.value === 'models' ? '模型仓库' : activeSection.value === 'deployments' ? '部署中心' : '数据集管理')
+const inActiveLearning = computed(() => String(route.name).startsWith('active-learning'))
+const activeSection = computed(() => inTraining.value ? 'training' : inActiveLearning.value ? 'active-learning' : route.name === 'model-compare' ? 'models' : String(route.name))
+const sectionTitle = computed(() => activeSection.value === 'training' ? '模型训练' : activeSection.value === 'models' ? '模型仓库' : activeSection.value === 'deployments' ? '部署中心' : inActiveLearning.value ? '主动学习' : '数据集管理')
 const trainingDraft = ref<{ datasetId?: string; config?: TrainingConfig }>()
 const trainingDatasetsRevision = ref(0)
 watch(inTraining, visible => { if (!visible) trainingDraft.value = undefined })
@@ -84,14 +86,15 @@ const sections = [
   { label: '数据集', route: 'datasets', icon: 'M4 10h16v10H4z M4 10l2-4h12l2 4M8 14h8' },
   { label: '模型训练', route: 'training', icon: 'M4 20V9m5 11V4m6 16v-7m5 7V7' },
   { label: '模型仓库', route: 'models', icon: 'M12 2l9 5v10l-9 5-9-5V7z M3 7l9 5 9-5 M12 12v10' },
+  { label: '主动学习', route: 'active-learning', icon: 'M8 4a5 5 0 018 5v5h-4v6H8v-6H5V9a5 5 0 013-5 M9 9h5m-3-2v5' },
   { label: '部署中心', route: 'deployments', icon: 'M4 4h16v5H4z M4 15h16v5H4z M8 9v6m8-6v6' },
   { label: '智能体', icon: 'M5 8h14v11H5z M12 8V4 M8 13h2m4 0h2' },
   { label: '审计日志', icon: 'M5 3h14v18H5z M8 8h8m-8 4h8m-8 4h5' },
   { label: '系统设置', icon: 'M4 6h16m-16 6h16m-16 6h16 M8 4v4m8 2v4m-6 2v4' },
 ]
 const navigation = [
-  { label: '工作空间', sections: sections.slice(0, 5) },
-  { label: '治理与运维', sections: sections.slice(5) },
+  { label: '工作空间', sections: sections.slice(0, 6) },
+  { label: '治理与运维', sections: sections.slice(6) },
 ]
 
 function message(error: unknown) {
@@ -569,7 +572,7 @@ async function deleteImage(imageId: string) {
           <span class="workbench-parent">检测工作台</span><span class="workbench-parent" aria-hidden="true">/</span>
           <strong>{{ sectionTitle }}</strong><ChangeConnection />
           <span class="workbench-local" :class="{ 'workbench-training-mode': inTraining }">
-            {{ inTraining ? '训练配置与监控' : inDatasets ? '本地标注服务' : activeSection === 'models' ? '版本与验证' : 'ONNX FP32 部署包' }}
+            {{ inTraining ? '训练配置与监控' : inDatasets ? '本地标注服务' : activeSection === 'models' ? '版本与验证' : inActiveLearning ? '选样与人工复核' : 'ONNX FP32 部署包' }}
           </span>
         </div>
         <div v-if="inTraining" class="workbench-actions">
@@ -597,6 +600,7 @@ async function deleteImage(imageId: string) {
         <KeepAlive><ModelRegistryView v-if="route.name === 'models'" @finetune="finetuneRegisteredModel" /></KeepAlive>
         <KeepAlive><ModelCompareView v-if="route.name === 'model-compare'" /></KeepAlive>
         <KeepAlive><DeploymentCenterView v-if="route.name === 'deployments'" /></KeepAlive>
+        <ActiveLearningView v-if="inActiveLearning" />
         <TrainingDetailView
           v-if="route.name === 'training-detail'"
           :task-id="String(route.params.taskId)"

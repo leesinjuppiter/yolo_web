@@ -9,6 +9,10 @@ class EvaluationRequest(BaseModel):
     versionId: UUID
     deviceId: Literal["cpu"] = "cpu"
     imgsz: int = Field(default=640, ge=32, le=2048)
+    purpose: Literal["final", "diagnostic"] = "final"
+    sourceTaskId: UUID | None = None
+    diagnosticConf: float = Field(default=0.25, gt=0, le=1)
+    diagnosticIou: float = Field(default=0.5, gt=0, le=1)
 
 
 class MetadataRequest(BaseModel):

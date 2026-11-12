@@ -260,6 +260,12 @@ python -B -m pytest -q
 
 ## 目录与相关文档
 
+主动学习首版支持 Detect、Segment、OBB：从固定 val 诊断和未标注池生成双通道推荐，人工选择、标注与确认后，使用固定清单准备下一轮训练。保存草稿不等于完成复核，val/test 图片不能进入训练。迭代使用原基线 train 加已确认新增/修订，支持多次训练尝试和手动指定结果模型；test 保留最终验收用途。
+
+升级时先在项目后端目录使用现有 Conda Python 执行 `python -m alembic upgrade head`，主动学习推荐执行器独立启动：`python -m app.active_learning.worker`。它与训练执行器共用单机 GPU 占用锁；CPU 同样支持。前端入口为 `#/active-learning`。生产运行应由现有进程托管方式管理 API、训练、评估和推荐执行器。
+
+规划、边界与验收要求见 [主动学习最终实施规划](docs/2026-11-12-主动学习模块-最终实施规划.md)；实际实现和验证记录见 [主动学习实现与验证](docs/2026-11-12-主动学习模块-实现与验证.md)。合成数据冒烟验证工程闭环，不能证明选样策略或训练效果提升。
+
 ```text
 backend/
   app/api/            HTTP API
@@ -267,6 +273,7 @@ backend/
   app/training/       训练队列、快照、执行器与资源采样
   app/models/         模型版本、来源与生命周期
   app/evaluation/     独立评估与对比
+  app/active_learning/ 主动学习推荐、复核、固定清单与迭代
   app/model_exports/  ONNX 导出与部署包构建
   app/deployment/     部署包服务
   alembic/            数据库迁移

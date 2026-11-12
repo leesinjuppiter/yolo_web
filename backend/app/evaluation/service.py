@@ -8,6 +8,10 @@ from app.evaluation.models import EvaluationRun
 from app.evaluation.repository import get_run, response
 from app.evaluation.schemas import EvaluationRequest
 from app.models.sources import registered_asset
+from app.training.repository import get_task
+from app.evaluation.snapshot import validate_source
+from app.evaluation.evidence import read_evidence
+from app.evaluation.repository import evaluation_dir
 
 
 def create(db: Session, request: EvaluationRequest, key: str | None) -> dict:
@@ -23,10 +27,11 @@ def create(db: Session, request: EvaluationRequest, key: str | None) -> dict:
         version, task, _, _ = registered_asset(db, "version:" + str(request.versionId))
         if version.lifecycle == "archived":
             raise Conflict("归档模型不能创建新的评估")
-        if task.config["task"] not in ("detect", "obb"):
-            raise ValueError("首版独立评估仅支持 Detect/OBB")
-        if not (task.snapshot or {}).get("split_counts", {}).get("test"):
-            raise ValueError("模型来源训练快照没有 test 分集")
+        if task.config["task"] not in ("detect", "segment", "obb"):
+            raise ValueError("独立评估仅支持 Detect/Segment/OBB")
+        source = get_task(db, str(request.sourceTaskId)) if request.sourceTaskId else task
+        split = "val" if request.purpose == "diagnostic" else "test"
+        validate_source(task, source, split)
         row = EvaluationRun(version_id=version.id, idempotency_key=key, config=config)
         db.add(row)
         db.flush()
@@ -61,5 +66,29 @@ def logs(db: Session, run_id: str, after: int) -> dict:
     return {"items": items, "nextSequence": items[-1]["sequence"] if items else after}
 
 
+def images(db: Session, run_id: str, page: int = 1, page_size: int = 30) -> dict:
+    row = get_run(db, run_id)
+    items = (row.report or {}).get("perImage", [])
+    start = (page - 1) * page_size
+    return {"items": items[start:start + page_size], "total": len(items), "page": page, "pageSize": page_size}
+
+
+def image_detail(db: Session, run_id: str, image_id: str) -> dict:
+    row = get_run(db, run_id)
+    if row.status != "succeeded":
+        raise Conflict("评估尚未完成，无法读取逐图证据")
+    return read_evidence(evaluation_dir(row.id), image_id, (row.report or {}).get("perImage", []))
+
+
+def image_content(db: Session, run_id: str, image_id: str, thumbnail=False):
+    from app.evaluation.images import frozen_image
+    row = get_run(db, run_id)
+    if row.status != "succeeded" or not row.report:
+        raise Conflict("评估尚未完成，无法读取冻结图片")
+    return frozen_image(evaluation_dir(row.id), row.report["snapshot"]["digest"], image_id, thumbnail)
+
+
 TOOLS = {"evaluation.start": create, "evaluation.summary": status, "evaluation.list": listing,
-         "evaluation.cancel": cancel, "evaluation.logs": logs}
+         "evaluation.cancel": cancel, "evaluation.logs": logs,
+         "evaluation.images": images, "evaluation.image_detail": image_detail,
+         "evaluation.image_content": image_content}

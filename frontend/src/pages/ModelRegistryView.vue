@@ -20,6 +20,7 @@ let unsubscribe:(()=>void)|undefined
 const pages=computed(()=>Math.max(1,Math.ceil((data.value?.total??0)/10)))
 const types=['detect','segment','obb','classify'] as const
 const canExecute=computed(()=>detail.value&&['detect','obb'].includes(detail.value.taskType)&&detail.value.lifecycle!=='archived')
+const canEvaluate=computed(()=>detail.value&&['detect','segment','obb'].includes(detail.value.taskType)&&detail.value.lifecycle!=='archived')
 const coreMetrics=computed(()=>{
  const model=detail.value
  if(!model)return []
@@ -116,7 +117,7 @@ onUnmounted(()=>{unsubscribe?.();stop()})
    <p v-if="detailError" class="model-error" role="alert">{{detailError}}</p>
    <div v-if="detail" class="model-panel model-detail">
     <div class="model-section-title"><div><h2>{{detail.displayName||detail.name}} <span class="model-chip">{{detail.version}}</span></h2><p>{{taskLabels[detail.taskType]}} · {{detail.lifecycle==='archived'?'已归档':'候选模型'}}</p></div><button class="button" :disabled="busy" @click="mutate('archive')">{{detail.lifecycle==='archived'?'恢复为候选':'归档模型'}}</button></div>
-    <div class="model-toolbar"><button class="button" :disabled="!canExecute" @click="action='evaluate'">创建独立评估</button><button class="button primary" :disabled="!canExecute" @click="action='export'">导出 ONNX FP32</button><button class="button" :disabled="detail.lifecycle==='archived'" @click="emit('finetune',detail)">使用此模型微调</button><button class="button" @click="router.push({name:'training-detail',params:{taskId:detail.taskId}})">查看来源训练</button><button class="button danger" :disabled="busy" @click="requestDelete">删除模型记录</button></div>
+    <div class="model-toolbar"><button class="button" :disabled="!canEvaluate" @click="action='evaluate'">创建独立评估</button><button class="button primary" :disabled="!canExecute" @click="action='export'">导出 ONNX FP32</button><button class="button" :disabled="detail.lifecycle==='archived'" @click="emit('finetune',detail)">使用此模型微调</button><button class="button" @click="router.push({name:'training-detail',params:{taskId:detail.taskId}})">查看来源训练</button><button class="button danger" :disabled="busy" @click="requestDelete">删除模型记录</button></div>
     <p v-if="!['detect','obb'].includes(detail.taskType)" class="model-note">首轮独立评估与导出仅开放目标检测和旋转框。此版本保留训练来源及指标。</p>
     <dl class="model-facts"><div><dt>来源数据集</dt><dd>{{detail.datasetName}}</dd></div><div><dt>训练任务</dt><dd>{{detail.taskId}}</dd></div><div><dt>快照摘要</dt><dd>{{detail.snapshotDigest}}</dd></div><div><dt>权重 SHA-256</dt><dd>{{detail.sha256}}</dd></div><div><dt>注册时间</dt><dd>{{formatDate(detail.createdAt)}}</dd></div><div><dt>验证依据</dt><dd>{{detail.evaluation?'已完成独立评估，结论见报告':'尚无独立评估报告'}}</dd></div></dl>
     <div class="model-edit-grid"><label class="model-field">显示名称<input v-model="name" maxlength="120"></label><label class="model-field">说明<input v-model="description" maxlength="2000"></label><button class="button" :disabled="busy||!name.trim()" @click="mutate('save')">保存信息</button></div>

@@ -16,6 +16,10 @@ const router = createRouter({
     { path: '/models', name: 'models', component: RouteTarget },
     { path: '/models/compare', name: 'model-compare', component: RouteTarget },
     { path: '/deployments', name: 'deployments', component: RouteTarget },
+    { path: '/active-learning', name: 'active-learning', component: RouteTarget },
+    { path: '/active-learning/tasks/:taskId', name: 'active-learning-task', component: RouteTarget },
+    { path: '/active-learning/iterations/:iterationId', name: 'active-learning-iteration', component: RouteTarget },
+    { path: '/active-learning/iterations/:iterationId/review', name: 'active-learning-review', component: RouteTarget },
     { path: '/:pathMatch(.*)*', redirect: '/datasets' },
   ],
 })

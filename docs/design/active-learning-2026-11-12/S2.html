@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+
+<html class="h-full bg-surface" lang="zh-CN"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>主动学习工作台 - 迭代与推荐看板 | OPTI-METRIX</title>
+<!-- Material Symbols Outlined -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Fonts: Hanken Grotesk & JetBrains Mono -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:ital,wght@0,300..900;1,300..900&amp;family=JetBrains+Mono:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS v3 -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          "colors": {
+            "on-tertiary-fixed-variant": "#005312",
+            "tertiary-container": "#25752b",
+            "secondary-fixed-dim": "#c2c7cc",
+            "surface-container-low": "#eff3ff",
+            "error-container": "#ffdad6",
+            "on-primary": "#ffffff",
+            "inverse-primary": "#afc9ea",
+            "surface-bright": "#f8f9ff",
+            "outline": "#73777e",
+            "on-secondary-container": "#5e6368",
+            "on-error": "#ffffff",
+            "surface-container": "#e6eeff",
+            "on-background": "#111c2b",
+            "primary-fixed": "#d1e4ff",
+            "background": "#f8f9ff",
+            "on-primary-container": "#d5e6ff",
+            "secondary-container": "#dbe0e5",
+            "inverse-surface": "#263141",
+            "surface-dim": "#cfdbf0",
+            "on-secondary-fixed": "#171c20",
+            "tertiary-fixed": "#a3f69c",
+            "on-surface-variant": "#43474d",
+            "outline-variant": "#c3c6ce",
+            "on-tertiary-container": "#a5f99e",
+            "secondary-fixed": "#dee3e8",
+            "error": "#ba1a1a",
+            "inverse-on-surface": "#ebf1ff",
+            "on-secondary": "#ffffff",
+            "on-tertiary": "#ffffff",
+            "on-secondary-fixed-variant": "#42474c",
+            "primary-container": "#4f6885",
+            "surface-container-highest": "#d8e3f9",
+            "surface": "#f8f9ff",
+            "on-error-container": "#93000a",
+            "tertiary-fixed-dim": "#88d982",
+            "primary": "#37506c",
+            "on-tertiary-fixed": "#002204",
+            "on-primary-fixed": "#001d35",
+            "tertiary": "#005c15",
+            "surface-container-lowest": "#ffffff",
+            "surface-tint": "#47607d",
+            "surface-container-high": "#dde9fe",
+            "surface-variant": "#d8e3f9",
+            "on-surface": "#111c2b",
+            "secondary": "#595f63",
+            "primary-fixed-dim": "#afc9ea",
+            "on-primary-fixed-variant": "#2f4964"
+          },
+          "borderRadius": {
+            "DEFAULT": "0.125rem",
+            "lg": "0.25rem",
+            "xl": "0.5rem",
+            "full": "0.75rem"
+          },
+          "spacing": {
+            "space-xs": "0.125rem",
+            "space-lg": "0.75rem",
+            "gutter": "0.5rem",
+            "margin": "0.75rem",
+            "margin-desktop": "1rem",
+            "gutter-desktop": "0.75rem",
+            "space-xl": "1rem",
+            "space-md": "0.5rem",
+            "space-sm": "0.25rem"
+          },
+          "fontFamily": {
+            "label-lg": ["JetBrains Mono"],
+            "body-md": ["Hanken Grotesk"],
+            "body-lg": ["Hanken Grotesk"],
+            "headline-md": ["Hanken Grotesk"],
+            "headline-sm": ["Hanken Grotesk"],
+            "label-md": ["JetBrains Mono"],
+            "body-sm": ["Hanken Grotesk"],
+            "headline-lg": ["Hanken Grotesk"],
+            "label-sm": ["JetBrains Mono"]
+          },
+          "fontSize": {
+            "label-lg": ["13px", { "lineHeight": "16px", "letterSpacing": "0.02em", "fontWeight": "500" }],
+            "body-md": ["13px", { "lineHeight": "18px", "fontWeight": "400" }],
+            "body-lg": ["14px", { "lineHeight": "20px", "fontWeight": "400" }],
+            "headline-md": ["18px", { "lineHeight": "24px", "letterSpacing": "-0.005em", "fontWeight": "600" }],
+            "headline-sm": ["15px", { "lineHeight": "20px", "fontWeight": "600" }],
+            "label-md": ["11px", { "lineHeight": "14px", "letterSpacing": "0.02em", "fontWeight": "500" }],
+            "body-sm": ["12px", { "lineHeight": "16px", "fontWeight": "400" }],
+            "headline-lg": ["24px", { "lineHeight": "32px", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+            "label-sm": ["10px", { "lineHeight": "12px", "letterSpacing": "0.03em", "fontWeight": "400" }]
+          }
+        },
+      },
+    }
+  </script>
+<style>
+    /* Hairline Industrial Divider & Base Settings */
+    * {
+      border-color: #E6E9ED;
+      -webkit-font-smoothing: antialiased;
+    }
+    .material-symbols-outlined {
+      font-size: 18px;
+      line-height: 1;
+      display: inline-block;
+      vertical-align: middle;
+    }
+    .material-symbols-outlined.icon-sm {
+      font-size: 14px;
+    }
+    .material-symbols-outlined.icon-md {
+      font-size: 16px;
+    }
+  </style>
+</head>
+<body class="h-full flex overflow-hidden bg-background text-on-surface font-body-md select-none">
+<!-- ================= LEFT DOCKED SIDENAV ================= -->
+<aside class="docked left top-0 bottom-0 h-screen w-64 flex flex-col shrink-0 bg-surface-container-lowest border-r border-outline-variant shadow-none z-20">
+<div class="w-64 h-full p-3 flex flex-col justify-between select-none">
+<!-- Top Branding -->
+<div>
+<div class="flex items-center gap-2.5 px-2 py-2 mb-4 border-b border-outline-variant pb-3">
+<div class="w-7 h-7 bg-primary flex items-center justify-center rounded text-on-primary">
+<span class="material-symbols-outlined icon-md">cc_attribution</span>
+</div>
+<div class="flex flex-col">
+<span class="text-headline-sm font-headline-sm font-semibold tracking-tight text-on-surface uppercase leading-none">OPTI-METRIX</span>
+<span class="text-label-sm font-label-sm text-outline mt-1 font-mono">Vision Workstation v4.2</span>
+</div>
+</div>
+<!-- Navigation Tab Cluster (8 tabs, '主动学习' active) -->
+<nav class="space-y-1">
+<!-- 1: 数据集 -->
+<a class="flex items-center gap-3 px-3 py-1.5 text-on-surface-variant font-normal hover:bg-surface-container-low transition-colors duration-100 ease-in-out rounded-DEFAULT" href="#">
+<span class="material-symbols-outlined text-outline">folder_open</span>
+<span class="text-body-sm font-body-sm font-medium">数据集</span>
+</a>
+<!-- 2: 模型训练 -->
+<a class="flex items-center gap-3 px-3 py-1.5 text-on-surface-variant font-normal hover:bg-surface-container-low transition-colors duration-100 ease-in-out rounded-DEFAULT" href="#">
+<span class="material-symbols-outlined text-outline">model_training</span>
+<span class="text-body-sm font-body-sm font-medium">模型训练</span>
+</a>
+<!-- 3: 模型仓库 -->
+<a class="flex items-center gap-3 px-3 py-1.5 text-on-surface-variant font-normal hover:bg-surface-container-low transition-colors duration-100 ease-in-out rounded-DEFAULT" href="#">
+<span class="material-symbols-outlined text-outline">inventory_2</span>
+<span class="text-body-sm font-body-sm font-medium">模型仓库</span>
+</a>
+<!-- 4: 主动学习 (ACTIVE LOCK) -->
+<a class="flex items-center gap-3 px-3 py-1.5 bg-surface-container text-primary font-medium rounded-DEFAULT border-l-2 border-primary transition-colors duration-100 ease-in-out" href="#">
+<span class="material-symbols-outlined text-primary" style="font-variation-settings: 'FILL' 1;">psychology</span>
+<span class="text-body-sm font-body-sm font-semibold">主动学习</span>
+<span class="ml-auto w-1.5 h-1.5 rounded-full bg-primary"></span>
+</a>
+<!-- 5: 部署中心 -->
+<a class="flex items-center gap-3 px-3 py-1.5 text-on-surface-variant font-normal hover:bg-surface-container-low transition-colors duration-100 ease-in-out rounded-DEFAULT" href="#">
+<span class="material-symbols-outlined text-outline">precision_manufacturing</span>
+<span class="text-body-sm font-body-sm font-medium">部署中心</span>
+</a>
+<!-- 6: 智能体 -->
+<a class="flex items-center gap-3 px-3 py-1.5 text-on-surface-variant font-normal hover:bg-surface-container-low transition-colors duration-100 ease-in-out rounded-DEFAULT" href="#">
+<span class="material-symbols-outlined text-outline">smart_toy</span>
+<span class="text-body-sm font-body-sm font-medium">智能体</span>
+</a>
+<!-- 7: 审计日志 -->
+<a class="flex items-center gap-3 px-3 py-1.5 text-on-surface-variant font-normal hover:bg-surface-container-low transition-colors duration-100 ease-in-out rounded-DEFAULT" href="#">
+<span class="material-symbols-outlined text-outline">history_toggle_off</span>
+<span class="text-body-sm font-body-sm font-medium">审计日志</span>
+</a>
+<!-- 8: 系统设置 -->
+<a class="flex items-center gap-3 px-3 py-1.5 text-on-surface-variant font-normal hover:bg-surface-container-low transition-colors duration-100 ease-in-out rounded-DEFAULT" href="#">
+<span class="material-symbols-outlined text-outline">settings</span>
+<span class="text-body-sm font-body-sm font-medium">系统设置</span>
+</a>
+</nav>
+</div>
+<!-- Telemetry Hardware Status Footer -->
+<div class="pt-3 border-t border-outline-variant space-y-1.5 bg-surface-container-lowest">
+<div class="flex items-center justify-between px-2.5 py-1 text-label-sm font-label-sm text-secondary bg-surface-container-low rounded border border-outline-variant/60">
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined icon-sm text-tertiary">sensors</span>
+<span class="text-on-surface-variant">Node: LINE-04 (Online)</span>
+</div>
+<span class="w-1.5 h-1.5 rounded-full bg-tertiary animate-pulse"></span>
+</div>
+<div class="flex items-center justify-between px-2.5 py-1 text-label-sm font-label-sm text-secondary">
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined icon-sm text-outline">wifi_tethering</span>
+<span class="text-outline">Sync: Latency 14ms</span>
+</div>
+<span class="text-label-sm text-outline font-mono">100GbE</span>
+</div>
+</div>
+</div>
+</aside>
+<!-- ================= MAIN VIEWPORT CONTAINER ================= -->
+<div class="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
+<!-- TopNavBar Desktop Dense -->
+<header class="docked top-0 left-0 right-0 w-full h-11 bg-surface-container-lowest border-b border-outline-variant flex justify-between items-center px-4 shrink-0 z-10">
+<!-- Breadcrumb & Device Indicator -->
+<div class="flex items-center gap-2">
+<span class="text-body-md font-label-md font-medium text-on-surface-variant">工作空间检测系统工作台 / 主动学习</span>
+<span class="text-outline-variant">/</span>
+<div class="flex items-center gap-1.5 px-2 py-0.5 rounded bg-surface-container-low border border-outline-variant/50 text-label-sm font-label-sm text-primary font-mono">
+<span class="material-symbols-outlined icon-sm">videocam</span>
+          LINE-04 / CAM-A-TOP
+        </div>
+</div>
+<!-- Trailing Action Hub -->
+<div class="flex items-center gap-3">
+<!-- Live Sync Status Chip -->
+<div class="flex items-center gap-1.5 px-2 py-1 bg-surface-container-low rounded text-label-sm font-label-sm text-on-surface-variant border border-outline-variant/60">
+<span class="w-2 h-2 rounded-full bg-tertiary"></span>
+<span>实时同步 / 增量帧就绪</span>
+</div>
+<!-- Trailing Secondary Action -->
+<button class="flex items-center gap-1.5 px-2.5 py-1 text-label-md font-label-md bg-surface-container-lowest hover:bg-surface-container-low border border-outline-variant rounded text-on-surface transition-colors duration-100">
+<span class="material-symbols-outlined icon-sm">file_download</span>
+<span>导出标注清单</span>
+</button>
+<!-- Manual Refresh Secondary Trigger -->
+<button class="flex items-center gap-1 px-2 py-1 text-label-md font-label-md bg-surface-container-lowest hover:bg-surface-container-low border border-outline-variant rounded text-on-surface transition-colors duration-100" title="手动刷新">
+<span class="material-symbols-outlined icon-sm">refresh</span>
+<span>手动刷新</span>
+</button>
+<!-- Trailing Primary Action -->
+<button class="flex items-center gap-1.5 px-3 py-1 text-label-md font-label-md bg-primary hover:bg-primary-container text-on-primary rounded font-medium transition-colors duration-100">
+<span class="material-symbols-outlined icon-sm">add</span>
+<span>新建主动学习任务</span>
+</button>
+</div>
+</header>
+<!-- Scrollable Workspace Body -->
+<main class="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+<!-- Page Title & Operational Strategy Sub-header Banner -->
+<div class="flex flex-col md:flex-row md:items-center justify-between pb-3 border-b border-outline-variant gap-2">
+<div class="flex items-center gap-3">
+<h1 class="text-headline-lg font-headline-lg text-on-surface font-semibold tracking-tight">主动学习</h1>
+<div class="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-primary-fixed text-on-primary-fixed text-label-sm font-label-sm font-mono border border-outline-variant/50">
+<span class="material-symbols-outlined icon-sm text-primary">verified_user</span>
+<span>Active Loop v3 · 防漂移机制已激活</span>
+</div>
+</div>
+<p class="text-body-sm font-body-sm text-on-surface-variant">
+          围绕模型问题选择样本，人工复核后进入下一轮训练。
+        </p>
+</div>
+<!-- ================= 4x METRICS SUMMARY CARDS ================= -->
+<section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+<!-- Metric 1: 进行中的迭代 -->
+<div class="bg-surface-container-lowest border border-outline-variant p-3.5 flex flex-col justify-between rounded-DEFAULT">
+<div class="flex items-center justify-between">
+<span class="text-label-md font-label-md text-outline uppercase tracking-wider">进行中的迭代</span>
+<span class="material-symbols-outlined icon-md text-primary">sync</span>
+</div>
+<div class="my-2 flex items-baseline gap-1.5">
+<span class="text-headline-lg font-headline-lg font-bold text-on-surface font-mono">1</span>
+<span class="text-label-md font-label-md text-on-surface-variant font-mono">个迭代轮次</span>
+</div>
+<div class="pt-2 border-t border-outline-variant/50 flex items-center gap-1.5 text-body-sm font-body-sm text-on-surface-variant">
+<span class="w-1.5 h-1.5 rounded-full bg-primary"></span>
+<span>当前处于：人工复核阶段（第 03 轮）</span>
+</div>
+</div>
+<!-- Metric 2: 待复核训练样本 -->
+<div class="bg-surface-container-lowest border border-outline-variant p-3.5 flex flex-col justify-between rounded-DEFAULT">
+<div class="flex items-center justify-between">
+<span class="text-label-md font-label-md text-outline uppercase tracking-wider">待复核训练样本</span>
+<span class="material-symbols-outlined icon-md text-primary">pending_actions</span>
+</div>
+<div class="my-2 flex items-baseline gap-1.5">
+<span class="text-headline-lg font-headline-lg font-bold text-primary font-mono">18</span>
+<span class="text-label-md font-label-md text-on-surface-variant font-mono">张候选</span>
+</div>
+<div class="pt-2 border-t border-outline-variant/50 flex items-center justify-between text-body-sm font-body-sm text-on-surface-variant">
+<span>占比：50.0%（本轮已入池 36 张）</span>
+<span class="text-label-sm font-label-sm text-outline font-mono">Uncertainty</span>
+</div>
+</div>
+<!-- Metric 3: 已复核可用于训练 -->
+<div class="bg-surface-container-lowest border border-outline-variant p-3.5 flex flex-col justify-between rounded-DEFAULT">
+<div class="flex items-center justify-between">
+<span class="text-label-md font-label-md text-outline uppercase tracking-wider">已复核可用于训练</span>
+<span class="material-symbols-outlined icon-md text-tertiary">task_alt</span>
+</div>
+<div class="my-2 flex items-baseline gap-1.5">
+<span class="text-headline-lg font-headline-lg font-bold text-tertiary font-mono">18</span>
+<span class="text-label-md font-label-md text-on-surface-variant font-mono">张合规</span>
+</div>
+<div class="pt-2 border-t border-outline-variant/50 flex items-center gap-1 text-body-sm font-body-sm text-tertiary">
+<span class="material-symbols-outlined icon-sm">check</span>
+<span>质检合格率 100% · 达启动训练门槛</span>
+</div>
+</div>
+<!-- Metric 4: 待评估模型 -->
+<div class="bg-surface-container-lowest border border-outline-variant p-3.5 flex flex-col justify-between rounded-DEFAULT">
+<div class="flex items-center justify-between">
+<span class="text-label-md font-label-md text-outline uppercase tracking-wider">待评估模型</span>
+<span class="material-symbols-outlined icon-md text-secondary">memory</span>
+</div>
+<div class="my-2 flex items-baseline gap-1.5">
+<span class="text-headline-lg font-headline-lg font-bold text-on-surface font-mono">0</span>
+<span class="text-label-md font-label-md text-on-surface-variant font-mono">个待评测</span>
+</div>
+<div class="pt-2 border-t border-outline-variant/50 text-body-sm font-body-sm text-outline truncate">
+            上一基线 YOLO11s-OBB-v3 已完成标定
+          </div>
+</div>
+</section>
+<!-- ================= TAB CONTROLS & FILTER TOOLBAR ================= -->
+<section class="bg-surface-container-lowest border border-outline-variant rounded-DEFAULT overflow-hidden">
+<!-- Controls Bar -->
+<div class="flex flex-col sm:flex-row sm:items-center justify-between px-3 py-2 border-b border-outline-variant bg-surface-container-low gap-3">
+<!-- Left Switch Tabs -->
+<div class="flex items-center gap-1">
+<!-- Tab 1: 迭代记录 (Active) -->
+<button class="flex items-center gap-1.5 px-3 py-1.5 bg-surface-container-lowest text-primary font-medium text-body-sm font-body-sm border border-outline-variant rounded shadow-none">
+<span class="material-symbols-outlined icon-sm text-primary">history</span>
+<span>迭代记录</span>
+<span class="px-1.5 py-0.2 bg-surface-container rounded-full text-label-sm font-label-sm font-mono text-primary">3</span>
+</button>
+<!-- Tab 2: 推荐任务 (Inactive) -->
+<button class="flex items-center gap-1.5 px-3 py-1.5 text-on-surface-variant hover:text-on-surface hover:bg-surface-container text-body-sm font-body-sm rounded transition-colors">
+<span class="material-symbols-outlined icon-sm text-outline">recommend</span>
+<span>推荐任务</span>
+<span class="px-1.5 py-0.2 bg-secondary-container/40 rounded-full text-label-sm font-label-sm font-mono text-secondary">5</span>
+</button>
+</div>
+<!-- Right Compact Search & Batch Tools -->
+<div class="flex items-center gap-2">
+<div class="relative w-64">
+<span class="material-symbols-outlined icon-sm absolute left-2 top-2 text-outline">search</span>
+<input class="w-full h-7 pl-7 pr-2 bg-surface-container-lowest border border-outline-variant rounded text-body-sm font-body-sm text-on-surface focus:outline-none focus:border-primary placeholder:text-outline/70" placeholder="筛选迭代或优化目标..." type="text"/>
+</div>
+<button class="h-7 px-2.5 flex items-center gap-1 text-label-md font-label-md bg-surface-container-lowest hover:bg-surface-container-low border border-outline-variant rounded text-on-surface transition-colors">
+<span class="material-symbols-outlined icon-sm text-secondary">filter_list</span>
+<span>全部状态</span>
+</button>
+<button class="h-7 px-2.5 flex items-center gap-1 text-label-md font-label-md bg-surface-container-lowest hover:bg-surface-container-low border border-outline-variant rounded text-on-surface transition-colors">
+<span class="material-symbols-outlined icon-sm text-secondary">tune</span>
+<span>筛选</span>
+</button>
+<button class="h-7 px-2.5 flex items-center gap-1 text-label-md font-label-md bg-surface-container-lowest hover:bg-surface-container-low border border-outline-variant rounded text-on-surface transition-colors">
+<span class="material-symbols-outlined icon-sm text-secondary">download</span>
+<span>导出清单</span>
+</button>
+</div>
+</div>
+<!-- ================= ITERATION RECORDS DENSE TABLE ================= -->
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="bg-surface-container-low border-b border-outline-variant text-label-md font-label-md text-outline uppercase tracking-wider font-mono">
+<th class="py-2 px-3 font-medium">轮次及名称</th>
+<th class="py-2 px-3 font-medium min-w-[200px]">优化目标</th>
+<th class="py-2 px-3 font-medium">任务类型</th>
+<th class="py-2 px-3 font-medium">基线模型</th>
+<th class="py-2 px-3 font-medium">当前阶段</th>
+<th class="py-2 px-3 font-medium min-w-[190px]">本轮已复核 / 已选择训练样本</th>
+<th class="py-2 px-3 font-medium">结果模型</th>
+<th class="py-2 px-3 font-medium">更新时间</th>
+<th class="py-2 px-3 font-medium text-right">操作</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-outline-variant text-body-sm font-body-sm">
+<!-- ROW 1 (HIGH PRIORITY / ACTIVE REVIEW) -->
+<tr class="bg-surface-container-lowest hover:bg-surface-container-low transition-colors duration-100">
+<!-- 轮次及名称 -->
+<td class="py-2.5 px-3">
+<div class="font-medium text-on-surface flex items-center gap-1.5">
+<span class="w-2 h-2 rounded-full bg-primary shrink-0 animate-ping"></span>
+<span class="font-semibold text-primary">迭代 03</span>
+<span class="text-outline-variant">/</span>
+<span class="truncate">改善细长金属异物漏检</span>
+</div>
+<div class="text-label-sm font-label-sm text-outline font-mono mt-0.5">
+                    ITER-20250621-03
+                  </div>
+</td>
+<!-- 优化目标 -->
+<td class="py-2.5 px-3 text-on-surface-variant max-w-xs">
+<div class="truncate" title="解决传送带高频振动下铁丝/角铁等细长金属旋转框漏检与误报">
+                    解决传送带高频振动下铁丝/角铁等细长金属旋转框漏检与误报
+                  </div>
+</td>
+<!-- 任务类型 (浅紫胶囊) -->
+<td class="py-2.5 px-3">
+<span class="inline-flex items-center px-2 py-0.5 rounded text-label-sm font-label-sm font-mono bg-surface-container-high text-primary border border-outline-variant/40">
+                    旋转框 OBB
+                  </span>
+</td>
+<!-- 基线模型 -->
+<td class="py-2.5 px-3 font-mono text-label-sm font-label-sm text-on-surface">
+                  YOLO11s-OBB-v3
+                </td>
+<!-- 当前阶段 (黄色警示标签) -->
+<td class="py-2.5 px-3">
+<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-label-sm font-label-sm font-mono bg-surface-container-highest text-on-surface border border-outline-variant">
+<span class="w-1.5 h-1.5 rounded-full bg-outline"></span>
+                    人工复核 (待复核 18 张)
+                  </span>
+</td>
+<!-- 本轮已复核 / 已选择训练样本 -->
+<td class="py-2.5 px-3">
+<div class="flex items-center justify-between text-label-sm font-label-sm font-mono mb-1">
+<span class="text-primary font-medium">18 / 36 张</span>
+<span class="text-outline">50.0%</span>
+</div>
+<div class="w-full bg-surface-container-highest h-1.5 rounded-full overflow-hidden">
+<div class="bg-primary h-full rounded-full" style="width: 50%;"></div>
+</div>
+<div class="text-label-sm font-label-sm text-outline font-mono mt-1">
+                    18 张待人工裁定 · 已锁定候选池
+                  </div>
+</td>
+<!-- 结果模型 (灰色状态) -->
+<td class="py-2.5 px-3 text-label-sm font-label-sm font-mono text-outline">
+                  尚未生成 (待复核闭环)
+                </td>
+<!-- 更新时间 -->
+<td class="py-2.5 px-3 text-label-sm font-label-sm font-mono text-outline whitespace-nowrap">
+                  2025-06-21 14:15:32
+                </td>
+<!-- 操作 -->
+<td class="py-2.5 px-3 text-right whitespace-nowrap space-x-2">
+<button class="h-6 px-2 text-label-md font-label-md bg-primary hover:bg-primary-container text-on-primary rounded font-medium transition-colors">
+                    进入复核工作台
+                  </button>
+<button class="h-6 px-2 text-label-md font-label-md bg-surface-container-lowest hover:bg-surface-container-low border border-outline-variant text-on-surface rounded transition-colors">
+                    查看详情
+                  </button>
+</td>
+</tr>
+<!-- ROW 2 (TRAINING COMPLETED) -->
+<tr class="bg-surface-container-lowest hover:bg-surface-container-low transition-colors duration-100">
+<!-- 轮次及名称 -->
+<td class="py-2.5 px-3">
+<div class="font-medium text-on-surface flex items-center gap-1.5">
+<span class="font-semibold">迭代 02</span>
+<span class="text-outline-variant">/</span>
+<span class="truncate">湿煤泥反光干扰降误报</span>
+</div>
+<div class="text-label-sm font-label-sm text-outline font-mono mt-0.5">
+                    ITER-20250619-02
+                  </div>
+</td>
+<!-- 优化目标 -->
+<td class="py-2.5 px-3 text-on-surface-variant max-w-xs">
+<div class="truncate" title="抑制高湿混煤表面强烈高光引起的异物误触">
+                    抑制高湿混煤表面强烈高光引起的异物误触
+                  </div>
+</td>
+<!-- 任务类型 (浅蓝胶囊) -->
+<td class="py-2.5 px-3">
+<span class="inline-flex items-center px-2 py-0.5 rounded text-label-sm font-label-sm font-mono bg-surface-container-low text-primary border border-outline-variant/30">
+                    实例分割 Segment
+                  </span>
+</td>
+<!-- 基线模型 -->
+<td class="py-2.5 px-3 font-mono text-label-sm font-label-sm text-on-surface">
+                  YOLO11n-Seg-v2
+                </td>
+<!-- 当前阶段 (绿色标签) -->
+<td class="py-2.5 px-3">
+<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-label-sm font-label-sm font-mono bg-surface-container-low text-tertiary border border-outline-variant/40">
+<span class="w-1.5 h-1.5 rounded-full bg-tertiary"></span>
+                    训练已完成
+                  </span>
+</td>
+<!-- 本轮已复核 / 已选择训练样本 -->
+<td class="py-2.5 px-3">
+<div class="flex items-center justify-between text-label-sm font-label-sm font-mono mb-1">
+<span class="text-on-surface font-medium">52 / 52 张</span>
+<span class="text-tertiary">100%</span>
+</div>
+<div class="w-full bg-surface-container-highest h-1.5 rounded-full overflow-hidden">
+<div class="bg-tertiary h-full rounded-full" style="width: 100%;"></div>
+</div>
+<div class="text-label-sm font-label-sm text-outline font-mono mt-1">
+                    已全部转入模型训练增量集
+                  </div>
+</td>
+<!-- 结果模型 -->
+<td class="py-2.5 px-3 font-mono text-label-sm font-label-sm text-on-surface">
+                  model-v2.1-deploy
+                </td>
+<!-- 更新时间 -->
+<td class="py-2.5 px-3 text-label-sm font-label-sm font-mono text-outline whitespace-nowrap">
+                  2025-06-19 11:20:08
+                </td>
+<!-- 操作 -->
+<td class="py-2.5 px-3 text-right whitespace-nowrap space-x-2">
+<button class="h-6 px-2 text-label-md font-label-md bg-surface-container-lowest hover:bg-surface-container-low border border-outline-variant text-primary rounded transition-colors">
+                    查看评估报告
+                  </button>
+<button class="h-6 px-2 text-label-md font-label-md bg-surface-container-lowest hover:bg-surface-container-low border border-outline-variant text-on-surface rounded transition-colors">
+                    查看详情
+                  </button>
+</td>
+</tr>
+<!-- ROW 3 (ARCHIVED) -->
+<tr class="bg-surface-container-lowest hover:bg-surface-container-low transition-colors duration-100">
+<!-- 轮次及名称 -->
+<td class="py-2.5 px-3">
+<div class="font-medium text-on-surface-variant flex items-center gap-1.5">
+<span class="font-semibold text-secondary">迭代 01</span>
+<span class="text-outline-variant">/</span>
+<span class="truncate">大块矸石边缘裂痕召回提升</span>
+</div>
+<div class="text-label-sm font-label-sm text-outline font-mono mt-0.5">
+                    ITER-20250615-01
+                  </div>
+</td>
+<!-- 优化目标 -->
+<td class="py-2.5 px-3 text-on-surface-variant max-w-xs">
+<div class="truncate" title="提升 300mm 以上大块矸石轮廓及裂纹检出率">
+                    提升 300mm 以上大块矸石轮廓及裂纹检出率
+                  </div>
+</td>
+<!-- 任务类型 (灰色胶囊) -->
+<td class="py-2.5 px-3">
+<span class="inline-flex items-center px-2 py-0.5 rounded text-label-sm font-label-sm font-mono bg-surface-container-highest text-secondary border border-outline-variant/40">
+                    目标检测 Detect
+                  </span>
+</td>
+<!-- 基线模型 -->
+<td class="py-2.5 px-3 font-mono text-label-sm font-label-sm text-on-surface-variant">
+                  YOLO11n-Det-v1
+                </td>
+<!-- 当前阶段 (灰色归档标签) -->
+<td class="py-2.5 px-3">
+<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-label-sm font-label-sm font-mono bg-surface-container-highest text-secondary border border-outline-variant/40">
+<span class="w-1.5 h-1.5 rounded-full bg-outline"></span>
+                    已归档
+                  </span>
+</td>
+<!-- 本轮已复核 / 已选择训练样本 -->
+<td class="py-2.5 px-3">
+<div class="flex items-center justify-between text-label-sm font-label-sm font-mono mb-1">
+<span class="text-on-surface-variant font-medium">120 / 120 张</span>
+<span class="text-secondary">100%</span>
+</div>
+<div class="w-full bg-surface-container-highest h-1.5 rounded-full overflow-hidden">
+<div class="bg-secondary h-full rounded-full" style="width: 100%;"></div>
+</div>
+<div class="text-label-sm font-label-sm text-outline font-mono mt-1">
+                    历史版本归档 · 已固化至基线集
+                  </div>
+</td>
+<!-- 结果模型 -->
+<td class="py-2.5 px-3 font-mono text-label-sm font-label-sm text-on-surface-variant">
+                  model-v1.3-prod
+                </td>
+<!-- 更新时间 -->
+<td class="py-2.5 px-3 text-label-sm font-label-sm font-mono text-outline whitespace-nowrap">
+                  2025-06-15 09:42:15
+                </td>
+<!-- 操作 -->
+<td class="py-2.5 px-3 text-right whitespace-nowrap">
+<button class="h-6 px-2 text-label-md font-label-md bg-surface-container-lowest hover:bg-surface-container-low border border-outline-variant text-on-surface rounded transition-colors">
+                    查看归档
+                  </button>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<!-- Table Pagination & Record Counts -->
+<div class="px-3 py-2 border-t border-outline-variant bg-surface-container-low flex items-center justify-between text-label-md font-label-md text-on-surface-variant">
+<div class="flex items-center gap-2">
+<span>显示 1 至 3 项，共 3 项记录</span>
+<span class="text-outline-variant">|</span>
+<span class="text-outline">每页 10 轮迭代</span>
+</div>
+<div class="flex items-center gap-1 font-mono">
+<button class="h-6 px-2 border border-outline-variant rounded bg-surface-container-lowest text-outline cursor-not-allowed">上一页</button>
+<button class="h-6 px-2 border border-outline-variant rounded bg-primary text-on-primary font-medium">1</button>
+<button class="h-6 px-2 border border-outline-variant rounded bg-surface-container-lowest text-outline cursor-not-allowed">下一页</button>
+</div>
+</div>
+</section>
+<!-- Bottom Guidance Insight Banner -->
+<div class="p-3 bg-surface-container-lowest border border-outline-variant rounded-DEFAULT flex items-start gap-3">
+<span class="material-symbols-outlined text-primary mt-0.5">tips_and_updates</span>
+<div class="flex-1">
+<div class="text-body-sm font-body-sm font-semibold text-on-surface">主动学习闭环建议 (Line-04)</div>
+<p class="text-label-sm font-label-sm text-on-surface-variant mt-0.5">
+            当前「迭代 03」候选池中包含 18 张高熵（High Uncertainty）长细异物样本。在复核通过后，算法引擎将自动触发增量微调脚本并隔离验证集，预计需消耗约 4.2 个 GPU 运算时。
+          </p>
+</div>
+</div>
+</main>
+<!-- ================= INDUSTRIAL STATUS FOOTER ================= -->
+<footer class="h-7 bg-surface-container-low border-t border-outline-variant px-4 flex items-center justify-between text-label-sm font-label-sm text-outline shrink-0 font-mono">
+<div class="flex items-center gap-4">
+<div class="flex items-center gap-1.5">
+<span class="w-1.5 h-1.5 rounded-full bg-tertiary"></span>
+<span>主动学习调度节点状态: Online 0.4ms</span>
+</div>
+<span class="text-outline-variant">|</span>
+<div class="flex items-center gap-1">
+<span class="material-symbols-outlined icon-sm text-tertiary">lock</span>
+<span>防泄漏机制已激活（验证集测试集已严格硬隔离不可转入训练集）</span>
+</div>
+</div>
+<div class="flex items-center gap-3">
+<span>GPU 资源: RTX 6000 Ada (Cluster-02)</span>
+<span class="text-outline-variant">|</span>
+<span>Storage: CEPH-FAST-SSD (98.2TB 可用)</span>
+</div>
+</footer>
+</div>
+</body></html>

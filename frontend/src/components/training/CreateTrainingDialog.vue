@@ -3,7 +3,7 @@ import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { checkTraining, createTraining, DuplicateTrainingNameError, getTrainingOptions, listTrainingDatasets } from '../../api/training'
 import { selectableDatasetTasks, taskLabels } from '../../domain'
 import type { SelectableDatasetTask, Split } from '../../domain'
-import type { TrainingConfig, TrainingDatasetSummary, TrainingOptions } from '../../types/training'
+import type { TrainingConfig, TrainingDatasetSummary, TrainingOptions, TrainingPreflight } from '../../types/training'
 import { createUuid } from '../../utils/id'
 
 const props = defineProps<{
@@ -54,6 +54,8 @@ const draft = reactive<TrainingConfig>(props.initialConfig ? { ...props.initialC
 draft.freeze ??= 0
 draft.workers ??= 0
 const earlyStopping = ref(draft.patience > 0)
+const iterationMode = Boolean(props.initialConfig?.manifestId)
+const manifestReport = ref<TrainingPreflight>()
 const initialization = ref<'scratch' | 'pretrained'>(draft.modelId.endsWith('.pt') || draft.modelId.startsWith('version:') ? 'pretrained' : 'scratch')
 watch(draft, () => { warnings.value = [] })
 const splits: { key: Split | 'unassigned'; label: string }[] = [
@@ -70,9 +72,9 @@ const models = computed(() => options.value?.models.filter(model => model.task =
 const selectedModel = computed(() => models.value.find(model => model.id === draft.modelId))
 const selectedDevice = computed(() => options.value?.devices.find(device => device.id === draft.deviceId))
 const isCuda = computed(() => selectedDevice.value?.kind === 'cuda')
-const datasetError = computed(() => dataset.value?.errors.map(issue => issue.message).join('；') ?? '')
+const datasetError = computed(() => iterationMode ? manifestReport.value?.errors.map(issue => issue.message).join('；') ?? '' : dataset.value?.errors.map(issue => issue.message).join('；') ?? '')
 const splitSummary = computed(() => {
-  const counts = { train: 0, val: 0, test: 0, ...dataset.value?.splitCounts, unassigned: dataset.value?.unassignedCount ?? 0 }
+  const counts = { train: 0, val: 0, test: 0, ...(iterationMode ? manifestReport.value?.splitCounts : dataset.value?.splitCounts), unassigned: iterationMode ? 0 : dataset.value?.unassignedCount ?? 0 }
   const total = Object.values(counts).reduce((sum, count) => sum + count, 0)
   return {
     total,
@@ -85,7 +87,7 @@ const splitSummary = computed(() => {
 })
 const canSubmit = computed(() => Boolean(
   options.value && !optionsLoading.value && !optionsError.value && draft.name.trim()
-    && dataset.value && !datasetError.value && draft.modelId && draft.deviceId && draft.optimizer && draft.augmentation
+    && (iterationMode ? manifestReport.value : dataset.value) && !datasetError.value && selectedModel.value && draft.modelId && draft.deviceId && draft.optimizer && draft.augmentation
     && !busy.value && !datasetsLoading.value && !datasetsError.value
 ))
 
@@ -94,10 +96,11 @@ watch(isCuda, enabled => { if (!enabled) draft.amp = false })
 watch(initialization, mode => { if (mode === 'scratch') draft.freeze = 0 })
 
 watch(models, choices => {
-  if (!choices.some(model => model.id === draft.modelId)) draft.modelId = choices[0]?.id ?? ''
+  if (!iterationMode && !choices.some(model => model.id === draft.modelId)) draft.modelId = choices[0]?.id ?? ''
 })
 
 function selectTask(task: SelectableDatasetTask) {
+  if (iterationMode) return
   if (task === draft.task) return
   draft.task = task
   draft.datasetId = ''
@@ -120,6 +123,7 @@ async function loadOptions() {
     if (!result.augmentations.some(item => item.id === draft.augmentation)) {
       draft.augmentation = result.augmentations[0]?.id ?? ''
     }
+    if (iterationMode) manifestReport.value = await checkTraining(draft)
   } catch (error) {
     if (!optionsRequest.signal.aborted) optionsError.value = error instanceof Error ? error.message : '读取训练选项失败'
   } finally {
@@ -165,7 +169,7 @@ function focusNameInput() {
 }
 
 async function submit() {
-  if (!canSubmit.value || !dataset.value) return
+  if (!canSubmit.value || (!iterationMode && !dataset.value)) return
   submitError.value = ''
   if (draft.learningRate <= 0 || draft.finalLearningRate <= 0) {
     submitError.value = '初始学习率与最终学习率比例必须大于 0。'
@@ -226,6 +230,7 @@ async function submit() {
       </header>
 
       <div class="dialog-content">
+        <p v-if="iterationMode" class="message">主动学习固定输入：基线模型、任务类型和数据集已锁定。训练将使用已复核清单，不扫描数据集中的其他标注。清单：{{ draft.manifestDigest }}</p>
         <p v-if="optionsLoading" class="message" role="status">正在读取模型、设备及训练选项…</p>
         <div v-else-if="optionsError" class="message error-row" role="alert">
           {{ optionsError }}
@@ -243,21 +248,21 @@ async function submit() {
                 <span>任务类型 <b>*</b></span>
                 <div class="task-options" role="group" aria-label="任务类型">
                   <button v-for="task in selectableDatasetTasks" :key="task" type="button" class="button choice"
-                    :aria-pressed="draft.task === task" @click="selectTask(task)">{{ taskLabels[task] }}</button>
+                    :disabled="iterationMode" :aria-pressed="draft.task === task" @click="selectTask(task)">{{ taskLabels[task] }}</button>
                 </div>
               </div>
               <div class="field full-width">
                 <span>模型初始化</span>
                 <div class="task-options" role="group" aria-label="模型初始化方式">
-                  <button type="button" class="button choice" :aria-pressed="initialization === 'scratch'"
+                  <button type="button" class="button choice" :disabled="iterationMode" :aria-pressed="initialization === 'scratch'"
                     @click="initialization = 'scratch'">从零训练</button>
-                  <button type="button" class="button choice" :aria-pressed="initialization === 'pretrained'"
+                  <button type="button" class="button choice" :disabled="iterationMode" :aria-pressed="initialization === 'pretrained'"
                     @click="initialization = 'pretrained'">使用已有权重微调</button>
                 </div>
               </div>
               <label class="field full-width">
                 <span>基底模型 <b>*</b></span>
-                <select v-model="draft.modelId" :disabled="!models.length" required>
+                <select v-model="draft.modelId" :disabled="iterationMode || !models.length" required>
                   <option value="" disabled>{{ optionsLoading ? '正在读取模型…' : '暂无匹配模型' }}</option>
                   <option v-for="model in models" :key="model.id" :value="model.id">{{ model.name }} · {{ model.architecture }}</option>
                 </select>
@@ -276,7 +281,7 @@ async function submit() {
             </div>
             <label class="field">
               <span>训练数据集 <b>*</b></span>
-              <select v-model="draft.datasetId" :disabled="datasetsLoading || !compatibleDatasets.length" required
+              <select v-model="draft.datasetId" :disabled="iterationMode || datasetsLoading || !compatibleDatasets.length" required
                 @change="submitError = ''">
                 <option value="" disabled>
                   {{ datasetsLoading ? '正在读取数据集…' : compatibleDatasets.length ? '请选择匹配的数据集' : '暂无匹配数据集' }}
@@ -292,7 +297,7 @@ async function submit() {
             </template>
             <div class="field-grid split-grid">
               <div class="field">
-                <span>已保存的分集</span>
+                <span>{{ iterationMode ? '固定清单的分集' : '已保存的分集' }}</span>
                 <div class="split-bar" aria-hidden="true">
                   <span v-for="split in splitSummary.splits" :key="split.key" :class="split.key"
                     :style="{ width: split.percent + '%' }"></span>

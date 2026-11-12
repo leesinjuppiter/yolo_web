@@ -9,8 +9,9 @@ export interface IndependentReport {
   notice?: string
   actualDevice: string
   metrics: Metrics
-  snapshot: { digest: string; sampleCount: number }
-  perClass: { classIndex: number; name: string; map50_95: number }[]
+  purpose?: 'diagnostic' | 'final'
+  snapshot: { digest: string; sampleCount: number; split?: 'val' | 'test' }
+  perClass: { classIndex: number; name: string; map50_95: number; maskMap50_95?: number; maskMap50?: number; maskPrecision?: number; maskRecall?: number }[]
 }
 export interface PairedValidation {
   status: 'completed'; sampleCount: number; snapshotDigest: string
@@ -50,6 +51,11 @@ export function validateReport(value: unknown): asserts value is ModelReport {
     fields(report.snapshot, ['digest'], ['sampleCount'])
     if (!Array.isArray(report.perClass)) throw new Error('验证报告格式不符合约定：perClass')
     report.perClass.forEach(item => fields(item, ['name'], ['classIndex', 'map50_95']))
+    report.perClass.forEach(item => {
+      for (const key of ['maskMap50_95', 'maskMap50', 'maskPrecision', 'maskRecall']) {
+        if (item[key] !== undefined && (typeof item[key] !== 'number' || !Number.isFinite(item[key]))) throw new Error(`验证报告格式不符合约定：${key}`)
+      }
+    })
     return
   }
   if (report.format !== 'onnx') throw new Error('验证报告格式不符合约定：导出格式')

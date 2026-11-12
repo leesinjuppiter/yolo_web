@@ -13,6 +13,7 @@ from app.deployment import models as deployment_models  # noqa: F401
 from app.quality import models as quality_models  # noqa: F401
 from app.quality import review_models  # noqa: F401
 from app.training import models as training_models  # noqa: F401
+from app.active_learning import models as active_learning_models  # noqa: F401
 
 
 if context.is_offline_mode():

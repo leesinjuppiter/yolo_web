@@ -34,9 +34,15 @@ class TrainingConfig(BaseModel):
     freeze: Annotated[int, Field(strict=True, ge=0, le=1000)] = 0
     workers: Annotated[int, Field(strict=True, ge=0, le=32)] = 0
     augmentation: Literal["standard"]
+    iterationId: UUID | None = None
+    manifestId: UUID | None = None
+    manifestDigest: Annotated[str, StringConstraints(pattern=r"^[a-f0-9]{64}$")] | None = None
 
     @model_validator(mode="after")
     def check_device_parameters(self):
+        references = (self.iterationId, self.manifestId, self.manifestDigest)
+        if any(value is not None for value in references) and not all(value is not None for value in references):
+            raise ValueError("主动学习训练必须同时提供迭代、清单及摘要")
         if self.deviceId == "cpu" and self.amp:
             raise ValueError("CPU 训练不支持启用 AMP，请关闭 AMP 或选择 CUDA 设备")
         return self

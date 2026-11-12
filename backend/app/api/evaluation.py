@@ -2,6 +2,7 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Header, Query
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
@@ -36,3 +37,26 @@ def logs(run_id: UUID, db: Database, after_sequence: Annotated[int, Query(ge=0)]
 @router.post("/{run_id}/cancel")
 def cancel(run_id: UUID, db: Database):
     return TOOLS["evaluation.cancel"](db, str(run_id))
+
+
+@router.get("/{run_id}/images")
+def images(run_id: UUID, db: Database, page: Annotated[int, Query(ge=1)] = 1,
+           page_size: Annotated[int, Query(ge=1, le=100)] = 30):
+    return TOOLS["evaluation.images"](db, str(run_id), page, page_size)
+
+
+@router.get("/{run_id}/images/{image_id}")
+def image_detail(run_id: UUID, image_id: str, db: Database):
+    return TOOLS["evaluation.image_detail"](db, str(run_id), image_id)
+
+
+@router.get("/{run_id}/images/{image_id}/content")
+def image_content(run_id: UUID, image_id: str, db: Database):
+    return FileResponse(TOOLS["evaluation.image_content"](db, str(run_id), image_id),
+                        headers={"Cache-Control": "private, max-age=86400"})
+
+
+@router.get("/{run_id}/images/{image_id}/thumbnail")
+def image_thumbnail(run_id: UUID, image_id: str, db: Database):
+    return FileResponse(TOOLS["evaluation.image_content"](db, str(run_id), image_id, True),
+                        media_type="image/jpeg", headers={"Cache-Control": "private, max-age=86400"})

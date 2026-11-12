@@ -1,0 +1,104 @@
+{
+  "date": "2026-11-12",
+  "projectId": "18239273122054167103",
+  "downloadMethod": "Stitch download_file",
+  "visualInspection": "All six PNGs inspected; static design only",
+  "files": [
+    {
+      "file": "S1.html",
+      "screenId": "58f72ab618da41758523c88f9bb51217",
+      "title": "新建主动学习任务 - 弹窗画板",
+      "bytes": 38926,
+      "sha256": "0113f15402200a897d18fe01325ca879634d6f844da0d1048519277721dfdf18"
+    },
+    {
+      "file": "S1.png",
+      "screenId": "58f72ab618da41758523c88f9bb51217",
+      "title": "新建主动学习任务 - 弹窗画板",
+      "bytes": 584530,
+      "sha256": "d5aa076db3647660fcf5ac885724fa31d54d51eafd47609daaa972d2e7675281",
+      "width": 2560,
+      "height": 2048
+    },
+    {
+      "file": "S2.html",
+      "screenId": "99fdd1eaef76499f97c091f1c980ea2d",
+      "title": "主动学习工作台 - 迭代与推荐看板",
+      "bytes": 33296,
+      "sha256": "430c386ca2e7384de0dcaa037ba028e99fe8ece1fa631effe96d22b5c902cd92"
+    },
+    {
+      "file": "S2.png",
+      "screenId": "99fdd1eaef76499f97c091f1c980ea2d",
+      "title": "主动学习工作台 - 迭代与推荐看板",
+      "bytes": 504637,
+      "sha256": "8d09d8b12b6865bef7f67a9227b8cf502c2692c5515856097d629b4ab42a0ab9",
+      "width": 2560,
+      "height": 2048
+    },
+    {
+      "file": "S3.html",
+      "screenId": "89a22945b1c24d59a58ae1aeacac5c09",
+      "title": "主动学习推荐任务详情 - 候选与参考工作台",
+      "bytes": 45111,
+      "sha256": "f31c1a32022843bdd6d489c449312735768b91066c2cdba72f229c8883a2dd44"
+    },
+    {
+      "file": "S3.png",
+      "screenId": "89a22945b1c24d59a58ae1aeacac5c09",
+      "title": "主动学习推荐任务详情 - 候选与参考工作台",
+      "bytes": 2398133,
+      "sha256": "349b59fb2a411ba50f37b86bb5712c5cc4e8419d33c6e6295de8b0381a8a4a40",
+      "width": 2560,
+      "height": 2048
+    },
+    {
+      "file": "S4.html",
+      "screenId": "931c0aa783b240a49be465ed0e45f017",
+      "title": "主动学习 - 人工复核工作台",
+      "bytes": 35530,
+      "sha256": "8b52c0bf8e83df9adfdfb6e18536add98b224835ad2b686be4cc2eab855c2776"
+    },
+    {
+      "file": "S4.png",
+      "screenId": "931c0aa783b240a49be465ed0e45f017",
+      "title": "主动学习 - 人工复核工作台",
+      "bytes": 2873106,
+      "sha256": "ccfdfdc998f2de000cbb3b11f86940a09f7b89d69e7fd23fcf0f1b192469f5d7",
+      "width": 2560,
+      "height": 2048
+    },
+    {
+      "file": "S5.html",
+      "screenId": "3bebd7ebe14d4fc3b64653a9aca64a87",
+      "title": "主动学习迭代详情 - 闭环与效果对比看板",
+      "bytes": 41244,
+      "sha256": "1764171312a06f25fa84e10eeabaa93b055110eef76329e6615321c1c5e9c8af"
+    },
+    {
+      "file": "S5.png",
+      "screenId": "3bebd7ebe14d4fc3b64653a9aca64a87",
+      "title": "主动学习迭代详情 - 闭环与效果对比看板",
+      "bytes": 694201,
+      "sha256": "d64e698e4d2a492a1950eb843fd6905ce2e2421b87f38b04c2da5059162a5830",
+      "width": 2560,
+      "height": 2048
+    },
+    {
+      "file": "S6.html",
+      "screenId": "fcefd2f68d9b4990b84df459f3881e59",
+      "title": "准备下一轮训练 - 预检弹窗画板",
+      "bytes": 31424,
+      "sha256": "7e08fa768e64382a7e7dc1913fafc2ac5d1fd958a2030a831c26561155b15e61"
+    },
+    {
+      "file": "S6.png",
+      "screenId": "fcefd2f68d9b4990b84df459f3881e59",
+      "title": "准备下一轮训练 - 预检弹窗画板",
+      "bytes": 703552,
+      "sha256": "24217b57ed25fba5e4122686f91e36bcfec2950d4b70762eb3c2e66634fe1db2",
+      "width": 2560,
+      "height": 2048
+    }
+  ]
+}

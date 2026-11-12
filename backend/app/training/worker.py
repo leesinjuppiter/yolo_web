@@ -123,6 +123,13 @@ def _prepare(task: TrainingTask, directory: Path, check) -> dict:
         from app.training.resume import prepare_resume
 
         snapshot = prepare_resume(task, directory, check)
+    elif task.config.get("manifestId"):
+        from app.active_learning.manifests import materialize_manifest
+
+        with Session(engine()) as db:
+            check()
+            snapshot = materialize_manifest(db, task.config["manifestId"], directory / "input",
+                                            expected_digest=task.config["manifestDigest"], check_cancel=check)
     else:
         with Session(engine()) as db:
             snapshot = prepare_snapshot(db, task.dataset_id, task.config["task"], directory / "input",
@@ -271,7 +278,14 @@ def _process(task: TrainingTask, stop: Event, verify_lock) -> None:
         check(force=True)
         if task.snapshot is None:
             task.snapshot = _prepare(task, directory, check)
-        _train(task, directory, stop, check)
+        from app.training.compute import device_slot
+
+        def waiting():
+            with _edit(task) as (_, row):
+                row.phase = "waiting_device"
+
+        with device_slot(task.config["deviceId"], check, waiting):
+            _train(task, directory, stop, check)
     except (Canceled, SnapshotError, WorkerStopping, DeviceUnavailableError, ValueError) as exc:
         artifacts = _retained_artifacts(directory)
         with _edit(task) as (_, row):

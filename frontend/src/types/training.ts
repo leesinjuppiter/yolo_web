@@ -15,6 +15,7 @@ export const trainingStatusLabels: Record<TrainingStatus, string> = {
 export const terminalTrainingStates = new Set<TrainingStatus>(['succeeded', 'failed', 'canceled'])
 
 export const trainingPhaseLabels: Record<string, string> = {
+  waiting_device: '等待计算设备空闲',
   created: '等待准备', validating: '校验数据', preparing: '生成训练快照', queued: '等待执行资源',
   starting: '启动训练进程', training: '训练模型', validating_model: '验证模型',
   checking: '校验数据', snapshot: '生成训练快照', loading: '加载模型',
@@ -22,6 +23,9 @@ export const trainingPhaseLabels: Record<string, string> = {
 }
 
 export interface TrainingConfig {
+  iterationId?: string
+  manifestId?: string
+  manifestDigest?: string
   name: string
   datasetId: string
   task: SelectableDatasetTask
@@ -221,6 +225,7 @@ export interface TrainingFilters {
 }
 
 export interface TrainingPreflight {
+  splitCounts?: Partial<Record<'train' | 'val' | 'test', number>>
   errors: { code: string; message: string }[]
   warnings: { code: string; message: string }[]
 }

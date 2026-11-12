@@ -17,6 +17,7 @@ from app.api.evaluation import router as evaluation_router
 from app.api.exports import router as export_router
 from app.api.deployment import router as deployment_router
 from app.api.changes import router as changes_router
+from app.api.active_learning import router as active_learning_router
 from app.notifications.service import ChangeFeed
 from app.core.database import engine
 from app.dataset.analysis.reporting import compute_report
@@ -51,6 +52,7 @@ app.include_router(evaluation_router)
 app.include_router(export_router)
 app.include_router(deployment_router)
 app.include_router(changes_router)
+app.include_router(active_learning_router)
 log = logging.getLogger(__name__)
 
 

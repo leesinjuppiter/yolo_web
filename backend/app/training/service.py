@@ -89,6 +89,9 @@ def _model_for(db: Session, config: TrainingConfig) -> catalog.ModelOption:
 
 def preflight(db: Session, config: TrainingConfig) -> dict:
     _model_for(db, config)
+    if config.manifestId:
+        from app.active_learning.manifests import validate_training_manifest
+        return validate_training_manifest(db, config)
     return inspect_dataset(db, str(config.datasetId), config.task)
 
 
@@ -104,7 +107,11 @@ def create(db: Session, config: TrainingConfig, key: str | None) -> dict:
                 return task_response(previous, repository.get_model_version(db, previous.id))
         repository.reserve_task_name(db, config.name)
         model = _model_for(db, config)
-        report = inspect_dataset(db, str(config.datasetId), config.task)
+        if config.manifestId:
+            from app.active_learning.manifests import validate_training_manifest
+            report = validate_training_manifest(db, config)
+        else:
+            report = inspect_dataset(db, str(config.datasetId), config.task)
         if not report.get("datasetName"):
             raise NotFound("未找到数据集")
         if report["errors"]:
