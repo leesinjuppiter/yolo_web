@@ -68,6 +68,24 @@ def test_training_heartbeat_suppression_resource_routing_and_log_id(connections)
     assert received(listener)[0]["id"] == "task"
 
 
+@pytest.mark.parametrize("environment", [None, "null"], ids=["sql_null", "json_null"])
+def test_training_environment_initialization_from_null(connections, environment):
+    listener, writer = connections
+    temporary_table(writer, "training_tasks", "id text, heartbeat_at int, environment jsonb", "training")
+    writer.execute("INSERT INTO training_tasks VALUES ('task',1,%s::jsonb)", (environment,))
+    writer.commit()
+    assert received(listener)[0]["topic"] == "training"
+    writer.execute('UPDATE training_tasks SET environment=\'{"device":"cpu"}\',heartbeat_at=2')
+    writer.commit()
+    assert received(listener) == [{"topic": "training", "table": "training_tasks", "id": "task"}]
+    writer.execute('UPDATE training_tasks SET environment=\'{"device":"cpu","resourceSample":1}\'')
+    writer.commit()
+    assert received(listener)[0]["topic"] == "resources"
+    writer.execute("UPDATE training_tasks SET heartbeat_at=3")
+    writer.commit()
+    assert received(listener) == []
+
+
 def test_report_lease_does_not_refresh_page_and_kind_is_preserved(connections):
     listener, writer = connections
     temporary_table(writer, "dataset_analysis_jobs", "dataset_id text, kind text, lease_until int, claim_token text, completed int", "reports")
