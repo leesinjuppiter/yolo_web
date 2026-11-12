@@ -1,4 +1,5 @@
 from collections.abc import Iterator
+from hashlib import file_digest
 from pathlib import Path
 from uuid import UUID
 
@@ -94,6 +95,15 @@ def artifact_file(task: TrainingTask, artifact_id: str) -> tuple[dict, Path]:
     path = (root / item["path"]).resolve()
     if not path.is_relative_to(root) or not path.is_file():
         raise NotFound("训练产物文件不存在")
+    return item, path
+
+
+def verified_artifact_file(task: TrainingTask, artifact_id: str) -> tuple[dict, Path]:
+    item, path = artifact_file(task, artifact_id)
+    with path.open('rb') as source:
+        digest = file_digest(source, 'sha256').hexdigest()
+    if item['sha256'] != digest:
+        raise Conflict('最优权重的文件校验值与训练记录不一致')
     return item, path
 
 

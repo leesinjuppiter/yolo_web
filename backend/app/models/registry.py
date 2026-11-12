@@ -20,11 +20,10 @@ def get_pair(db: Session, version_id: str):
 
 def latest_evaluation(db: Session, version_id: str):
     return db.scalar(select(EvaluationRun).where(EvaluationRun.version_id == version_id,
-        EvaluationRun.status == "succeeded").order_by(EvaluationRun.created_at.desc()).limit(1))
+        EvaluationRun.status == "succeeded").order_by(EvaluationRun.created_at.desc(), EvaluationRun.id.desc()).limit(1))
 
 
-def item(db: Session, version: ModelVersion, task: TrainingTask) -> dict:
-    evaluation = latest_evaluation(db, version.id)
+def item(version: ModelVersion, task: TrainingTask, evaluation: EvaluationRun | None) -> dict:
     name = version.display_name or task.config["name"]
     actions = ["restore"] if version.lifecycle == "archived" else ["archive", "finetune"]
     if version.lifecycle != "archived" and task.config["task"] in ("detect", "obb"):
@@ -51,18 +50,25 @@ def listing(db: Session, query: str = "", task: str | None = None, lifecycle: st
     if lifecycle:
         statement = statement.where(ModelVersion.lifecycle == lifecycle)
     total = db.scalar(select(func.count()).select_from(statement.subquery()))
-    rows = db.execute(statement.order_by(ModelVersion.number.desc()).offset((page - 1) * page_size).limit(page_size))
+    rows = db.execute(statement.order_by(ModelVersion.number.desc()).offset((page - 1) * page_size).limit(page_size)).all()
+    ranked = select(EvaluationRun.id, func.row_number().over(
+        partition_by=EvaluationRun.version_id,
+        order_by=(EvaluationRun.created_at.desc(), EvaluationRun.id.desc()),
+    ).label('position')).where(EvaluationRun.status == 'succeeded',
+                             EvaluationRun.version_id.in_([version.id for version, _ in rows])).subquery()
+    evaluations = {row.version_id: row for row in db.scalars(select(EvaluationRun)
+        .join(ranked, EvaluationRun.id == ranked.c.id).where(ranked.c.position == 1))}
     summary = {"total": db.scalar(select(func.count()).select_from(ModelVersion)),
                "archived": db.scalar(select(func.count()).select_from(ModelVersion).where(ModelVersion.lifecycle == "archived")),
                "evaluated": db.scalar(select(func.count(func.distinct(EvaluationRun.version_id))).where(
                    EvaluationRun.status == "succeeded"))}
-    return {"items": [item(db, version, source) for version, source in rows], "total": total,
+    return {"items": [item(version, source, evaluations.get(version.id)) for version, source in rows], "total": total,
             "page": page, "pageSize": page_size, "summary": summary}
 
 
 def detail(db: Session, version_id: str) -> dict:
     version, task = get_pair(db, version_id)
-    result = item(db, version, task)
+    result = item(version, task, latest_evaluation(db, version.id))
     result.update(config=task.config, artifacts=[
         {**{key: value for key, value in asset.items() if key != "path"},
          "url": f"/api/training/{task.id}/artifacts/{asset['id']}"} for asset in task.artifacts],
@@ -78,7 +84,7 @@ def update(db: Session, version_id: str, metadata) -> dict:
         if not version.display_name:
             raise ValueError("模型名称不能为空")
         db.flush()
-        return item(db, version, task)
+        return item(version, task, latest_evaluation(db, version.id))
 
 
 def lifecycle(db: Session, version_id: str, archived: bool) -> dict:
@@ -86,7 +92,7 @@ def lifecycle(db: Session, version_id: str, archived: bool) -> dict:
         version, task = get_pair(db, version_id)
         version.lifecycle = "archived" if archived else "candidate"
         db.flush()
-        return item(db, version, task)
+        return item(version, task, latest_evaluation(db, version.id))
 
 
 def delete_version(db: Session, version_id: str) -> None:

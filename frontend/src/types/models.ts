@@ -1,4 +1,5 @@
 import type { SelectableDatasetTask } from '../domain'
+import type { ModelReport } from './reports'
 export interface ModelVersion {
  id:string; name:string; displayName:string; description?:string; version:string; taskType:SelectableDatasetTask
  taskId:string; sourceTaskId:string; datasetId:string; datasetName:string; snapshotDigest:string; sha256:string; createdAt:string
@@ -7,7 +8,7 @@ export interface ModelVersion {
 }
 export interface ModelJob {
  id:string; versionId:string; exportId?:string; status:string; phase:string; config:Record<string,unknown>
- createdAt:string; finishedAt?:string; error:string|null; report:Record<string,unknown>|null; downloadUrl?:string|null
+ createdAt:string; finishedAt?:string; error:string|null; report:ModelReport|null; downloadUrl?:string|null
  manifest?:Record<string,unknown>; logs?:JobLog[]
 }
 export interface JobLog {sequence:number; level:string; message:string; time?:string}

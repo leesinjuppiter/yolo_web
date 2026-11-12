@@ -1,10 +1,11 @@
 """Convert absolute-pixel annotations to and from YOLO rows."""
 
 from collections.abc import Mapping, Sequence
-from math import atan2, cos, degrees, hypot, isfinite, radians, sin
+from math import atan2, degrees, hypot, isfinite
 from uuid import uuid4
 
 from app.dataset.schemas import TASK_ANNOTATION
+from app.annotation.geometry import obb_corners
 
 
 def _coordinates(values: Sequence[float]) -> list[float]:
@@ -28,14 +29,6 @@ def _absolute_box(values: Sequence[float], width: int, height: int) -> dict:
             "width": w * width, "height": h * height}
 
 
-def _corners(box: dict) -> list[tuple[float, float]]:
-    angle = radians(box["angle"] % 360)
-    c, s = cos(angle), sin(angle)
-    w, h = box["width"] / 2, box["height"] / 2
-    return [(box["cx"] + x * c - y * s, box["cy"] + x * s + y * c)
-            for x, y in [(-w, -h), (w, -h), (w, h), (-w, h)]]
-
-
 def _absolute_obb(points: Sequence[tuple[float, float]]) -> dict:
     a, b, c, d = points
     dx, dy = b[0] - a[0], b[1] - a[1]
@@ -56,7 +49,7 @@ def _encode(annotation: dict, width: int, height: int, keypoint_names: Sequence[
     if kind == "bbox":
         return _coordinates(_box_values(annotation["bbox"], width, height))
     if kind in ("obb", "polygon"):
-        points = _corners(annotation["obb"]) if kind == "obb" else annotation["polygon"]
+        points = obb_corners(annotation["obb"]) if kind == "obb" else annotation["polygon"]
         return _coordinates([value for x, y in points for value in (x / width, y / height)])
 
     points = {point["name"]: point for point in annotation["keypoints"]}

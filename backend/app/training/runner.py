@@ -76,13 +76,10 @@ def _callbacks(model, emit):
 def _run(config: dict, emit) -> None:
     emit("phase", phase="loading")
     from ultralytics import YOLO, settings
-    from ultralytics.data import utils
-    from ultralytics.utils import plotting
-    from matplotlib.font_manager import findfont
+    from app.core.fonts import configure_plot_fonts
 
     # Use installed fonts for preview rendering, without any network lookup.
-    utils.check_font = lambda _name: None
-    plotting.check_font = lambda name: findfont("Microsoft YaHei" if "Unicode" in str(name) else "DejaVu Sans")
+    configure_plot_fonts()
     integrations = ("sync", "clearml", "comet", "dvc", "mlflow", "neptune", "raytune", "tensorboard", "wandb")
     settings.update({key: False for key in integrations if key in settings})
     emit("environment", versions={name: version(name) for name in ("torch", "torchvision", "ultralytics")})

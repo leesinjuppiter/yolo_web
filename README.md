@@ -76,6 +76,8 @@ PyTorch 构建应与硬件和驱动匹配，命令参考 [PyTorch 官方历史�
 
 `backend/requirements.txt` 是后端基础依赖范围，未包含训练框架和完整环境锁定；导出依赖单列在 `backend/requirements-exports.txt`。已有可用环境无需重复安装。
 
+训练预测图与真实标注预览共用系统字体。Ubuntu 需要安装 `fonts-noto-cjk`（`apt-get install -y fonts-noto-cjk`）来显示中文类别；Windows 使用系统中的微软雅黑。字体包独立于 Conda、PyTorch 和 CUDA。
+
 ## 配置与启动
 
 ### 数据库和环境变量

@@ -1,5 +1,6 @@
 import type { RegistryList,ModelVersion,Comparison } from '../types/models'
 import { createUuid } from '../utils/id'
+import { validateModelReports } from '../types/reports'
 export async function modelRequest<T>(url:string,init?:RequestInit):Promise<T>{
  const response=await fetch(url,{cache:'no-store',...init})
  if(!response.ok){
@@ -7,7 +8,9 @@ export async function modelRequest<T>(url:string,init?:RequestInit):Promise<T>{
   throw new Error(typeof detail==='string'?detail:Array.isArray(detail)?detail.map(x=>x.msg).join('；'):detail?.message||'操作失败（HTTP '+response.status+'）')
  }
  if(response.status===204)return undefined as T
- return response.json()
+ const payload:unknown=await response.json()
+ validateModelReports(payload)
+ return payload as T
 }
 export const jsonPost=(body:unknown,key:string=createUuid()):RequestInit=>({method:'POST',headers:{'Content-Type':'application/json','Idempotency-Key':key},body:JSON.stringify(body)})
 export const listModels=(params:URLSearchParams,signal?:AbortSignal)=>modelRequest<RegistryList>('/api/models?'+params,{signal})

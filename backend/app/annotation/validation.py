@@ -1,7 +1,6 @@
-from math import cos, radians, sin
-
 from pydantic import TypeAdapter, ValidationError
 
+from app.annotation.geometry import obb_corners
 from app.annotation.schemas import Annotation, BoundingBox, OrientedBox, Polygon, Pose, Rectangle
 from app.dataset.schemas import TASK_ANNOTATION
 
@@ -11,16 +10,6 @@ _TOLERANCE = 0.5
 
 def _bbox_points(box: Rectangle) -> list[tuple[float, float]]:
     return [(box.x, box.y), (box.x + box.width, box.y + box.height)]
-
-
-def _obb_points(box: OrientedBox) -> list[tuple[float, float]]:
-    shape = box.obb
-    angle = radians(shape.angle % 360)
-    dx, dy = shape.width / 2, shape.height / 2
-    return [
-        (shape.cx + x * cos(angle) - y * sin(angle), shape.cy + x * sin(angle) + y * cos(angle))
-        for x, y in [(-dx, -dy), (dx, -dy), (dx, dy), (-dx, dy)]
-    ]
 
 
 def _polygon_points(shape: Polygon) -> list[tuple[float, float]]:
@@ -38,7 +27,7 @@ def _check_geometry(annotation: Annotation, width: int, height: int, keypoint_na
     if isinstance(annotation, BoundingBox):
         points = _bbox_points(annotation.bbox)
     elif isinstance(annotation, OrientedBox):
-        points = _obb_points(annotation)
+        points = obb_corners(annotation.obb.model_dump())
     elif isinstance(annotation, Polygon):
         points = _polygon_points(annotation)
     elif isinstance(annotation, Pose):

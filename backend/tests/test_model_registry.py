@@ -121,6 +121,57 @@ def test_compare_rejects_duplicates_and_does_not_rank_training_metrics(client, r
     assert client.post("/api/models/compare", json=payload).status_code == 422
 
 
+def test_registry_batches_latest_successful_evaluations(client, registry_version):
+    from datetime import datetime, timedelta, timezone
+    from sqlalchemy import event
+    from app.models.registry import listing
+
+    prefix = 'batch-' + uuid4().hex
+    extra_tasks, extra_versions = [], []
+    version_ids = [registry_version]
+    with Session(engine()) as db, db.begin():
+        first = db.get(ModelVersion, registry_version)
+        task = db.get(TrainingTask, first.task_id)
+        task.config = {**task.config, 'name': prefix + '-0'}
+        for index in (1, 2):
+            task_id, version_id = str(uuid4()), str(uuid4())
+            extra_tasks.append(task_id)
+            extra_versions.append(version_id)
+            db.add(TrainingTask(id=task_id, dataset_id=str(uuid4()), dataset_name='batch',
+                config={'name': prefix + f'-{index}', 'task': 'detect', 'deviceId': 'cpu'},
+                model_name='YOLO11n', architecture='yolo11n', status='succeeded'))
+            db.flush()
+            db.add(ModelVersion(id=version_id, task_id=task_id, artifact_id='best', sha256='0' * 64))
+            version_ids.append(version_id)
+        db.flush()
+        now = datetime.now(timezone.utc)
+        for version_id in version_ids:
+            for status, offset in (('succeeded', 0), ('succeeded', 1), ('failed', 2)):
+                db.add(EvaluationRun(version_id=version_id, config={}, status=status,
+                    report={'marker': offset}, created_at=now + timedelta(seconds=offset)))
+    queries = []
+    def track(_connection, _cursor, statement, *_args):
+        queries.append(statement)
+    bind = engine()
+    event.listen(bind, 'before_cursor_execute', track)
+    try:
+        with Session(bind) as db:
+            single = listing(db, query=prefix, page_size=1)
+        single_count = len(queries)
+        queries.clear()
+        with Session(bind) as db:
+            page = listing(db, query=prefix, page_size=3)
+        assert single_count == len(queries) == 6
+        assert len(single['items']) == 1 and len(page['items']) == 3
+        assert all(row['evaluation']['report']['marker'] == 1 for row in page['items'])
+    finally:
+        event.remove(bind, 'before_cursor_execute', track)
+        with Session(bind) as db, db.begin():
+            db.execute(delete(EvaluationRun).where(EvaluationRun.version_id.in_(version_ids)))
+            db.execute(delete(ModelVersion).where(ModelVersion.id.in_(extra_versions)))
+            db.execute(delete(TrainingTask).where(TrainingTask.id.in_(extra_tasks)))
+
+
 def test_delete_model_record_preserves_source_training_and_weights(client, registry_version):
     with Session(engine()) as db:
         version = db.get(ModelVersion, registry_version)

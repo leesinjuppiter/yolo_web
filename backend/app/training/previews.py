@@ -1,10 +1,12 @@
 """Single-image validation previews from the frozen inputs and best checkpoint."""
 
 import json
-from math import cos, radians, sin
 from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageFont
+
+from app.annotation.geometry import obb_corners
+from app.core.fonts import configure_plot_fonts, drawing_font
 
 
 def read_previews(directory: Path) -> list[dict]:
@@ -13,14 +15,13 @@ def read_previews(directory: Path) -> list[dict]:
 
 
 def _ground_truth(source: Path, sample: dict, classes: list[dict], destination: Path) -> None:
-    from matplotlib.font_manager import findfont
     from ultralytics.utils.plotting import colors
 
     with Image.open(source) as original:
         image = original.convert("RGB")
     draw = ImageDraw.Draw(image, "RGBA")
     width = max(2, round(min(image.size) / 250))
-    font = ImageFont.truetype(findfont("DejaVu Sans"), max(14, round(min(image.size) / 40)))
+    font = ImageFont.truetype(drawing_font(), max(14, round(min(image.size) / 40)))
     categories = {item["id"]: item for item in classes}
     for annotation in sample["annotations"]:
         category = categories[annotation["class_id"]]
@@ -34,14 +35,7 @@ def _ground_truth(source: Path, sample: dict, classes: list[dict], destination: 
             if kind == "polygon":
                 points = [tuple(point) for point in annotation["polygon"]]
             else:
-                box = annotation["obb"]
-                angle = radians(box["angle"])
-                points = [(box["cx"] + dx * cos(angle) - dy * sin(angle),
-                           box["cy"] + dx * sin(angle) + dy * cos(angle))
-                          for dx, dy in [(-box["width"]/2, -box["height"]/2),
-                                         (box["width"]/2, -box["height"]/2),
-                                         (box["width"]/2, box["height"]/2),
-                                         (-box["width"]/2, box["height"]/2)]]
+                points = obb_corners(annotation["obb"])
             draw.polygon(points, fill=(*color, 45))
             draw.line(points + [points[0]], fill=color, width=width)
             x, y = points[0]
@@ -56,6 +50,7 @@ def _ground_truth(source: Path, sample: dict, classes: list[dict], destination: 
 def generate_previews(directory: Path, *, device: str = "cpu") -> list[dict]:
     from ultralytics import YOLO
 
+    configure_plot_fonts()
     config = json.loads((directory / "invocation.json").read_text(encoding="utf-8"))
     frozen = directory / "input"
     manifest = json.loads((frozen / "manifest.json").read_text(encoding="utf-8"))

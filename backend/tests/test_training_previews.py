@@ -26,7 +26,7 @@ def test_single_previews_keep_original_size_and_pair_labels(tmp_path, monkeypatc
     rows = [{**sample, "split": split} for split in ("train", "test")]
     rows.extend({**sample, "split": "val"} for _ in range(count))
     (frozen / "samples.jsonl").write_text("\n".join(json.dumps(row) for row in rows))
-    (frozen / "manifest.json").write_text(json.dumps({"classes": [{"id": "object", "name": "coal", "index": 0}]}))
+    (frozen / "manifest.json").write_text(json.dumps({"classes": [{"id": "object", "name": "煤矸石", "index": 0}]}))
     (tmp_path / "invocation.json").write_text(json.dumps({"arguments": {"imgsz": 320}}))
     calls = []
 
@@ -67,3 +67,15 @@ def test_preview_manifest_cannot_register_paths_outside_preview_directory(tmp_pa
     folder.mkdir(parents=True)
     (folder / "manifest.json").write_text(json.dumps([{"id": "../../outside"}]))
     assert artifact_manifest(tmp_path) == []
+
+
+def test_prediction_and_annotation_font_contains_chinese_glyphs():
+    from matplotlib.ft2font import FT2Font
+    from ultralytics.utils import plotting
+    from app.core.fonts import configure_plot_fonts, drawing_font
+
+    configure_plot_fonts()
+    assert plotting.check_font('Arial.Unicode.ttf') == drawing_font()
+    assert plotting.check_font('Arial.ttf') == drawing_font()
+    characters = FT2Font(drawing_font()).get_charmap()
+    assert all(ord(character) in characters for character in '煤矸石异物')

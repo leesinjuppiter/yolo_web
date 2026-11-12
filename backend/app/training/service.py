@@ -1,5 +1,4 @@
 from datetime import datetime, timezone
-from hashlib import file_digest
 from math import isfinite
 
 from sqlalchemy import func, select
@@ -83,8 +82,6 @@ def options(db: Session) -> dict:
 def _model_for(db: Session, config: TrainingConfig) -> catalog.ModelOption:
     model = (resolve_version_model(db, config.modelId) if config.modelId.startswith("version:")
              else catalog.resolve_model(config.modelId))
-    if model.task != config.task:
-        raise ValueError("所选模型与训练任务类型不匹配")
     catalog.validate_model_config(config, model)
     validate_device(config.deviceId)
     return model
@@ -229,11 +226,8 @@ def register_version(db: Session, task_id: str) -> dict:
                          if item["kind"] == "checkpoint" and item["name"] == "best.pt"), None)
         if artifact is None or not _digest(task):
             raise Conflict("缺少训练快照或最优权重，无法注册模型版本")
-        _, path = repository.artifact_file(task, artifact["id"])
-        with path.open("rb") as source:
-            digest = file_digest(source, "sha256").hexdigest()
-        if artifact["sha256"] != digest:
-            raise Conflict("最优权重的文件校验值与训练记录不一致")
+        repository.verified_artifact_file(task, artifact["id"])
+        digest = artifact["sha256"]
         version = ModelVersion(task_id=task_id, artifact_id=artifact["id"], sha256=digest)
         db.add(version)
         db.flush()
