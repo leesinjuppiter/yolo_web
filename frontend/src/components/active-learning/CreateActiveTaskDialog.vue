@@ -13,6 +13,11 @@ const existing = ref(props.iteration?.id ?? ''), name = ref(''), goal = ref(''),
 const config = reactive<TaskConfig>({ iterationId: '', strategy: 'mixed', deviceId: 'cpu', imageSize: 640,
   retainConfidence: .05, minConfidence: .05, maxConfidence: .5, nmsIou: .7,
   referenceLimit: 50, candidateLimit: 50, includeNoPredictions: false })
+const strategies: { value: Strategy; description: string }[] = [
+  { value: 'error_first', description: '先查看已暴露的问题，指导修正或现场补采' },
+  { value: 'low_confidence', description: '从未标注图片中筛选低置信度预测' },
+  { value: 'mixed', description: '同时提供问题参考和未标注候选' },
+]
 const selectedIteration = computed(() => props.iterations.find(item => item.id === existing.value) ?? props.iteration)
 const model = computed(() => options.value?.models.find(item => item.id === (selectedIteration.value?.baselineVersionId ?? modelId.value)))
 const datasets = computed(() => options.value?.datasets.filter(item => item.id === model.value?.datasetId) ?? [])
@@ -65,7 +70,19 @@ onMounted(() => { dialog.value?.showModal(); void load() })
           </template>
           <p v-else class="al-note">沿用迭代的基线、目标数据集与固定 val。{{ selectedIteration?.name ?? createdIteration?.name }}</p>
           <h3>02　推荐配置</h3>
-          <label>推荐策略<select v-model="config.strategy"><option v-for="(label, value) in strategyLabels" :key="value" :value="value as Strategy">{{ label }}</option></select></label>
+          <fieldset class="al-strategies">
+            <legend>推荐策略</legend>
+            <div class="al-strategy-grid">
+              <label v-for="item in strategies" :key="item.value" class="al-strategy-card" :class="{ selected: config.strategy === item.value }">
+                <span class="al-strategy-title">
+                  <input v-model="config.strategy" type="radio" name="recommendation-strategy" :value="item.value">
+                  <strong>{{ strategyLabels[item.value] }}</strong>
+                  <span v-if="item.value === 'mixed'" class="al-strategy-badge">推荐</span>
+                </span>
+                <span class="al-strategy-description">{{ item.description }}</span>
+              </label>
+            </div>
+          </fieldset>
           <label v-if="config.strategy !== 'low_confidence'">基线 val 诊断<select v-model="config.evaluationId" required><option :value="undefined" disabled>选择已完成的固定 val 诊断</option><option v-for="item in evaluations" :key="item.id" :value="item.id">{{ item.id }}</option></select><small>若无可选记录，先为基线创建 val 诊断。test 不用于选样。</small></label>
           <div v-if="config.strategy !== 'low_confidence'" class="al-actions"><button type="button" class="button" :disabled="!model || busy" @click="diagnose">创建基线 val 诊断</button><button type="button" class="button" @click="load">重新读取诊断记录</button></div>
           <div class="al-field-grid">
@@ -86,3 +103,19 @@ onMounted(() => { dialog.value?.showModal(); void load() })
     </form>
   </dialog>
 </template>
+
+<style scoped>
+.al-strategies { margin: 16px 0; }
+.al-strategies legend { margin-bottom: 10px; font-weight: 600; }
+.al-strategy-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.al-strategy-card { margin: 0; padding: 16px; border: 2px solid var(--line, #c8d2df); border-radius: 3px; background: var(--soft, #f5f7fa); cursor: pointer; }
+.al-strategy-card.selected { border-color: var(--primary, #4f6885); background: #edf3fc; }
+.al-strategy-card:focus-within { outline: 2px solid var(--primary, #4f6885); outline-offset: 3px; }
+.al-strategy-title { display: flex; align-items: center; gap: 8px; min-height: 24px; }
+.al-strategy-title input { flex: none; width: 18px; height: 18px; margin: 0; padding: 0; accent-color: var(--primary, #4f6885); }
+.al-strategy-title strong { font-size: 15px; }
+.al-strategy-badge { margin-left: auto; padding: 2px 6px; border-radius: 2px; background: var(--primary, #4f6885); color: #fff; font-size: 12px; white-space: nowrap; }
+.al-strategy-description { font-size: 13px; line-height: 1.6; }
+.al-strategy-card:has(input:disabled) { cursor: default; opacity: .6; }
+@media (max-width: 700px) { .al-strategy-grid { grid-template-columns: 1fr; } }
+</style>
